@@ -18,7 +18,9 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
+    QMenu,
 )
+from PySide6.QtGui import QAction
 
 if len(sys.argv) > 1:
     libopenmpt_path = sys.argv[1]
@@ -196,7 +198,38 @@ class MainWindow(QMainWindow):
         self.tray_icon.setIcon(
             self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
         )
+
+        # Create tray menu
+        self.tray_menu = self.create_tray_menu()
+        self.tray_icon.setContextMenu(self.tray_menu)
         self.tray_icon.show()
+
+        # Minimize to tray
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+        self.hide()
+
+    def create_tray_menu(self):
+        tray_menu = QMenu(self)
+
+        play_pause_action = QAction("Play/Pause", self)
+        play_pause_action.triggered.connect(self.play_pause)
+        tray_menu.addAction(play_pause_action)
+
+        stop_action = QAction("Stop", self)
+        stop_action.triggered.connect(self.stop)
+        tray_menu.addAction(stop_action)
+
+        next_action = QAction("Next", self)
+        next_action.triggered.connect(self.next_module)
+        tray_menu.addAction(next_action)
+
+        tray_menu.addSeparator()
+
+        quit_action = QAction("Quit", self)
+        quit_action.triggered.connect(self.close)
+        tray_menu.addAction(quit_action)
+
+        return tray_menu
 
     @Slot()
     def play_pause(self):
@@ -294,6 +327,23 @@ class MainWindow(QMainWindow):
     def update_progress(self, position, length):
         self.progress_slider.setMaximum(length)
         self.progress_slider.setValue(position)
+
+    @Slot()
+    def tray_icon_activated(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            if self.isVisible():
+                self.hide()
+            else:
+                self.show()
+
+    @Slot()
+    def closeEvent(self, event):
+        self.tray_icon.hide()
+        event.accept()
+
+    @Slot()
+    def quit(self):
+        self.close()
 
 
 if __name__ == "__main__":
