@@ -1,8 +1,37 @@
 import ctypes
-from PySide6.QtCore import QThread, Signal
-import pyaudio
+import warnings
 
-from libopenmpt_loader import libopenmpt, log_callback, error_callback
+import pyaudio
+from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QCoreApplication
+
+from libopenmpt_loader import error_callback, libopenmpt, log_callback
+import logging
+
+
+def libopenmpt_example_print_error(
+    func_name: ctypes.c_char, mod_err: int, mod_err_str: ctypes.c_char | None
+):
+    if not func_name:
+        func_name = ctypes.c_char(b"unknown function")
+
+    if mod_err == libopenmpt.OPENMPT_ERROR_OUT_OF_MEMORY:
+        mod_err_str = libopenmpt.openmpt_error_string(mod_err)
+        if not mod_err_str:
+            warnings.warn("Error: OPENMPT_ERROR_OUT_OF_MEMORY")
+        else:
+            warnings.warn(f"Error: {mod_err_str}")
+            mod_err_str = None
+    else:
+        if not mod_err_str:
+            mod_err_str = libopenmpt.openmpt_error_string(mod_err)
+            if not mod_err_str:
+                warnings.warn(f"Error: {func_name} failed.")
+            else:
+                warnings.warn(f"Error: {func_name} failed: {mod_err_str}")
+            libopenmpt.openmpt_free_string(mod_err_str)
+            mod_err_str = None
+
 
 class PlayerThread(QThread):
     position_changed = Signal(int, int)  # Signal to emit position and length
