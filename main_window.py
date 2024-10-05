@@ -208,9 +208,6 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def closeEvent(self, event):
+        self.stop()
         self.tray_icon.hide()
         event.accept()
-
-    @Slot()
-    def quit(self):
-        self.close()
