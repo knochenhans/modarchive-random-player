@@ -112,11 +112,13 @@ class MainWindow(QMainWindow):
     @Slot()
     def stop(self):
         if self.player_thread:
+            print("Stopping player thread")
             self.player_thread.stop()
             self.player_thread.wait()
             self.play_button.setText("Play")
             self.stop_button.setEnabled(False)
             self.progress_slider.setEnabled(False)
+            print("Player thread stopped")
 
     @Slot()
     def next_module(self):
@@ -135,6 +137,7 @@ class MainWindow(QMainWindow):
         pass
 
     def load_and_play_module(self):
+        print("Loading and playing module")
         self.module_label.setText("Loading...")
         url = "https://modarchive.org/index.php?request=view_player&query=random"
         response = requests.get(url)
@@ -184,6 +187,7 @@ class MainWindow(QMainWindow):
                     self.progress_slider.setEnabled(True)
 
                 self.tray_icon.showMessage("Now Playing", module_name, self.icon, 10000)
+                print("Module loaded and playing")
         else:
             raise ValueError("Invalid module URL")
 

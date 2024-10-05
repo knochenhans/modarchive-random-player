@@ -42,6 +42,9 @@ class PlayerThread(QThread):
         self.module_size = module_size
         self.stop_flag = False
         self.pause_flag = False
+        logging.basicConfig(level=logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug("PlayerThread initialized with module size: %d", module_size)
 
     def run(self):
         SAMPLERATE = 48000
@@ -60,6 +63,7 @@ class PlayerThread(QThread):
         error = ctypes.c_int()
         error_message = ctypes.c_char_p()
 
+        self.logger.debug("Loading module")
         mod = load_mod(
             self.module_data,  # const void * filedata
             self.module_size,  # size_t filesize
@@ -82,9 +86,12 @@ class PlayerThread(QThread):
         )
 
         module_length = libopenmpt.openmpt_module_get_duration_seconds(mod)
+        self.logger.debug("Module length: %f seconds", module_length)
+
 
         while not self.stop_flag:
             if self.pause_flag:
+                self.logger.debug("Playback paused")
                 self.msleep(100)  # Sleep for a short time to avoid busy-waiting
                 continue
 
@@ -95,6 +102,7 @@ class PlayerThread(QThread):
             mod_err = libopenmpt.openmpt_module_error_get_last(mod)
             mod_err_str = libopenmpt.openmpt_module_error_get_last_message(mod)
             if mod_err != libopenmpt.OPENMPT_ERROR_OK:
+                self.logger.error("Error reading module: %s", mod_err_str)
                 libopenmpt_example_print_error(
                     ctypes.c_char(b"openmpt_module_read_interleaved_stereo()"),
                     mod_err,
@@ -103,6 +111,7 @@ class PlayerThread(QThread):
                 libopenmpt.openmpt_free_string(mod_err_str)
                 mod_err_str = None
             if count == 0:
+                self.logger.debug("End of module reached")
                 break
             stream.write(bytes(buffer))
 
@@ -114,8 +123,12 @@ class PlayerThread(QThread):
         stream.close()
         p.terminate()
 
+        self.logger.debug("Playback stopped")
+
     def stop(self):
+        self.logger.debug("Stop signal received")
         self.stop_flag = True
 
     def pause(self):
         self.pause_flag = not self.pause_flag
+        self.logger.debug("Pause toggled: %s", self.pause_flag)
