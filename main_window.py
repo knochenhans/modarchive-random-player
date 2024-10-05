@@ -1,21 +1,21 @@
 import tempfile
 import webbrowser
+
 import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QAction, QIcon
-
 from PySide6.QtWidgets import (
-    QMainWindow,
     QLabel,
+    QMainWindow,
+    QMenu,
     QPushButton,
     QSlider,
+    QStyle,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
-    QSystemTrayIcon,
-    QMenu,
-    QStyle,
 )
 
 from player_thread import PlayerThread

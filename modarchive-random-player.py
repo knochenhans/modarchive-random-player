@@ -1,6 +1,4 @@
-import ctypes
 import sys
-import warnings
 
 from PySide6.QtWidgets import QApplication
 
