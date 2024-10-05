@@ -8,6 +8,7 @@ A simple music player application using `libopenmpt` to play module files. This 
 - Display the current module name with a link to its page on The Mod Archive.
 - System tray notifications for the currently playing module.
 - Progress slider to show the current playback position.
+- Tray icon to show/hide the main window, also provides play/pause/stop controls.
 
 ## Requirements
 

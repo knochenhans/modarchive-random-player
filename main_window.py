@@ -26,6 +26,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.name = "Mod Archive Random Player"
         self.setWindowTitle(self.name)
+        self.icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
+        self.setWindowIcon(QIcon(self.icon))
 
         self.module_label = QLabel("No module loaded")
         self.module_label.setOpenExternalLinks(True)
@@ -60,9 +62,7 @@ class MainWindow(QMainWindow):
         self.player_thread = None
 
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(
-            self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
-        )
+        self.tray_icon.setIcon(self.icon)
 
         # Create tray menu
         self.tray_menu = self.create_tray_menu()
@@ -183,8 +183,7 @@ class MainWindow(QMainWindow):
                     self.stop_button.setEnabled(True)
                     self.progress_slider.setEnabled(True)
 
-                icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
-                self.tray_icon.showMessage("Now Playing", module_name, icon, 10000)
+                self.tray_icon.showMessage("Now Playing", module_name, self.icon, 10000)
         else:
             raise ValueError("Invalid module URL")
 
