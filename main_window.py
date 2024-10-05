@@ -166,15 +166,16 @@ class MainWindow(QMainWindow):
                 self.module_label.setText(f'<a href="{module_link}">{module_name}</a>')
                 self.setWindowTitle(f"{self.name} - {module_name}")
 
-                with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=module_name
-                ) as temp_file:
-                    temp_file.write(module_response.content)
-                filename = temp_file.name
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    temp_file_path = f"{temp_dir}/{module_name}"
+                    with open(temp_file_path, "wb") as temp_file:
+                        temp_file.write(module_response.content)
+                    filename = temp_file_path
 
-                with open(filename, "rb") as f:
-                    module_data = f.read()
-                    module_size = len(module_data)
+                    with open(filename, "rb") as f:
+                        module_data = f.read()
+                        module_size = len(module_data)
+                    filename = temp_file.name
 
                 self.player_thread = PlayerThread(module_data, module_size)
                 self.player_thread.song_finished.connect(
