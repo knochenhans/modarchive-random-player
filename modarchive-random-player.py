@@ -78,7 +78,7 @@ class PlayerThread(QThread):
 
     def run(self):
         SAMPLERATE = 48000
-        BUFFERSIZE = 4096
+        BUFFERSIZE = 1024
         buffer = (ctypes.c_int16 * (BUFFERSIZE * 2))()
 
         openmpt_log_func = ctypes.CFUNCTYPE(
@@ -107,7 +107,7 @@ class PlayerThread(QThread):
 
         p = pyaudio.PyAudio()
         stream = p.open(
-            format=pyaudio.paInt16, channels=2, rate=SAMPLERATE, output=True
+            format=pyaudio.paInt16, channels=2, rate=SAMPLERATE, output=True, frames_per_buffer=BUFFERSIZE
         )
 
         module_length = libopenmpt.openmpt_module_get_duration_seconds(mod)
