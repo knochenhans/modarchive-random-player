@@ -114,7 +114,9 @@ class MainWindow(QMainWindow):
         if self.player_thread:
             print("Stopping player thread")
             self.player_thread.stop()
-            self.player_thread.wait()
+            if not self.player_thread.wait(5000):
+                self.player_thread.terminate()
+                self.player_thread.wait()
             self.play_button.setText("Play")
             self.stop_button.setEnabled(False)
             self.progress_slider.setEnabled(False)
@@ -168,23 +170,23 @@ class MainWindow(QMainWindow):
                     delete=False, suffix=module_name
                 ) as temp_file:
                     temp_file.write(module_response.content)
-                    filename = temp_file.name
+                filename = temp_file.name
 
-                    with open(filename, "rb") as f:
-                        module_data = f.read()
-                        module_size = len(module_data)
+                with open(filename, "rb") as f:
+                    module_data = f.read()
+                    module_size = len(module_data)
 
-                    self.player_thread = PlayerThread(module_data, module_size)
-                    self.player_thread.finished.connect(
-                        self.next_module
-                    )  # Connect finished signal
-                    self.player_thread.position_changed.connect(
-                        self.update_progress
-                    )  # Connect position changed signal
-                    self.player_thread.start()
-                    self.play_button.setText("Pause")
-                    self.stop_button.setEnabled(True)
-                    self.progress_slider.setEnabled(True)
+                self.player_thread = PlayerThread(module_data, module_size)
+                self.player_thread.song_finished.connect(
+                    self.next_module
+                )  # Connect finished signal
+                self.player_thread.position_changed.connect(
+                    self.update_progress
+                )  # Connect position changed signal
+                self.player_thread.start()
+                self.play_button.setText("Pause")
+                self.stop_button.setEnabled(True)
+                self.progress_slider.setEnabled(True)
 
                 self.tray_icon.showMessage("Now Playing", module_name, self.icon, 10000)
                 print("Module loaded and playing")

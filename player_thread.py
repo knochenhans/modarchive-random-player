@@ -35,6 +35,7 @@ def libopenmpt_example_print_error(
 
 class PlayerThread(QThread):
     position_changed = Signal(int, int)  # Signal to emit position and length
+    song_finished = Signal()  # Signal to emit when song is finished
 
     def __init__(self, module_data, module_size, parent=None):
         super().__init__(parent)
@@ -88,6 +89,7 @@ class PlayerThread(QThread):
         module_length = libopenmpt.openmpt_module_get_duration_seconds(mod)
         self.logger.debug("Module length: %f seconds", module_length)
 
+        count = 0
 
         while not self.stop_flag:
             if self.pause_flag:
@@ -122,6 +124,10 @@ class PlayerThread(QThread):
         stream.stop_stream()
         stream.close()
         p.terminate()
+
+        if count == 0:
+            self.song_finished.emit()
+            self.logger.debug("Song finished")
 
         self.logger.debug("Playback stopped")
 
