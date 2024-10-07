@@ -67,7 +67,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             libopenmpt_example_print_error(
                 ctypes.c_char(b"openmpt_module_create_from_memory2()"),
                 error.value,
-                error_message,
+                ctypes.cast(error_message, ctypes.POINTER(ctypes.c_char)).contents,
             )
             libopenmpt.openmpt_free_string(error_message)
             return False
