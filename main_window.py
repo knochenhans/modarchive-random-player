@@ -7,12 +7,14 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from loguru import logger
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QAction, QFont, QIcon
 from PySide6.QtWidgets import (
+    QHBoxLayout,
     QLabel,
     QMainWindow,
     QMenu,
     QPushButton,
+    QScrollArea,
     QSlider,
     QStyle,
     QSystemTrayIcon,
@@ -33,18 +35,29 @@ class MainWindow(QMainWindow):
         self.icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
         self.setWindowIcon(QIcon(self.icon))
 
-        self.module_label: QLabel = QLabel("No module loaded")
-        self.module_label.setOpenExternalLinks(True)
-        self.module_label.linkActivated.connect(self.open_module_link)
+        self.artist_label: QLabel = QLabel("Artist: Unknown")
+        self.title_label: QLabel = QLabel("Title: Unknown")
+        self.filename_label: QLabel = QLabel("Filename: Unknown")
+        self.filename_label.setOpenExternalLinks(True)
+        self.filename_label.linkActivated.connect(self.open_module_link)
 
-        self.play_button: QPushButton = QPushButton("Play")
+        self.play_button: QPushButton = QPushButton()
+        self.play_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
+        )
         self.play_button.clicked.connect(self.play_pause)
 
-        self.stop_button: QPushButton = QPushButton("Stop")
+        self.stop_button: QPushButton = QPushButton()
+        self.stop_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop)
+        )
         self.stop_button.clicked.connect(self.stop)
         self.stop_button.setEnabled(False)
 
-        self.next_button: QPushButton = QPushButton("Next")
+        self.next_button: QPushButton = QPushButton()
+        self.next_button.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSkipForward)
+        )
         self.next_button.clicked.connect(self.next_module)
 
         self.progress_slider: QSlider = QSlider()
@@ -52,15 +65,43 @@ class MainWindow(QMainWindow):
         self.progress_slider.setEnabled(False)
         self.progress_slider.sliderMoved.connect(self.seek)
 
-        layout: QVBoxLayout = QVBoxLayout()
-        layout.addWidget(self.module_label)
-        layout.addWidget(self.play_button)
-        layout.addWidget(self.stop_button)
-        layout.addWidget(self.next_button)
-        layout.addWidget(self.progress_slider)
+        # Create a multiline text label with fixed-width font
+        self.multiline_label: QLabel = QLabel("No module loaded")
+        self.multiline_label.setWordWrap(True)
+        self.multiline_label.setFont(QFont("Courier", 10))  # Use a fixed-width font
+        # self.multiline_label.setMinimumWidth(
+        #     self.fontMetrics().horizontalAdvance(" " * 22 * 5)
+        # )
+
+        # Set maximum lines shown to 8 and show scrollbar if more are displayed
+        self.multiline_label.setMaximumHeight(self.fontMetrics().height() * 8)
+        self.message_scroll_area: QScrollArea = QScrollArea()
+        self.message_scroll_area.setWidget(self.multiline_label)
+        self.message_scroll_area.setWidgetResizable(True)
+        self.message_scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self.message_scroll_area.setMinimumWidth(
+            self.multiline_label.fontMetrics().horizontalAdvance(" " * 24)
+        )
+
+        # Create a vertical layout for the existing elements
+        vbox_layout: QVBoxLayout = QVBoxLayout()
+        vbox_layout.addWidget(self.artist_label)
+        vbox_layout.addWidget(self.title_label)
+        vbox_layout.addWidget(self.filename_label)
+        vbox_layout.addWidget(self.play_button)
+        vbox_layout.addWidget(self.stop_button)
+        vbox_layout.addWidget(self.next_button)
+        vbox_layout.addWidget(self.progress_slider)
+
+        # Create a horizontal layout and add the vertical layout and multiline label to it
+        hbox_layout: QHBoxLayout = QHBoxLayout()
+        hbox_layout.addLayout(vbox_layout)
+        hbox_layout.addWidget(self.message_scroll_area)
 
         container: QWidget = QWidget()
-        container.setLayout(layout)
+        container.setLayout(hbox_layout)
         self.setCentralWidget(container)
 
         self.player_backend: Optional[PlayerBackendLibOpenMPT] = None
@@ -107,10 +148,14 @@ class MainWindow(QMainWindow):
         if self.player_thread and self.player_thread.isRunning():
             self.player_thread.pause()
             if self.player_thread.pause_flag:
-                self.play_button.setText("Play")
+                self.play_button.setIcon(
+                    self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
+                )
                 self.stop_button.setEnabled(False)
             else:
-                self.play_button.setText("Pause")
+                self.play_button.setIcon(
+                    self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause)
+                )
                 self.stop_button.setEnabled(True)
         else:
             self.load_and_play_module()
@@ -127,7 +172,9 @@ class MainWindow(QMainWindow):
             self.player_backend = None
             self.audio_backend = None
 
-            self.play_button.setText("Play")
+            self.play_button.setIcon(
+                self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
+            )
             self.stop_button.setEnabled(False)
             self.progress_slider.setEnabled(False)
             logger.debug("Player thread stopped")
@@ -150,7 +197,9 @@ class MainWindow(QMainWindow):
 
     def load_and_play_module(self) -> None:
         logger.debug("Loading and playing module")
-        self.module_label.setText("Loading...")
+        self.artist_label.setText("Artist: Loading...")
+        self.title_label.setText("Title: Loading...")
+        self.filename_label.setText("Filename: Loading...")
         url: str = "https://modarchive.org/index.php?request=view_player&query=random"
         response: requests.Response = requests.get(url)
         response.raise_for_status()
@@ -198,11 +247,24 @@ class MainWindow(QMainWindow):
                     logger.error("Failed to load module")
                     return
 
-                module_title: str = self.player_backend.module_metadata.get("title", "Unknown")
-                module_artist: str = self.player_backend.module_metadata.get("artist", "Unknown")
-                title_string: str = f"{module_artist} - {module_title} ({module_filename})"
-                self.module_label.setText(f'<a href="{module_link}">{title_string}</a>')
+                module_title: str = self.player_backend.module_metadata.get(
+                    "title", "Unknown"
+                )
+                module_artist: str = self.player_backend.module_metadata.get(
+                    "artist", "Unknown"
+                )
+                module_message: str = self.player_backend.module_metadata.get(
+                    "message", ""
+                )
+                self.artist_label.setText(f"Artist: {module_artist}")
+                self.title_label.setText(f"Title: {module_title}")
+                self.filename_label.setText(
+                    f'<a href="{module_link}">{module_filename}</a>'
+                )
                 self.setWindowTitle(f"{self.name} - {module_artist} - {module_title}")
+                self.multiline_label.setText(
+                    module_message.replace("\r\n", "\n").replace("\r", "\n")
+                )
 
                 self.player_thread = PlayerThread(
                     self.player_backend, self.audio_backend
@@ -214,11 +276,15 @@ class MainWindow(QMainWindow):
                     self.update_progress
                 )  # Connect position changed signal
                 self.player_thread.start()
-                self.play_button.setText("Pause")
+                self.play_button.setIcon(
+                    self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause)
+                )
                 self.stop_button.setEnabled(True)
                 self.progress_slider.setEnabled(True)
 
-                self.tray_icon.showMessage("Now Playing", title_string, self.icon, 10000)
+                self.tray_icon.showMessage(
+                    "Now Playing", f"{module_artist} - {module_title}", self.icon, 10000
+                )
                 logger.debug("Module loaded and playing")
         else:
             raise ValueError("Invalid module URL")
