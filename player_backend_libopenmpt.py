@@ -1,6 +1,8 @@
 import ctypes
 import warnings
+from typing import Optional
 
+import debugpy
 from loguru import logger
 
 from libopenmpt_loader import error_callback, libopenmpt, log_callback
@@ -8,8 +10,10 @@ from player_backend import PlayerBackend
 
 
 def libopenmpt_example_print_error(
-    func_name: ctypes.c_char, mod_err: int, mod_err_str: ctypes.c_char | None
-):
+    func_name: Optional[ctypes.c_char],
+    mod_err: int,
+    mod_err_str: Optional[ctypes.c_char],
+) -> None:
     if not func_name:
         func_name = ctypes.c_char(b"unknown function")
 
@@ -32,11 +36,11 @@ def libopenmpt_example_print_error(
 
 
 class PlayerBackendLibOpenMPT(PlayerBackend):
-    def __init__(self, module_data, module_size):
+    def __init__(self, module_data: bytes, module_size: int) -> None:
         super().__init__(module_data, module_size)
-        logger.debug("PlayerBackend initialized with module size: {}", module_size)
+        logger.debug("PlayerBackendLibOpenMPT initialized with module size: {}", module_size)
 
-    def load_module(self):
+    def load_module(self) -> bool:
         openmpt_log_func = ctypes.CFUNCTYPE(
             None, ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p
         )
@@ -72,12 +76,17 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             libopenmpt.openmpt_free_string(error_message)
             return False
 
+        debugpy.debug_this_thread()
+        self.get_module_title()
+
         return True
 
-    def get_module_length(self):
+    def get_module_length(self) -> float:
         return libopenmpt.openmpt_module_get_duration_seconds(self.mod)
 
-    def read_interleaved_stereo(self, samplerate, buffersize, buffer):
+    def read_interleaved_stereo(
+        self, samplerate: int, buffersize: int, buffer: ctypes.Array
+    ) -> int:
         libopenmpt.openmpt_module_error_clear(self.mod)
         count = libopenmpt.openmpt_module_read_interleaved_stereo(
             self.mod, samplerate, buffersize, buffer
@@ -94,10 +103,20 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             libopenmpt.openmpt_free_string(mod_err_str)
         return count
 
-    def get_position_seconds(self):
+    def get_position_seconds(self) -> float:
         return libopenmpt.openmpt_module_get_position_seconds(self.mod)
 
-    def free_module(self):
+    def get_module_title(self) -> Optional[str]:
+        return libopenmpt.openmpt_module_get_metadata(self.mod, b"title")
+
+    def get_module_metadata(self) -> None:
+        keys = libopenmpt.openmpt_module_get_metadata_keys(self.mod)
+        for key in keys:
+            self.module_metadata[key] = libopenmpt.openmpt_module_get_metadata(
+                self.mod, key
+            ).decode("utf-8")
+
+    def free_module(self) -> None:
         if self.mod:
             libopenmpt.openmpt_module_destroy(self.mod)
             self.mod = None

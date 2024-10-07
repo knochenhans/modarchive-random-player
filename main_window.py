@@ -1,5 +1,6 @@
 import tempfile
 import webbrowser
+from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,54 +20,58 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from audio_backend_pyuadio import AudioBackendPyAudio
+from player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_thread import PlayerThread
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.name = "Mod Archive Random Player"
+        self.name: str = "Mod Archive Random Player"
         self.setWindowTitle(self.name)
         self.icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
         self.setWindowIcon(QIcon(self.icon))
 
-        self.module_label = QLabel("No module loaded")
+        self.module_label: QLabel = QLabel("No module loaded")
         self.module_label.setOpenExternalLinks(True)
         self.module_label.linkActivated.connect(self.open_module_link)
 
-        self.play_button = QPushButton("Play")
+        self.play_button: QPushButton = QPushButton("Play")
         self.play_button.clicked.connect(self.play_pause)
 
-        self.stop_button = QPushButton("Stop")
+        self.stop_button: QPushButton = QPushButton("Stop")
         self.stop_button.clicked.connect(self.stop)
         self.stop_button.setEnabled(False)
 
-        self.next_button = QPushButton("Next")
+        self.next_button: QPushButton = QPushButton("Next")
         self.next_button.clicked.connect(self.next_module)
 
-        self.progress_slider = QSlider()
+        self.progress_slider: QSlider = QSlider()
         self.progress_slider.setOrientation(Qt.Orientation.Horizontal)
         self.progress_slider.setEnabled(False)
         self.progress_slider.sliderMoved.connect(self.seek)
 
-        layout = QVBoxLayout()
+        layout: QVBoxLayout = QVBoxLayout()
         layout.addWidget(self.module_label)
         layout.addWidget(self.play_button)
         layout.addWidget(self.stop_button)
         layout.addWidget(self.next_button)
         layout.addWidget(self.progress_slider)
 
-        container = QWidget()
+        container: QWidget = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
 
-        self.player_thread = None
+        self.player_backend: Optional[PlayerBackendLibOpenMPT] = None
+        self.audio_backend: Optional[AudioBackendPyAudio] = None
+        self.player_thread: Optional[PlayerThread] = None
 
-        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon: QSystemTrayIcon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(self.icon)
 
         # Create tray menu
-        self.tray_menu = self.create_tray_menu()
+        self.tray_menu: QMenu = self.create_tray_menu()
         self.tray_icon.setContextMenu(self.tray_menu)
         self.tray_icon.show()
 
@@ -74,31 +79,31 @@ class MainWindow(QMainWindow):
         self.tray_icon.activated.connect(self.tray_icon_activated)
         self.hide()
 
-    def create_tray_menu(self):
-        tray_menu = QMenu(self)
+    def create_tray_menu(self) -> QMenu:
+        tray_menu: QMenu = QMenu(self)
 
-        play_pause_action = QAction("Play/Pause", self)
+        play_pause_action: QAction = QAction("Play/Pause", self)
         play_pause_action.triggered.connect(self.play_pause)
         tray_menu.addAction(play_pause_action)
 
-        stop_action = QAction("Stop", self)
+        stop_action: QAction = QAction("Stop", self)
         stop_action.triggered.connect(self.stop)
         tray_menu.addAction(stop_action)
 
-        next_action = QAction("Next", self)
+        next_action: QAction = QAction("Next", self)
         next_action.triggered.connect(self.next_module)
         tray_menu.addAction(next_action)
 
         tray_menu.addSeparator()
 
-        quit_action = QAction("Quit", self)
+        quit_action: QAction = QAction("Quit", self)
         quit_action.triggered.connect(self.close)
         tray_menu.addAction(quit_action)
 
         return tray_menu
 
     @Slot()
-    def play_pause(self):
+    def play_pause(self) -> None:
         if self.player_thread and self.player_thread.isRunning():
             self.player_thread.pause()
             if self.player_thread.pause_flag:
@@ -111,74 +116,89 @@ class MainWindow(QMainWindow):
             self.load_and_play_module()
 
     @Slot()
-    def stop(self):
+    def stop(self) -> None:
         if self.player_thread:
             logger.debug("Stopping player thread")
             self.player_thread.stop()
             if not self.player_thread.wait(5000):
                 self.player_thread.terminate()
                 self.player_thread.wait()
+
+            self.player_backend = None
+            self.audio_backend = None
+
             self.play_button.setText("Play")
             self.stop_button.setEnabled(False)
             self.progress_slider.setEnabled(False)
             logger.debug("Player thread stopped")
 
     @Slot()
-    def next_module(self):
+    def next_module(self) -> None:
         self.stop()
         self.load_and_play_module()
 
     @Slot()
-    def open_module_link(self, link):
+    def open_module_link(self, link: str) -> None:
         # Open the link in the system's default web browser
         webbrowser.open(link)
 
     @Slot()
-    def seek(self, position):
+    def seek(self, position: int) -> None:
         # if self.player_thread:
         #     self.player_thread.seek(position)
         pass
 
-    def load_and_play_module(self):
+    def load_and_play_module(self) -> None:
         logger.debug("Loading and playing module")
         self.module_label.setText("Loading...")
-        url = "https://modarchive.org/index.php?request=view_player&query=random"
-        response = requests.get(url)
+        url: str = "https://modarchive.org/index.php?request=view_player&query=random"
+        response: requests.Response = requests.get(url)
         response.raise_for_status()
 
-        soup = BeautifulSoup(response.content, "html.parser")
-        link_tag = soup.find("a", href=True, string=True, class_="standard-link")
+        soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
+        result = soup.find("a", href=True, string=True, class_="standard-link")
+        link_tag: Optional[Tag] = result if isinstance(result, Tag) else None
         if not link_tag:
             raise Exception("No module link found in the HTML response.")
 
         if isinstance(link_tag, Tag):
-            module_url = link_tag["href"]
+            href = link_tag["href"]
+            module_url: str = href[0] if isinstance(href, list) else href
+            if isinstance(module_url, list):
+                module_url = module_url[0]
             if isinstance(module_url, str):
-                module_response = requests.get(module_url)
+                module_response: requests.Response = requests.get(module_url)
             else:
                 raise ValueError("Invalid module URL")
             module_response.raise_for_status()
 
             if isinstance(module_url, str):
-                module_url_parts = module_url.split("/")[-1].split("?")[-1].split("#")
-                module_id = module_url_parts[0].split("=")[-1]
-                module_name = module_url_parts[1]
-                module_link = f"https://modarchive.org/module.php?{module_id}"
+                module_url_parts: list[str] = (
+                    module_url.split("/")[-1].split("?")[-1].split("#")
+                )
+                module_id: str = module_url_parts[0].split("=")[-1]
+                module_name: str = module_url_parts[1]
+                module_link: str = f"https://modarchive.org/module.php?{module_id}"
                 self.module_label.setText(f'<a href="{module_link}">{module_name}</a>')
                 self.setWindowTitle(f"{self.name} - {module_name}")
 
                 with tempfile.TemporaryDirectory() as temp_dir:
-                    temp_file_path = f"{temp_dir}/{module_name}"
+                    temp_file_path: str = f"{temp_dir}/{module_name}"
                     with open(temp_file_path, "wb") as temp_file:
                         temp_file.write(module_response.content)
-                    filename = temp_file_path
+                    filename: str = temp_file_path
 
                     with open(filename, "rb") as f:
-                        module_data = f.read()
-                        module_size = len(module_data)
+                        module_data: bytes = f.read()
+                        module_size: int = len(module_data)
                     filename = temp_file.name
 
-                self.player_thread = PlayerThread(module_data, module_size)
+                self.player_backend = PlayerBackendLibOpenMPT(module_data, module_size)
+                self.audio_backend = AudioBackendPyAudio(48000, 1024)
+
+                self.player_thread = PlayerThread(
+                    self.player_backend, self.audio_backend
+                )
                 self.player_thread.song_finished.connect(
                     self.next_module
                 )  # Connect finished signal
@@ -196,12 +216,12 @@ class MainWindow(QMainWindow):
             raise ValueError("Invalid module URL")
 
     @Slot()
-    def update_progress(self, position, length):
+    def update_progress(self, position: int, length: int) -> None:
         self.progress_slider.setMaximum(length)
         self.progress_slider.setValue(position)
 
     @Slot()
-    def tray_icon_activated(self, reason):
+    def tray_icon_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
             if self.isVisible():
                 self.hide()
@@ -209,7 +229,7 @@ class MainWindow(QMainWindow):
                 self.show()
 
     @Slot()
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         self.stop()
         self.tray_icon.hide()
         event.accept()
