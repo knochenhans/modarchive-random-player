@@ -20,7 +20,7 @@ class AudioBackendPyAudio(AudioBackend):
             frames_per_buffer=self.buffersize,
         )
         logger.debug(
-            "AudioBackend initialized with samplerate: {} and buffersize: {}",
+            "PyAudio AudioBackend initialized with samplerate: {} and buffersize: {}",
             samplerate,
             buffersize,
         )
@@ -32,7 +32,7 @@ class AudioBackendPyAudio(AudioBackend):
         self.stream.stop_stream()
         self.stream.close()
         self.p.terminate()
-        logger.debug("AudioBackend stopped")
+        logger.debug("PyAudio AudioBackend stopped")
 
     def get_buffer(self):
         return self.buffer
