@@ -177,13 +177,11 @@ class MainWindow(QMainWindow):
                     module_url.split("/")[-1].split("?")[-1].split("#")
                 )
                 module_id: str = module_url_parts[0].split("=")[-1]
-                module_name: str = module_url_parts[1]
+                module_filename: str = module_url_parts[1]
                 module_link: str = f"https://modarchive.org/module.php?{module_id}"
-                self.module_label.setText(f'<a href="{module_link}">{module_name}</a>')
-                self.setWindowTitle(f"{self.name} - {module_name}")
 
                 with tempfile.TemporaryDirectory() as temp_dir:
-                    temp_file_path: str = f"{temp_dir}/{module_name}"
+                    temp_file_path: str = f"{temp_dir}/{module_filename}"
                     with open(temp_file_path, "wb") as temp_file:
                         temp_file.write(module_response.content)
                     filename: str = temp_file_path
@@ -195,6 +193,16 @@ class MainWindow(QMainWindow):
 
                 self.player_backend = PlayerBackendLibOpenMPT(module_data, module_size)
                 self.audio_backend = AudioBackendPyAudio(48000, 1024)
+
+                if not self.player_backend.load_module():
+                    logger.error("Failed to load module")
+                    return
+
+                module_title: str = self.player_backend.module_metadata.get("title", "Unknown")
+                module_artist: str = self.player_backend.module_metadata.get("artist", "Unknown")
+                title_string: str = f"{module_artist} - {module_title} ({module_filename})"
+                self.module_label.setText(f'<a href="{module_link}">{title_string}</a>')
+                self.setWindowTitle(f"{self.name} - {module_artist} - {module_title}")
 
                 self.player_thread = PlayerThread(
                     self.player_backend, self.audio_backend
@@ -210,7 +218,7 @@ class MainWindow(QMainWindow):
                 self.stop_button.setEnabled(True)
                 self.progress_slider.setEnabled(True)
 
-                self.tray_icon.showMessage("Now Playing", module_name, self.icon, 10000)
+                self.tray_icon.showMessage("Now Playing", title_string, self.icon, 10000)
                 logger.debug("Module loaded and playing")
         else:
             raise ValueError("Invalid module URL")

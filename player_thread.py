@@ -25,10 +25,6 @@ class PlayerThread(QThread):
         logger.debug("PlayerThread initialized")
 
     def run(self) -> None:
-        if not self.player_backend.load_module():
-            logger.error("Failed to load module")
-            return
-
         module_length: float = self.player_backend.get_module_length()
         logger.debug("Module length: {} seconds", module_length)
 

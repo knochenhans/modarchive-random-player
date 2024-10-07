@@ -38,7 +38,9 @@ def libopenmpt_example_print_error(
 class PlayerBackendLibOpenMPT(PlayerBackend):
     def __init__(self, module_data: bytes, module_size: int) -> None:
         super().__init__(module_data, module_size)
-        logger.debug("PlayerBackendLibOpenMPT initialized with module size: {}", module_size)
+        logger.debug(
+            "PlayerBackendLibOpenMPT initialized with module size: {}", module_size
+        )
 
     def load_module(self) -> bool:
         openmpt_log_func = ctypes.CFUNCTYPE(
@@ -76,8 +78,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             libopenmpt.openmpt_free_string(error_message)
             return False
 
-        debugpy.debug_this_thread()
-        self.get_module_title()
+        self.module_metadata = self.get_module_metadata()
 
         return True
 
@@ -109,12 +110,19 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
     def get_module_title(self) -> Optional[str]:
         return libopenmpt.openmpt_module_get_metadata(self.mod, b"title")
 
-    def get_module_metadata(self) -> None:
-        keys = libopenmpt.openmpt_module_get_metadata_keys(self.mod)
+    def get_module_metadata(self) -> dict[str, str]:
+        keys = (
+            libopenmpt.openmpt_module_get_metadata_keys(self.mod)
+            .decode("utf-8")
+            .split(";")
+        )
+        module_metadata = {}
         for key in keys:
-            self.module_metadata[key] = libopenmpt.openmpt_module_get_metadata(
-                self.mod, key
-            ).decode("utf-8")
+            key_c_char_p = ctypes.c_char_p(key.encode('utf-8'))
+            value = libopenmpt.openmpt_module_get_metadata(self.mod, key_c_char_p).decode("utf-8")
+            if value:
+                module_metadata[key] = value
+        return module_metadata
 
     def free_module(self) -> None:
         if self.mod:
