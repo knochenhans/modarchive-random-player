@@ -118,7 +118,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         )
         module_metadata = {}
         for key in keys:
-            key_c_char_p = ctypes.c_char_p(key.encode('utf-8'))
+            key_c_char_p = ctypes.c_char_p(key.encode("utf-8"))
             value = libopenmpt.openmpt_module_get_metadata(self.mod, key_c_char_p).decode("utf-8")
             if value:
                 module_metadata[key] = value

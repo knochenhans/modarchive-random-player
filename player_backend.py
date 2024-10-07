@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-from loguru import logger
-
 
 class PlayerBackend(ABC):
     def __init__(self, module_data: bytes, module_size: int) -> None:
