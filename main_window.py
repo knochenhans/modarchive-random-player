@@ -4,6 +4,7 @@ import webbrowser
 import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from loguru import logger
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
@@ -112,7 +113,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def stop(self):
         if self.player_thread:
-            print("Stopping player thread")
+            logger.info("Stopping player thread")
             self.player_thread.stop()
             if not self.player_thread.wait(5000):
                 self.player_thread.terminate()
@@ -120,7 +121,7 @@ class MainWindow(QMainWindow):
             self.play_button.setText("Play")
             self.stop_button.setEnabled(False)
             self.progress_slider.setEnabled(False)
-            print("Player thread stopped")
+            logger.info("Player thread stopped")
 
     @Slot()
     def next_module(self):
@@ -139,7 +140,7 @@ class MainWindow(QMainWindow):
         pass
 
     def load_and_play_module(self):
-        print("Loading and playing module")
+        logger.info("Loading and playing module")
         self.module_label.setText("Loading...")
         url = "https://modarchive.org/index.php?request=view_player&query=random"
         response = requests.get(url)
@@ -190,7 +191,7 @@ class MainWindow(QMainWindow):
                 self.progress_slider.setEnabled(True)
 
                 self.tray_icon.showMessage("Now Playing", module_name, self.icon, 10000)
-                print("Module loaded and playing")
+                logger.info("Module loaded and playing")
         else:
             raise ValueError("Invalid module URL")
 
