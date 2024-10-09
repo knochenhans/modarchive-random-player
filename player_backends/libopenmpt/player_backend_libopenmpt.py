@@ -8,7 +8,7 @@ from player_backends.libopenmpt.libopenmpt_loader import error_callback, libopen
 from player_backends.player_backend import PlayerBackend
 
 
-def libopenmpt_example_print_error(
+def print_error(
     func_name: Optional[ctypes.c_char],
     mod_err: int,
     mod_err_str: Optional[ctypes.c_char],
@@ -72,7 +72,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
 
         if not self.mod:
             logger.error("Failed to load module: {}", error_message.value)
-            libopenmpt_example_print_error(
+            print_error(
                 ctypes.c_char(b"openmpt_module_create_from_memory2()"),
                 error.value,
                 ctypes.cast(error_message, ctypes.POINTER(ctypes.c_char)).contents,
@@ -97,7 +97,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         mod_err_str = libopenmpt.openmpt_module_error_get_last_message(self.mod)
         if mod_err != libopenmpt.OPENMPT_ERROR_OK:
             logger.error("Error reading module: {}", mod_err_str)
-            libopenmpt_example_print_error(
+            print_error(
                 ctypes.c_char(b"openmpt_module_read_interleaved_stereo()"),
                 mod_err,
                 mod_err_str,
