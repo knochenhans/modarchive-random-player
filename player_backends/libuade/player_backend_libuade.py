@@ -70,7 +70,8 @@ class PlayerBackendLibUADE(PlayerBackend):
             raise RuntimeError("Playback error")
 
         if nbytes == 0:
-            raise EOFError("Song end")
+            # raise RuntimeWarning("Song end")
+            logger.info("Song end")
 
         return nbytes, bytes(buf)
 
