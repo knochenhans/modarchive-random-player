@@ -1,10 +1,11 @@
 from typing import Optional
 
+import debugpy
 from loguru import logger
 from PySide6.QtCore import QThread, Signal
 
-from audio_backend import AudioBackend
-from player_backend import PlayerBackend
+from audio_backends.audio_backend import AudioBackend
+from player_backends.player_backend import PlayerBackend
 
 
 class PlayerThread(QThread):
@@ -25,6 +26,7 @@ class PlayerThread(QThread):
         logger.debug("PlayerThread initialized")
 
     def run(self) -> None:
+        # debugpy.debug_this_thread()
         module_length: float = self.player_backend.get_module_length()
         logger.debug("Module length: {} seconds", module_length)
 
@@ -35,9 +37,8 @@ class PlayerThread(QThread):
                 self.msleep(100)  # Sleep for a short time to avoid busy-waiting
                 continue
 
-            buffer: bytes = self.audio_backend.get_buffer()
-            count = self.player_backend.read_interleaved_stereo(
-                self.audio_backend.samplerate, self.audio_backend.buffersize, buffer
+            count, buffer = self.player_backend.read_chunk(
+                self.audio_backend.samplerate, self.audio_backend.buffersize
             )
             if count == 0:
                 logger.debug("End of module reached")

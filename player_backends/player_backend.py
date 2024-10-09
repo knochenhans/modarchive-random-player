@@ -1,16 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
+import os
 
 
 class PlayerBackend(ABC):
-    def __init__(self, module_data: bytes, module_size: int) -> None:
-        self.module_data: bytes = module_data
-        self.module_size: int = module_size
+    def __init__(self) -> None:
         self.module_metadata: Dict[str, Any] = {}
         self.mod: Any = None
 
     @abstractmethod
-    def load_module(self) -> bool:
+    def load_module(self, module_filename: str) -> bool:
         pass
 
     @abstractmethod
@@ -18,9 +17,7 @@ class PlayerBackend(ABC):
         pass
 
     @abstractmethod
-    def read_interleaved_stereo(
-        self, samplerate: int, buffersize: int, buffer: Any
-    ) -> int:
+    def read_chunk(self, samplerate: int, buffersize: int) -> tuple[int, bytes]:
         pass
 
     @abstractmethod

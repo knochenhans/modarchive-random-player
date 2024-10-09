@@ -2,11 +2,10 @@ import ctypes
 import warnings
 from typing import Optional
 
-import debugpy
 from loguru import logger
 
-from libopenmpt_loader import error_callback, libopenmpt, log_callback
-from player_backend import PlayerBackend
+from player_backends.libopenmpt.libopenmpt_loader import error_callback, libopenmpt, log_callback
+from player_backends.player_backend import PlayerBackend
 
 
 def libopenmpt_example_print_error(
@@ -36,13 +35,13 @@ def libopenmpt_example_print_error(
 
 
 class PlayerBackendLibOpenMPT(PlayerBackend):
-    def __init__(self, module_data: bytes, module_size: int) -> None:
-        super().__init__(module_data, module_size)
+    def __init__(self) -> None:
+        super().__init__()
         logger.debug(
-            "PlayerBackendLibOpenMPT initialized with module size: {}", module_size
+            "PlayerBackendLibOpenMPT initialized"
         )
 
-    def load_module(self) -> bool:
+    def load_module(self, module_filename: str) -> bool:
         openmpt_log_func = ctypes.CFUNCTYPE(
             None, ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p
         )
@@ -54,6 +53,9 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         ctls = ctypes.c_void_p()
         error = ctypes.c_int()
         error_message = ctypes.c_char_p()
+
+        self.module_data = open(module_filename, "rb").read()
+        self.module_size = len(self.module_data)
 
         logger.debug("Loading module")
         self.mod = load_mod(
@@ -85,11 +87,10 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
     def get_module_length(self) -> float:
         return libopenmpt.openmpt_module_get_duration_seconds(self.mod)
 
-    def read_interleaved_stereo(
-        self, samplerate: int, buffersize: int, buffer: ctypes.Array
-    ) -> int:
+    def read_chunk(self, samplerate: int, buffersize: int) -> tuple[int, bytes]:
         libopenmpt.openmpt_module_error_clear(self.mod)
-        count = libopenmpt.openmpt_module_read_interleaved_stereo(
+        buffer = (ctypes.c_short * (buffersize * 2))()
+        frame_count = libopenmpt.openmpt_module_read_interleaved_stereo(
             self.mod, samplerate, buffersize, buffer
         )
         mod_err = libopenmpt.openmpt_module_error_get_last(self.mod)
@@ -102,7 +103,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
                 mod_err_str,
             )
             libopenmpt.openmpt_free_string(mod_err_str)
-        return count
+        return frame_count, bytes(buffer)
 
     def get_position_seconds(self) -> float:
         return libopenmpt.openmpt_module_get_position_seconds(self.mod)
@@ -119,7 +120,9 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         module_metadata = {}
         for key in keys:
             key_c_char_p = ctypes.c_char_p(key.encode("utf-8"))
-            value = libopenmpt.openmpt_module_get_metadata(self.mod, key_c_char_p).decode("utf-8")
+            value = libopenmpt.openmpt_module_get_metadata(
+                self.mod, key_c_char_p
+            ).decode("utf-8")
             if value:
                 module_metadata[key] = value
         return module_metadata
