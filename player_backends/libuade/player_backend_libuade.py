@@ -95,7 +95,7 @@ class PlayerBackendLibUADE(PlayerBackend):
         return deciseconds / 10.0
 
     def read_chunk(self, samplerate: int, buffersize: int) -> tuple[int, bytes]:
-        debugpy.debug_this_thread()
+        # debugpy.debug_this_thread()
         buf = (ctypes.c_char * buffersize)()
         n = uade_notification()
 

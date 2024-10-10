@@ -24,9 +24,9 @@ from PySide6.QtWidgets import (
 )
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
-from player_backends.player_backend import PlayerBackend
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
+from player_backends.player_backend import PlayerBackend
 from player_thread import PlayerThread
 
 
@@ -252,7 +252,6 @@ class MainWindow(QMainWindow):
                     backend_name = self.find_player(filename)
 
                 if self.player_backend is not None:
-
                     module_title: str = self.player_backend.module_metadata.get(
                         "title", "Unknown"
                     )
