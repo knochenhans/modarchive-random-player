@@ -89,3 +89,42 @@ libuade.uade_new_config.restype = c_void_p
 libuade.uade_set_debug.argtypes = [c_void_p]
 
 libuade.uade_enable_uadecore_log_collection.argtypes = [c_void_p]
+
+# IPC
+libuade.uade_check_fix_string.argtypes = [c_void_p, c_size_t]
+
+libuade.uade_parse_u32_message.argtypes = [POINTER(c_uint), c_void_p]
+libuade.uade_parse_u32_message.restype = c_int
+
+libuade.uade_parse_two_u32s_message.argtypes = [
+    POINTER(c_uint),
+    POINTER(c_uint),
+    c_void_p,
+]
+libuade.uade_parse_two_u32s_message.restype = c_int
+
+libuade.uade_receive_message.argtypes = [c_void_p, c_size_t, c_void_p]
+libuade.uade_receive_message.restype = c_int
+
+libuade.uade_receive_short_message.argtypes = [c_int, c_void_p]
+libuade.uade_receive_short_message.restype = c_int
+
+libuade.uade_receive_string.argtypes = [c_char_p, c_int, c_size_t, c_void_p]
+libuade.uade_receive_string.restype = c_int
+
+libuade.uade_send_message.argtypes = [c_void_p, c_void_p]
+libuade.uade_send_message.restype = c_int
+
+libuade.uade_send_short_message.argtypes = [c_int, c_void_p]
+libuade.uade_send_short_message.restype = c_int
+
+libuade.uade_send_string.argtypes = [c_int, c_char_p, c_void_p]
+libuade.uade_send_string.restype = c_int
+
+libuade.uade_send_u32.argtypes = [c_int, c_uint, c_void_p]
+libuade.uade_send_u32.restype = c_int
+
+libuade.uade_send_two_u32s.argtypes = [c_int, c_uint, c_uint, c_void_p]
+libuade.uade_send_two_u32s.restype = c_int
+
+libuade.uade_set_peer.argtypes = [c_void_p, c_int, c_char_p, c_char_p]
