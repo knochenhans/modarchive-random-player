@@ -296,6 +296,7 @@ class MainWindow(QMainWindow):
                         self.icon,
                         10000,
                     )
+                    self.tray_icon.setToolTip(f"{module_artist} - {module_title}")
                     logger.debug("Module loaded and playing")
                 else:
                     raise ValueError("No player backend could load the module")
@@ -333,6 +334,9 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def closeEvent(self, event) -> None:
-        self.stop()
-        self.tray_icon.hide()
-        event.accept()
+        if self.tray_icon.isVisible():
+            self.hide()
+            event.ignore()
+        else:
+            event.accept()
+
