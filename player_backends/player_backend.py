@@ -1,11 +1,55 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, TypedDict
 import os
+
+from player_backends.libuade.songinfo import Credits
+
+
+class SongMetadata(TypedDict):
+    type: str
+    type_long: str
+    originaltype: str
+    originaltype_long: str
+    container: str
+    container_long: str
+    tracker: str
+    artist: str
+    title: str
+    date: str
+    message: str
+    message_raw: str
+    warnings: str
+    credits: Credits
 
 
 class PlayerBackend(ABC):
     def __init__(self) -> None:
-        self.module_metadata: Dict[str, Any] = {}
+        self.song_metadata: SongMetadata = {
+            "type": "",
+            "type_long": "",
+            "originaltype": "",
+            "originaltype_long": "",
+            "container": "",
+            "container_long": "",
+            "tracker": "",
+            "artist": "",
+            "title": "",
+            "date": "",
+            "message": "",
+            "message_raw": "",
+            "warnings": "",
+            "credits": {
+                "song_title": "",
+                "authorname": "",
+                "file_length": "",
+                "file_name": "",
+                "file_prefix": "",
+                "max_positions": 0,
+                "modulename": "",
+                "specialinfo": "",
+                "instruments": [],
+            },
+        }
         self.mod: Any = None
 
     @abstractmethod

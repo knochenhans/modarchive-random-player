@@ -252,13 +252,13 @@ class MainWindow(QMainWindow):
                     backend_name = self.find_player(filename)
 
                 if self.player_backend is not None:
-                    module_title: str = self.player_backend.module_metadata.get(
+                    module_title: str = self.player_backend.song_metadata.get(
                         "title", "Unknown"
                     )
-                    module_artist: str = self.player_backend.module_metadata.get(
+                    module_artist: str = self.player_backend.song_metadata.get(
                         "artist", "Unknown"
                     )
-                    module_message: str = self.player_backend.module_metadata.get(
+                    module_message: str = self.player_backend.song_metadata.get(
                         "message", ""
                     )
                     self.artist_label.setText(module_artist)

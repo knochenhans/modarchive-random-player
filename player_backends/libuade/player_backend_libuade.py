@@ -2,6 +2,7 @@ import ctypes
 
 import debugpy
 
+from player_backends.libuade import songinfo
 from player_backends.libuade.ctypes_classes import (
     UADE_BYTES_PER_FRAME,
     UADE_MAX_MESSAGE_SIZE,
@@ -45,8 +46,6 @@ class PlayerBackendLibUADE(PlayerBackend):
             logger.error(error_message)
             return False
 
-        # self.module_metadata = self.get_module_metadata()
-
         ret = libuade.uade_play_from_buffer(
             None, ret, self.module_size, -1, self.state_ptr
         )
@@ -55,41 +54,32 @@ class PlayerBackendLibUADE(PlayerBackend):
             error_message = f"LibUADE is unable to play {module_filename}"
             logger.error(error_message)
             return False
-        
-        # song_info = libuade.uade_get_song_info(self.state_ptr).contents
 
-        # song_info_dict = {
-        #     "subsongs": song_info.subsongs,
-        #     "detectioninfo": song_info.detectioninfo,
-        #     "modulebytes": song_info.modulebytes,
-        #     "modulemd5": song_info.modulemd5.decode('utf-8'),
-        #     "duration": song_info.duration,
-        #     "subsongbytes": song_info.subsongbytes,
-        #     "songbytes": song_info.songbytes,
-        #     "modulefname": song_info.modulefname.decode('utf-8'),
-        #     "playerfname": song_info.playerfname.decode('utf-8'),
-        #     "formatname": song_info.formatname.decode('utf-8'),
-        #     "modulename": song_info.modulename.decode('utf-8'),
-        #     "playername": song_info.playername.decode('utf-8'),
-        # }
+        self.song_metadata["credits"] = songinfo.get_credits(module_filename)
+        self.song_metadata["title"] = self.song_metadata["credits"]["song_title"]
 
-        # logger.debug("Song info: {}", song_info_dict)
+        for instrument in self.song_metadata["credits"]["instruments"]:
+            self.song_metadata["message"] += f"{instrument['name']}\n"
 
         return True
-    
+
     def get_module_length(self) -> float:
         info = libuade.uade_get_song_info(self.state_ptr).contents
-        bytes_per_second = UADE_BYTES_PER_FRAME * libuade.uade_get_sampling_rate(self.state_ptr)
+        bytes_per_second = UADE_BYTES_PER_FRAME * libuade.uade_get_sampling_rate(
+            self.state_ptr
+        )
         deciseconds = (info.subsongbytes * 10) // bytes_per_second
 
         if info.duration > 0:
             return info.duration
         else:
             return deciseconds / 10.0
-        
+
     def get_position_seconds(self) -> float:
         info = libuade.uade_get_song_info(self.state_ptr).contents
-        bytes_per_second = UADE_BYTES_PER_FRAME * libuade.uade_get_sampling_rate(self.state_ptr)
+        bytes_per_second = UADE_BYTES_PER_FRAME * libuade.uade_get_sampling_rate(
+            self.state_ptr
+        )
         deciseconds = (info.subsongbytes * 10) // bytes_per_second
 
         return deciseconds / 10.0

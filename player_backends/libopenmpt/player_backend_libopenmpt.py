@@ -4,8 +4,12 @@ from typing import Optional
 
 from loguru import logger
 
-from player_backends.libopenmpt.libopenmpt_loader import error_callback, libopenmpt, log_callback
-from player_backends.player_backend import PlayerBackend
+from player_backends.libopenmpt.libopenmpt_loader import (
+    error_callback,
+    libopenmpt,
+    log_callback,
+)
+from player_backends.player_backend import PlayerBackend, SongMetadata
 
 
 def print_error(
@@ -37,9 +41,7 @@ def print_error(
 class PlayerBackendLibOpenMPT(PlayerBackend):
     def __init__(self) -> None:
         super().__init__()
-        logger.debug(
-            "PlayerBackendLibOpenMPT initialized"
-        )
+        logger.debug("PlayerBackendLibOpenMPT initialized")
 
     def load_module(self, module_filename: str) -> bool:
         openmpt_log_func = ctypes.CFUNCTYPE(
@@ -80,7 +82,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             libopenmpt.openmpt_free_string(error_message)
             return False
 
-        self.module_metadata = self.get_module_metadata()
+        self.fill_module_metadata()
 
         return True
 
@@ -111,21 +113,45 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
     def get_module_title(self) -> Optional[str]:
         return libopenmpt.openmpt_module_get_metadata(self.mod, b"title")
 
-    def get_module_metadata(self) -> dict[str, str]:
+    def fill_module_metadata(self):
         keys = (
             libopenmpt.openmpt_module_get_metadata_keys(self.mod)
             .decode("utf-8")
             .split(";")
         )
-        module_metadata = {}
         for key in keys:
             key_c_char_p = ctypes.c_char_p(key.encode("utf-8"))
             value = libopenmpt.openmpt_module_get_metadata(
                 self.mod, key_c_char_p
             ).decode("utf-8")
-            if value:
-                module_metadata[key] = value
-        return module_metadata
+            if value != "":
+                match key:
+                    case "type":
+                        self.song_metadata["type"] = value
+                    case "type_long":
+                        self.song_metadata["type_long"] = value
+                    case "originaltype":
+                        self.song_metadata["originaltype"] = value
+                    case "originaltype_long":
+                        self.song_metadata["originaltype_long"] = value
+                    case "container":
+                        self.song_metadata["container"] = value
+                    case "container_long":
+                        self.song_metadata["container_long"] = value
+                    case "tracker":
+                        self.song_metadata["tracker"] = value
+                    case "artist":
+                        self.song_metadata["artist"] = value
+                    case "title":
+                        self.song_metadata["title"] = value
+                    case "date":
+                        self.song_metadata["date"] = value
+                    case "message":
+                        self.song_metadata["message"] = value
+                    case "message_raw":
+                        self.song_metadata["message_raw"] = value
+                    case "warnings":
+                        self.song_metadata["warnings"] = value
 
     def free_module(self) -> None:
         if self.mod:
