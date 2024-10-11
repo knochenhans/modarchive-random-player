@@ -318,6 +318,10 @@ class MainWindow(QMainWindow):
             raise ValueError("No player backend could load the module")
         logger.debug(f"Module loaded with player backend: {backend_name}")
         return backend_name
+    
+    def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self.hide()
 
     @Slot()
     def update_progress(self, position: int, length: int) -> None:
@@ -334,9 +338,6 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def closeEvent(self, event) -> None:
-        if self.tray_icon.isVisible():
-            self.hide()
-            event.ignore()
-        else:
-            event.accept()
-
+        self.stop()
+        self.tray_icon.hide()
+        super().closeEvent(event)
