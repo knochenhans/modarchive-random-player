@@ -6,7 +6,7 @@ A simple music player application using `libopenmpt` and `libuade` to play rando
 
 Uses [libopenmpt_py](https://github.com/shroom00/libopenmpt_py) to interface with `libopenmpt` via Python.
 
-Only tested under Linux for now.
+Only works under Linux for now.
 
 ## Features
 
@@ -21,6 +21,8 @@ Only tested under Linux for now.
 ## How to use
 
 - Hit Play to load and play a random file from The Mod Archive
+- After finishing, the next random file will be loaded and played
+- Click on the tray icon to show/hide the main window
 
 ## Requirements
 
