@@ -22,7 +22,7 @@ Only works under Linux for now.
 
 - Hit Play to load and play a random file from The Mod Archive
 - After finishing, the next random file will be loaded and played
-- Click on the tray icon to show/hide the main window
+- Click on the tray icon to show/hide the main window, or press Escape to hide it
 
 ## Requirements
 
