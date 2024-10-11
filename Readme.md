@@ -2,7 +2,9 @@
 
 ![grafik](https://github.com/user-attachments/assets/08d67a9b-7e61-4688-b349-0bb50951f84b)
 
-A simple music player application using `libopenmpt` and `libuade` to play random module files from The Mod Archive. This application is built with Python and PySide6 for the GUI, and uses `pyaudio` for audio playback. It chooses the best player based on the module type. This is using [libopenmpt_py](https://github.com/shroom00/libopenmpt_py) to interface with `libopenmpt`.
+A simple music player application using `libopenmpt` and `libuade` to play random module files from [The Mod Archive](https://modarchive.org). This application is built with Python and PySide6 for the GUI, and uses `pyaudio` for audio playback. It chooses the best player based on the module type.
+
+Uses [libopenmpt_py](https://github.com/shroom00/libopenmpt_py) to interface with `libopenmpt` via Python.
 
 Only tested under Linux for now.
 
@@ -23,7 +25,7 @@ Only tested under Linux for now.
 ## Requirements
 
 - Python 3.6+
-- `libopenmpt`
+- `libopenmpt` (if using Linux)
 - `libuade`
 - `pyaudio`
 - `requests`

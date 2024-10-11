@@ -1,15 +1,22 @@
 import ctypes
+import sys
 import warnings
 from typing import Optional
 
 from loguru import logger
 
-from player_backends.libopenmpt.libopenmpt_loader import (
-    error_callback,
-    libopenmpt,
-    log_callback,
-)
+sys.path.append("./libopenmpt_py")
+
+from libopenmpt_py import libopenmpt
 from player_backends.player_backend import PlayerBackend, SongMetadata
+
+
+def error_callback():
+    pass
+
+
+def log_callback():
+    pass
 
 
 def print_error(
