@@ -1,3 +1,4 @@
+import shutil
 import tempfile
 import webbrowser
 from typing import Optional
@@ -130,6 +131,8 @@ class MainWindow(QMainWindow):
         self.tray_icon.activated.connect(self.tray_icon_activated)
         self.hide()
 
+        self.temp_dir = tempfile.mkdtemp()
+
     def create_tray_menu(self) -> QMenu:
         tray_menu: QMenu = QMenu(self)
 
@@ -206,11 +209,10 @@ class MainWindow(QMainWindow):
         #     self.player_thread.seek(position)
         pass
 
-    def load_and_play_module(self) -> None:
-        logger.debug("Loading and playing module")
-        self.artist_label.setText("Loading...")
-        self.title_label.setText("Loading...")
-        self.filename_label.setText("Loading...")
+    def download_random_module(self) -> Optional[tuple[str, str]]:
+        filename: Optional[str] = None
+        module_link: Optional[str] = None
+
         url: str = "https://modarchive.org/index.php?request=view_player&query=random"
         response: requests.Response = requests.get(url)
         response.raise_for_status()
@@ -238,72 +240,87 @@ class MainWindow(QMainWindow):
                 )
                 module_id: str = module_url_parts[0].split("=")[-1]
                 module_filename: str = module_url_parts[1]
-                module_link: str = f"https://modarchive.org/module.php?{module_id}"
+                module_link = f"https://modarchive.org/module.php?{module_id}"
 
                 # self.audio_backend = AudioBackendPyAudio(44100, 1024)
                 self.audio_backend = AudioBackendPyAudio(44100, 8192)
 
-                with tempfile.TemporaryDirectory(delete=False) as temp_dir:
-                    temp_file_path: str = f"{temp_dir}/{module_filename}"
-                    with open(temp_file_path, "wb") as temp_file:
-                        temp_file.write(module_response.content)
-                    filename: str = temp_file_path
+                temp_file_path: str = f"{self.temp_dir}/{module_filename}"
+                with open(temp_file_path, "wb") as temp_file:
+                    temp_file.write(module_response.content)
+                filename = temp_file_path
+                logger.debug(f"Module downloaded to: {filename}")
+        return filename, module_link
 
-                    backend_name = self.find_player(filename)
+    def load_and_play_module(self) -> None:
+        logger.debug("Loading and playing module")
+        self.artist_label.setText("Loading...")
+        self.title_label.setText("Loading...")
+        self.filename_label.setText("Loading...")
 
-                if self.player_backend is not None:
-                    module_title: str = self.player_backend.song_metadata.get(
-                        "title", "Unknown"
-                    )
-                    module_artist: str = self.player_backend.song_metadata.get(
-                        "artist", "Unknown"
-                    )
-                    module_message: str = self.player_backend.song_metadata.get(
-                        "message", ""
-                    )
-                    self.artist_label.setText(module_artist)
-                    self.title_label.setText(module_title)
-                    self.filename_label.setText(
-                        f'<a href="{module_link}">{module_filename}</a>'
-                    )
-                    self.player_backend_label.setText(backend_name)
-                    self.setWindowTitle(
-                        f"{self.name} - {module_artist} - {module_title}"
-                    )
-                    self.multiline_label.setText(
-                        module_message.replace("\r\n", "\n").replace("\r", "\n")
-                    )
+        module_filename: Optional[str]
+        module_link: Optional[str]
+        result = self.download_random_module()
+        if result is None:
+            logger.error("Failed to download module")
+            return
+        module_filename, module_link = result
 
-                    self.player_thread = PlayerThread(
-                        self.player_backend, self.audio_backend
-                    )
-                    self.player_thread.song_finished.connect(
-                        self.next_module
-                    )  # Connect finished signal
-                    self.player_thread.position_changed.connect(
-                        self.update_progress
-                    )  # Connect position changed signal
-                    self.player_thread.start()
-                    self.play_button.setIcon(
-                        self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause)
-                    )
-                    self.stop_button.setEnabled(True)
-                    self.progress_slider.setEnabled(True)
+        if module_filename:
+            backend_name = self.find_and_set_player(module_filename)
 
-                    self.tray_icon.showMessage(
-                        "Now Playing",
-                        f"{module_artist} - {module_title}",
-                        self.icon,
-                        10000,
-                    )
-                    self.tray_icon.setToolTip(f"{module_artist} - {module_title}")
-                    logger.debug("Module loaded and playing")
-                else:
-                    raise ValueError("No player backend could load the module")
+            if self.player_backend is not None and self.audio_backend is not None:
+                module_title: str = self.player_backend.song_metadata.get(
+                    "title", "Unknown"
+                )
+                module_artist: str = self.player_backend.song_metadata.get(
+                    "artist", "Unknown"
+                )
+                module_message: str = self.player_backend.song_metadata.get(
+                    "message", ""
+                )
+                self.artist_label.setText(module_artist)
+                self.title_label.setText(module_title)
+
+                filename = module_filename.split("/")[-1]
+
+                self.filename_label.setText(f'<a href="{module_link}">{filename}</a>')
+                self.player_backend_label.setText(backend_name)
+                self.setWindowTitle(f"{self.name} - {module_artist} - {module_title}")
+                self.multiline_label.setText(
+                    module_message.replace("\r\n", "\n").replace("\r", "\n")
+                )
+
+                self.player_thread = PlayerThread(
+                    self.player_backend, self.audio_backend
+                )
+                self.player_thread.song_finished.connect(
+                    self.next_module
+                )  # Connect finished signal
+                self.player_thread.position_changed.connect(
+                    self.update_progress
+                )  # Connect position changed signal
+                self.player_thread.start()
+                self.play_button.setIcon(
+                    self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause)
+                )
+                self.stop_button.setEnabled(True)
+                self.progress_slider.setEnabled(True)
+
+                self.tray_icon.showMessage(
+                    "Now Playing",
+                    f"{module_artist} - {module_title}",
+                    self.icon,
+                    10000,
+                )
+                self.tray_icon.setToolTip(f"{module_artist} - {module_title}")
+                logger.debug("Module loaded and playing")
+            else:
+                raise ValueError("No player backend could load the module")
         else:
             raise ValueError("Invalid module URL")
 
-    def find_player(self, filename) -> str:
+    def find_and_set_player(self, filename) -> str:
         # Try to load the module by going through the available player backends
         for backend_name, backend_class in self.player_backends.items():
             logger.debug(f"Trying player backend: {backend_name}")
@@ -318,7 +335,7 @@ class MainWindow(QMainWindow):
             raise ValueError("No player backend could load the module")
         logger.debug(f"Module loaded with player backend: {backend_name}")
         return backend_name
-    
+
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape:
             self.hide()
@@ -339,5 +356,8 @@ class MainWindow(QMainWindow):
     @Slot()
     def closeEvent(self, event) -> None:
         self.stop()
+        # Remove temporary directory
+        shutil.rmtree(self.temp_dir)
+
         self.tray_icon.hide()
         super().closeEvent(event)
