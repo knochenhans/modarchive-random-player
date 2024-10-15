@@ -257,6 +257,9 @@ class MainWindow(QMainWindow):
         self.artist_label.setText("Loading...")
         self.title_label.setText("Loading...")
         self.filename_label.setText("Loading...")
+        
+        # Scroll to the top of the message label
+        self.message_scroll_area.verticalScrollBar().setValue(0)
 
         module_filename: Optional[str]
         module_link: Optional[str]
