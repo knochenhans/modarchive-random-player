@@ -1,3 +1,5 @@
+import os
+import random
 import shutil
 import tempfile
 import webbrowser
@@ -7,12 +9,14 @@ import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from loguru import logger
-from PySide6.QtCore import Qt, Slot, QSettings
+from PySide6.QtCore import QSettings, Qt, Slot
 from PySide6.QtGui import QAction, QFont, QIcon, QIntValidator
 from PySide6.QtWidgets import (
+    QCheckBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMenu,
     QPushButton,
@@ -22,8 +26,6 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
-    QLineEdit,
-    QCheckBox
 )
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
@@ -44,7 +46,6 @@ class MainWindow(QMainWindow):
         self.settings = QSettings("Andre Jonas", "ModArchiveRandomPlayer")
 
         self.setup_ui()
-
 
         self.player_backends = {
             "LibUADE": PlayerBackendLibUADE,
@@ -141,6 +142,9 @@ class MainWindow(QMainWindow):
         self.member_id_switch: QCheckBox = QCheckBox()
         self.member_id_switch.checkStateChanged.connect(self.toggle_member_id_input)
         self.member_id_switch.setToolTip("Enable Member ID")
+        
+        self.member_id_label: QLabel = QLabel("Member ID:")
+        self.member_id_label.setEnabled(False)
 
         self.member_id_input: QLineEdit = QLineEdit()
         self.member_id_input.setEnabled(False)
@@ -152,6 +156,7 @@ class MainWindow(QMainWindow):
         if member_id:
             self.member_id_input.setText(member_id)
             self.member_id_switch.setChecked(True)
+            self.member_id_label.setEnabled(True)
             self.member_id_input.setEnabled(True)
             self.member_id_switch.setToolTip("Disable Member ID")
 
@@ -161,7 +166,10 @@ class MainWindow(QMainWindow):
         # Create a horizontal layout for the switch and input field
         member_id_layout: QHBoxLayout = QHBoxLayout()
         member_id_layout.addWidget(self.member_id_switch)
+        member_id_layout.addWidget(self.member_id_label)
         member_id_layout.addWidget(self.member_id_input)
+
+        # Add a label before the member_id input
 
         # Add the member_id layout to the vertical layout
         vbox_layout.addLayout(member_id_layout)
@@ -174,11 +182,12 @@ class MainWindow(QMainWindow):
     def toggle_member_id_input(self) -> None:
         if self.member_id_switch.isChecked():
             self.member_id_switch.setToolTip("Disable Member ID")
+            self.member_id_label.setEnabled(True)
             self.member_id_input.setEnabled(True)
         else:
             self.member_id_switch.setToolTip("Enable Member ID")
+            self.member_id_label.setEnabled(False)
             self.member_id_input.setEnabled(False)
-            self.settings.remove("member_id")
 
     @Slot()
     def save_member_id(self) -> None:
@@ -260,7 +269,9 @@ class MainWindow(QMainWindow):
         #     self.player_thread.seek(position)
         pass
 
-    def download_module(self, module_id: str) -> Optional[tuple[str | None, str | None]]:
+    def download_module(
+        self, module_id: str
+    ) -> Optional[tuple[str | None, str | None]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
@@ -269,7 +280,9 @@ class MainWindow(QMainWindow):
         response.raise_for_status()
 
         if response.status_code == 200:
-            module_filename: str = response.headers.get("content-disposition", f"{module_id}.mod").split("filename=")[-1]
+            module_filename: str = response.headers.get(
+                "content-disposition", f"{module_id}.mod"
+            ).split("filename=")[-1]
             module_link = f"https://modarchive.org/module.php?{module_id}"
 
             temp_file_path: str = f"{self.temp_dir}/{module_filename}"
@@ -300,21 +313,70 @@ class MainWindow(QMainWindow):
                 return self.download_module(module_id)
         return None
 
+    def download_favorite_module(self) -> Optional[tuple[str | None, str | None]]:
+        filename: Optional[str] = None
+        module_link: Optional[str] = None
+        member_id: str = self.member_id_input.text()
+
+        if member_id:
+            # Get the member's favorite modules list (links to the modules)
+            url: str = (
+                f"https://modarchive.org/index.php?request=view_member_favourites_text&query={member_id}"
+            )
+
+            response: requests.Response = requests.get(url)
+            response.raise_for_status()
+
+            soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
+            result = soup.find("textarea")
+
+            if result:
+                favorite_modules: str = result.text
+                module_links = favorite_modules.split("\n")
+
+                # Remove modules with names already in the temp directory
+                module_links = [
+                    link
+                    for link in module_links
+                    if not os.path.exists(f"{self.temp_dir}/{link.split('#')[-1]}")
+                ]
+
+                if module_links:
+                    # Pick a random module from the resulting list
+                    module_url: str = random.choice(module_links)
+                    module_id_and_name: str = module_url.split("=")[-1]
+                    module_id: str = module_id_and_name.split("#")[0]
+
+                    result = self.download_module(module_id)
+                    if result:
+                        filename, module_link = result
+                else:
+                    logger.error("No new module links found in the member's favorites")
+        else:
+            logger.error("Member ID is empty")
+        return filename, module_link
+
     def load_and_play_module(self) -> None:
         logger.debug("Loading and playing module")
         self.artist_label.setText("Loading...")
         self.title_label.setText("Loading...")
         self.filename_label.setText("Loading...")
-        
+
         # Scroll to the top of the message label
         self.message_scroll_area.verticalScrollBar().setValue(0)
 
         module_filename: Optional[str]
         module_link: Optional[str]
-        result = self.download_random_module()
+
+        if self.member_id_switch.isChecked():
+            result = self.download_favorite_module()
+        else:
+            result = self.download_random_module()
+
         if result is None:
             logger.error("Failed to download module")
             return
+
         module_filename, module_link = result
 
         if module_filename:
