@@ -9,8 +9,8 @@ import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from loguru import logger
-from PySide6.QtCore import QSettings, Qt, Slot
-from PySide6.QtGui import QAction, QFont, QIcon, QIntValidator
+from PySide6.QtCore import QSettings, Qt, Slot, QDir
+from PySide6.QtGui import QAction, QFont, QIcon, QIntValidator, QFontDatabase
 from PySide6.QtWidgets import (
     QCheckBox,
     QFormLayout,
@@ -69,6 +69,13 @@ class MainWindow(QMainWindow):
 
         self.temp_dir = tempfile.mkdtemp()
 
+    def load_fonts_from_dir(self, directory: str) -> set[str]:
+        families = set()
+        for file_info in QDir(directory).entryInfoList(["*.ttf"]):
+            _id = QFontDatabase.addApplicationFont(file_info.absoluteFilePath())
+            families |= set(QFontDatabase.applicationFontFamilies(_id))
+        return families
+
     def setup_ui(self) -> None:
         self.artist_label: QLabel = QLabel("Unknown")
         self.title_label: QLabel = QLabel("Unknown")
@@ -104,7 +111,20 @@ class MainWindow(QMainWindow):
         # Create a multiline text label with fixed-width font
         self.multiline_label: QLabel = QLabel("No module loaded")
         self.multiline_label.setWordWrap(True)
-        self.multiline_label.setFont(QFont("Courier", 10))  # Use a fixed-width font
+        # self.multiline_label.setFont(QFont("Courier", 10))
+
+        # Set Topaz font for the multiline label
+        font_path: str = os.path.join(os.path.dirname(__file__), "fonts")
+        self.load_fonts_from_dir(font_path)
+        font_db = QFontDatabase()
+        font = font_db.font("TopazPlus a600a1200a4000", "Regular", 12)
+        font.setStyleStrategy(QFont.StyleStrategy.NoAntialias)
+        font.setFixedPitch(True)
+        font.setKerning(False)
+        font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+        font.setStyleHint(QFont.StyleHint.TypeWriter)
+        
+        self.multiline_label.setFont(font)
 
         # Set maximum lines shown to 8 and show scrollbar if more are displayed
         self.multiline_label.setMinimumHeight(self.fontMetrics().height() * 8)
