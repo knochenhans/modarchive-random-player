@@ -7,8 +7,8 @@ import requests
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from loguru import logger
-from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QAction, QFont, QIcon
+from PySide6.QtCore import Qt, Slot, QSettings
+from PySide6.QtGui import QAction, QFont, QIcon, QIntValidator
 from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
+    QLineEdit,
+    QCheckBox
 )
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
@@ -38,6 +40,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.name)
         self.icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
         self.setWindowIcon(QIcon(self.icon))
+
+        self.settings = QSettings("Andre Jonas", "ModArchiveRandomPlayer")
 
         self.setup_ui()
 
@@ -133,12 +137,53 @@ class MainWindow(QMainWindow):
         vbox_layout.addLayout(hbox_layout)
         vbox_layout.addWidget(self.message_scroll_area)
 
+        # Add a checkbox and number input field for member_id
+        self.member_id_switch: QCheckBox = QCheckBox()
+        self.member_id_switch.checkStateChanged.connect(self.toggle_member_id_input)
+        self.member_id_switch.setToolTip("Enable Member ID")
+
+        self.member_id_input: QLineEdit = QLineEdit()
+        self.member_id_input.setEnabled(False)
+        self.member_id_input.setPlaceholderText("Member ID")
+        self.member_id_input.setValidator(QIntValidator())
+
+        # Load the member ID from settings
+        member_id: str = str(self.settings.value("member_id", ""))
+        if member_id:
+            self.member_id_input.setText(member_id)
+            self.member_id_switch.setChecked(True)
+            self.member_id_input.setEnabled(True)
+            self.member_id_switch.setToolTip("Disable Member ID")
+
+        # Save the member ID when it changes
+        self.member_id_input.textChanged.connect(self.save_member_id)
+
+        # Create a horizontal layout for the switch and input field
+        member_id_layout: QHBoxLayout = QHBoxLayout()
+        member_id_layout.addWidget(self.member_id_switch)
+        member_id_layout.addWidget(self.member_id_input)
+
         # Add the member_id layout to the vertical layout
         vbox_layout.addLayout(member_id_layout)
 
         container: QWidget = QWidget()
         container.setLayout(vbox_layout)
         self.setCentralWidget(container)
+
+    @Slot()
+    def toggle_member_id_input(self) -> None:
+        if self.member_id_switch.isChecked():
+            self.member_id_switch.setToolTip("Disable Member ID")
+            self.member_id_input.setEnabled(True)
+        else:
+            self.member_id_switch.setToolTip("Enable Member ID")
+            self.member_id_input.setEnabled(False)
+            self.settings.remove("member_id")
+
+    @Slot()
+    def save_member_id(self) -> None:
+        self.settings.setValue("member_id", self.member_id_input.text())
+
     def create_tray_menu(self) -> QMenu:
         tray_menu: QMenu = QMenu(self)
 
@@ -248,9 +293,6 @@ class MainWindow(QMainWindow):
                 module_filename: str = module_url_parts[1]
                 module_link = f"https://modarchive.org/module.php?{module_id}"
 
-                # self.audio_backend = AudioBackendPyAudio(44100, 1024)
-                self.audio_backend = AudioBackendPyAudio(44100, 8192)
-
                 temp_file_path: str = f"{self.temp_dir}/{module_filename}"
                 with open(temp_file_path, "wb") as temp_file:
                     temp_file.write(module_response.content)
@@ -276,6 +318,8 @@ class MainWindow(QMainWindow):
         module_filename, module_link = result
 
         if module_filename:
+            # self.audio_backend = AudioBackendPyAudio(44100, 1024)
+            self.audio_backend = AudioBackendPyAudio(44100, 8192)
             backend_name = self.find_and_set_player(module_filename)
 
             if self.player_backend is not None and self.audio_backend is not None:
@@ -367,6 +411,8 @@ class MainWindow(QMainWindow):
         self.stop()
         # Remove temporary directory
         shutil.rmtree(self.temp_dir)
+
+        self.settings.sync()
 
         self.tray_icon.hide()
         super().closeEvent(event)
