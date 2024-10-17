@@ -260,10 +260,26 @@ class MainWindow(QMainWindow):
         #     self.player_thread.seek(position)
         pass
 
-    def download_random_module(self) -> Optional[tuple[str, str]]:
+    def download_module(self, module_id: str) -> Optional[tuple[str | None, str | None]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
+        url: str = f"https://api.modarchive.org/downloads.php?moduleid={module_id}"
+        response: requests.Response = requests.get(url)
+        response.raise_for_status()
+
+        if response.status_code == 200:
+            module_filename: str = response.headers.get("content-disposition", f"{module_id}.mod").split("filename=")[-1]
+            module_link = f"https://modarchive.org/module.php?{module_id}"
+
+            temp_file_path: str = f"{self.temp_dir}/{module_filename}"
+            with open(temp_file_path, "wb") as temp_file:
+                temp_file.write(response.content)
+            filename = temp_file_path
+            logger.debug(f"Module downloaded to: {filename}")
+        return filename, module_link
+
+    def download_random_module(self) -> Optional[tuple[str | None, str | None]]:
         url: str = "https://modarchive.org/index.php?request=view_player&query=random"
         response: requests.Response = requests.get(url)
         response.raise_for_status()
@@ -280,25 +296,9 @@ class MainWindow(QMainWindow):
             if isinstance(module_url, list):
                 module_url = module_url[0]
             if isinstance(module_url, str):
-                module_response: requests.Response = requests.get(module_url)
-            else:
-                raise ValueError("Invalid module URL")
-            module_response.raise_for_status()
-
-            if isinstance(module_url, str):
-                module_url_parts: list[str] = (
-                    module_url.split("/")[-1].split("?")[-1].split("#")
-                )
-                module_id: str = module_url_parts[0].split("=")[-1]
-                module_filename: str = module_url_parts[1]
-                module_link = f"https://modarchive.org/module.php?{module_id}"
-
-                temp_file_path: str = f"{self.temp_dir}/{module_filename}"
-                with open(temp_file_path, "wb") as temp_file:
-                    temp_file.write(module_response.content)
-                filename = temp_file_path
-                logger.debug(f"Module downloaded to: {filename}")
-        return filename, module_link
+                module_id: str = module_url.split("=")[-1].split("#")[0]
+                return self.download_module(module_id)
+        return None
 
     def load_and_play_module(self) -> None:
         logger.debug("Loading and playing module")
