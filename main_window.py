@@ -39,6 +39,32 @@ class MainWindow(QMainWindow):
         self.icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
         self.setWindowIcon(QIcon(self.icon))
 
+        self.setup_ui()
+
+
+        self.player_backends = {
+            "LibUADE": PlayerBackendLibUADE,
+            "LibOpenMPT": PlayerBackendLibOpenMPT,
+        }
+        self.player_backend: Optional[PlayerBackend]
+        self.audio_backend: Optional[AudioBackendPyAudio] = None
+        self.player_thread: Optional[PlayerThread] = None
+
+        self.tray_icon: QSystemTrayIcon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(self.icon)
+
+        # Create tray menu
+        self.tray_menu: QMenu = self.create_tray_menu()
+        self.tray_icon.setContextMenu(self.tray_menu)
+        self.tray_icon.show()
+
+        # Minimize to tray
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+        self.hide()
+
+        self.temp_dir = tempfile.mkdtemp()
+
+    def setup_ui(self) -> None:
         self.artist_label: QLabel = QLabel("Unknown")
         self.title_label: QLabel = QLabel("Unknown")
         self.filename_label: QLabel = QLabel("Unknown")
@@ -107,32 +133,12 @@ class MainWindow(QMainWindow):
         vbox_layout.addLayout(hbox_layout)
         vbox_layout.addWidget(self.message_scroll_area)
 
+        # Add the member_id layout to the vertical layout
+        vbox_layout.addLayout(member_id_layout)
+
         container: QWidget = QWidget()
         container.setLayout(vbox_layout)
         self.setCentralWidget(container)
-
-        self.player_backends = {
-            "LibUADE": PlayerBackendLibUADE,
-            "LibOpenMPT": PlayerBackendLibOpenMPT,
-        }
-        self.player_backend: Optional[PlayerBackend]
-        self.audio_backend: Optional[AudioBackendPyAudio] = None
-        self.player_thread: Optional[PlayerThread] = None
-
-        self.tray_icon: QSystemTrayIcon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(self.icon)
-
-        # Create tray menu
-        self.tray_menu: QMenu = self.create_tray_menu()
-        self.tray_icon.setContextMenu(self.tray_menu)
-        self.tray_icon.show()
-
-        # Minimize to tray
-        self.tray_icon.activated.connect(self.tray_icon_activated)
-        self.hide()
-
-        self.temp_dir = tempfile.mkdtemp()
-
     def create_tray_menu(self) -> QMenu:
         tray_menu: QMenu = QMenu(self)
 
