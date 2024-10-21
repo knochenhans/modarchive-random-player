@@ -173,25 +173,25 @@ class MainWindow(QMainWindow):
         self.member_id_input.setPlaceholderText("Member ID")
         self.member_id_input.setValidator(QIntValidator())
 
-        # Load the member ID from settings
+        # Load the member input data from settings
+        self.member_id_switch.setChecked(
+            bool(self.settings.value("member_id_enabled", False))
+        )
         member_id: str = str(self.settings.value("member_id", ""))
         if member_id:
             self.member_id_input.setText(member_id)
-            self.member_id_switch.setChecked(True)
             self.member_id_label.setEnabled(True)
             self.member_id_input.setEnabled(True)
-            self.member_id_switch.setToolTip("Disable Member ID")
 
-        # Save the member ID when it changes
-        self.member_id_input.textChanged.connect(self.save_member_id)
+        # Save the member input data when it changes
+        self.member_id_input.textChanged.connect(self.save_member_input)
+        self.member_id_switch.stateChanged.connect(self.save_member_input)
 
         # Create a horizontal layout for the switch and input field
         member_id_layout: QHBoxLayout = QHBoxLayout()
         member_id_layout.addWidget(self.member_id_switch)
         member_id_layout.addWidget(self.member_id_label)
         member_id_layout.addWidget(self.member_id_input)
-
-        # Add a label before the member_id input
 
         # Add the member_id layout to the vertical layout
         vbox_layout.addLayout(member_id_layout)
@@ -203,17 +203,16 @@ class MainWindow(QMainWindow):
     @Slot()
     def toggle_member_id_input(self) -> None:
         if self.member_id_switch.isChecked():
-            self.member_id_switch.setToolTip("Disable Member ID")
             self.member_id_label.setEnabled(True)
             self.member_id_input.setEnabled(True)
         else:
-            self.member_id_switch.setToolTip("Enable Member ID")
             self.member_id_label.setEnabled(False)
             self.member_id_input.setEnabled(False)
 
     @Slot()
-    def save_member_id(self) -> None:
+    def save_member_input(self) -> None:
         self.settings.setValue("member_id", self.member_id_input.text())
+        self.settings.setValue("member_id_enabled", self.member_id_switch.isChecked())
 
     def create_tray_menu(self) -> QMenu:
         tray_menu: QMenu = QMenu(self)
