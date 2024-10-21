@@ -162,11 +162,10 @@ class MainWindow(QMainWindow):
 
         # Add a checkbox and number input field for member_id
         self.member_id_switch: QCheckBox = QCheckBox()
-        self.member_id_switch.stateChanged.connect(self.toggle_member_id_input)
-        self.member_id_switch.setToolTip("Enable Member ID")
 
         self.member_id_label: QLabel = QLabel("Member ID:")
         self.member_id_label.setEnabled(False)
+        self.member_id_switch.stateChanged.connect(self.toggle_member_id_input)
 
         self.member_id_input: QLineEdit = QLineEdit()
         self.member_id_input.setEnabled(False)
@@ -174,14 +173,18 @@ class MainWindow(QMainWindow):
         self.member_id_input.setValidator(QIntValidator())
 
         # Load the member input data from settings
-        self.member_id_switch.setChecked(
-            bool(self.settings.value("member_id_enabled", False))
+        member_id_switch_enabled: bool = bool(
+            self.settings.value("member_id_enabled", type=bool, defaultValue=False)
         )
+        self.member_id_switch.setChecked(member_id_switch_enabled)
+
+        if member_id_switch_enabled:
+            self.member_id_label.setEnabled(True)
+            self.member_id_input.setEnabled(True)
+
         member_id: str = str(self.settings.value("member_id", ""))
         if member_id:
             self.member_id_input.setText(member_id)
-            self.member_id_label.setEnabled(True)
-            self.member_id_input.setEnabled(True)
 
         # Save the member input data when it changes
         self.member_id_input.textChanged.connect(self.save_member_input)
