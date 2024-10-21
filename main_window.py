@@ -160,7 +160,7 @@ class MainWindow(QMainWindow):
 
         # Add a checkbox and number input field for member_id
         self.member_id_switch: QCheckBox = QCheckBox()
-        self.member_id_switch.checkStateChanged.connect(self.toggle_member_id_input)
+        self.member_id_switch.stateChanged.connect(self.toggle_member_id_input)
         self.member_id_switch.setToolTip("Enable Member ID")
         
         self.member_id_label: QLabel = QLabel("Member ID:")
@@ -367,9 +367,9 @@ class MainWindow(QMainWindow):
                     module_id_and_name: str = module_url.split("=")[-1]
                     module_id: str = module_id_and_name.split("#")[0]
 
-                    result = self.download_module(module_id)
-                    if result:
-                        filename, module_link = result
+                    module = self.download_module(module_id)
+                    if module:
+                        filename, module_link = module
                 else:
                     logger.error("No new module links found in the member's favorites")
         else:
