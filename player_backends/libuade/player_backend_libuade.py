@@ -55,8 +55,14 @@ class PlayerBackendLibUADE(PlayerBackend):
             logger.error(error_message)
             return False
 
+        info = libuade.uade_get_song_info(self.state_ptr).contents
+
         self.song_metadata["credits"] = songinfo.get_credits(module_filename)
         self.song_metadata["title"] = self.song_metadata["credits"]["song_title"]
+        self.song_metadata["md5"] = info.modulemd5.decode("utf-8")
+        self.song_metadata["playerfname"] = info.playerfname.decode("utf-8")
+        self.song_metadata["playername"] = info.playername.decode("utf-8")
+        self.song_metadata["type"] = info.formatname.decode("utf-8")
 
         for instrument in self.song_metadata["credits"]["instruments"]:
             self.song_metadata["message"] += f"{instrument['name']}\n"

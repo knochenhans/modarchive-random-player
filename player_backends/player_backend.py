@@ -19,6 +19,10 @@ class SongMetadata(TypedDict):
     message: str
     message_raw: str
     warnings: str
+    md5: str
+    sha1: str
+    playername: str
+    playerfname: str
     credits: Credits
 
 
@@ -38,6 +42,10 @@ class PlayerBackend(ABC):
             "message": "",
             "message_raw": "",
             "warnings": "",
+            "md5": "",
+            "sha1": "",
+            "playername": "",
+            "playerfname": "",
             "credits": {
                 "song_title": "",
                 "authorname": "",

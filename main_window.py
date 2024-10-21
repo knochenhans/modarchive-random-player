@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from loguru import logger
 from PySide6.QtCore import QSettings, Qt, Slot, QDir
-from PySide6.QtGui import QAction, QFont, QIcon, QIntValidator, QFontDatabase
+from PySide6.QtGui import QAction, QFont, QIcon, QIntValidator, QFontDatabase, QCursor
 from PySide6.QtWidgets import (
     QCheckBox,
     QFormLayout,
@@ -27,11 +27,12 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+import hashlib
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
-from player_backends.player_backend import PlayerBackend
+from player_backends.player_backend import PlayerBackend, SongMetadata
 from player_thread import PlayerThread
 
 
@@ -69,6 +70,8 @@ class MainWindow(QMainWindow):
 
         self.temp_dir = tempfile.mkdtemp()
 
+        self.song_metadata: SongMetadata | None = None
+
     def load_fonts_from_dir(self, directory: str) -> set[str]:
         families = set()
         for file_info in QDir(directory).entryInfoList(["*.ttf"]):
@@ -80,7 +83,6 @@ class MainWindow(QMainWindow):
         self.artist_label: QLabel = QLabel("Unknown")
         self.title_label: QLabel = QLabel("Unknown")
         self.filename_label: QLabel = QLabel("Unknown")
-        self.filename_label.setOpenExternalLinks(True)
         self.filename_label.linkActivated.connect(self.open_module_link)
         self.player_backend_label: QLabel = QLabel("Unknown")
 
@@ -123,7 +125,7 @@ class MainWindow(QMainWindow):
         font.setKerning(False)
         font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
         font.setStyleHint(QFont.StyleHint.TypeWriter)
-        
+
         self.multiline_label.setFont(font)
 
         # Set maximum lines shown to 8 and show scrollbar if more are displayed
@@ -162,7 +164,7 @@ class MainWindow(QMainWindow):
         self.member_id_switch: QCheckBox = QCheckBox()
         self.member_id_switch.stateChanged.connect(self.toggle_member_id_input)
         self.member_id_switch.setToolTip("Enable Member ID")
-        
+
         self.member_id_label: QLabel = QLabel("Member ID:")
         self.member_id_label.setEnabled(False)
 
@@ -280,8 +282,51 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def open_module_link(self, link: str) -> None:
-        # Open the link in the system's default web browser
-        webbrowser.open(link)
+        menu = QMenu(self)
+
+        lookup_modarchive_action = QAction("Lookup on ModArchive", self)
+        lookup_modarchive_action.triggered.connect(self.lookup_modarchive)
+        menu.addAction(lookup_modarchive_action)
+
+        lookup_msm_action = QAction("Lookup on .mod Sample Master", self)
+        lookup_msm_action.triggered.connect(self.lookup_msm)
+        menu.addAction(lookup_msm_action)
+
+        menu.exec_(QCursor.pos())
+
+    @Slot()
+    def lookup_msm(self):
+        if self.song_metadata:
+            url = f'https://modsamplemaster.thegang.nu/module.php?sha1={self.song_metadata.get("sha1")}'
+
+            # Check if the link returns a 404
+            response = requests.get(url)
+            if response.status_code == 200:
+                webbrowser.open(url)
+
+    @Slot()
+    def lookup_modarchive(self):
+        if self.song_metadata:
+            url = f'https://modarchive.org/index.php?request=search&query={self.song_metadata.get("title")}&submit=Find&search_type=songtitle'
+
+            response = requests.get(url)
+            if response.status_code == 200:
+                # Find first div with class "bgsegment top2"
+                soup = BeautifulSoup(response.content, "html.parser")
+
+                div_segment = soup.find("div", class_="bgsegment top2")
+                if div_segment:
+                    table = div_segment.find("table")
+                    if table:
+                        if isinstance(table, Tag):
+                            rows = table.find_all("tr")
+                            if rows:
+                                if len(rows) > 1:
+                                    # Get the query id from the first link in row 2
+                                    row = rows[1]
+                                    link = row.find("a", href=True, class_="standard-link")
+                                    if link:
+                                        webbrowser.open("https://modarchive.org/" + link["href"])
 
     @Slot()
     def seek(self, position: int) -> None:
@@ -289,9 +334,7 @@ class MainWindow(QMainWindow):
         #     self.player_thread.seek(position)
         pass
 
-    def download_module(
-        self, module_id: str
-    ) -> Optional[tuple[str | None, str | None]]:
+    def download_module(self, module_id: str) -> Optional[dict[str, Optional[str]]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
@@ -310,9 +353,9 @@ class MainWindow(QMainWindow):
                 temp_file.write(response.content)
             filename = temp_file_path
             logger.debug(f"Module downloaded to: {filename}")
-        return filename, module_link
+        return {"filename": filename, "module_link": module_link}
 
-    def download_random_module(self) -> Optional[tuple[str | None, str | None]]:
+    def download_random_module(self) -> Optional[dict[str, Optional[str]]]:
         url: str = "https://modarchive.org/index.php?request=view_player&query=random"
         response: requests.Response = requests.get(url)
         response.raise_for_status()
@@ -333,7 +376,7 @@ class MainWindow(QMainWindow):
                 return self.download_module(module_id)
         return None
 
-    def download_favorite_module(self) -> Optional[tuple[str | None, str | None]]:
+    def download_favorite_module(self) -> Optional[dict[str, Optional[str]]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
         member_id: str = self.member_id_input.text()
@@ -369,12 +412,26 @@ class MainWindow(QMainWindow):
 
                     module = self.download_module(module_id)
                     if module:
-                        filename, module_link = module
+                        filename, module_link = (
+                            module["filename"],
+                            module["module_link"],
+                        )
                 else:
                     logger.error("No new module links found in the member's favorites")
         else:
             logger.error("Member ID is empty")
-        return filename, module_link
+        return {"filename": filename, "module_link": module_link}
+
+    def get_checksums(self, filename: str) -> dict:
+        md5 = hashlib.md5()
+        sha1 = hashlib.sha1()
+
+        with open(filename, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                md5.update(chunk)
+                sha1.update(chunk)
+
+        return {"md5": md5.hexdigest(), "sha1": sha1.hexdigest()}
 
     def load_and_play_module(self) -> None:
         logger.debug("Loading and playing module")
@@ -397,7 +454,8 @@ class MainWindow(QMainWindow):
             logger.error("Failed to download module")
             return
 
-        module_filename, module_link = result
+        module_filename = result.get("filename")
+        module_link = result.get("module_link")
 
         if module_filename:
             # self.audio_backend = AudioBackendPyAudio(44100, 1024)
@@ -405,21 +463,29 @@ class MainWindow(QMainWindow):
             backend_name = self.find_and_set_player(module_filename)
 
             if self.player_backend is not None and self.audio_backend is not None:
-                module_title: str = self.player_backend.song_metadata.get(
-                    "title", "Unknown"
-                )
-                module_artist: str = self.player_backend.song_metadata.get(
-                    "artist", "Unknown"
-                )
-                module_message: str = self.player_backend.song_metadata.get(
-                    "message", ""
-                )
+                self.song_metadata = self.player_backend.song_metadata
+
+                if self.song_metadata.get("md5") == "":
+                    md5 = self.get_checksums(module_filename).get("md5")
+
+                    if md5:
+                        self.song_metadata["md5"] = md5
+
+                if self.song_metadata.get("sha1") == "":
+                    sha1 = self.get_checksums(module_filename).get("sha1")
+
+                    if sha1:
+                        self.song_metadata["sha1"] = sha1
+
+                module_title: str = self.song_metadata.get("title", "Unknown")
+                module_artist: str = self.song_metadata.get("artist", "Unknown")
+                module_message: str = self.song_metadata.get("message", "")
                 self.artist_label.setText(module_artist)
                 self.title_label.setText(module_title)
 
                 filename = module_filename.split("/")[-1]
 
-                self.filename_label.setText(f'<a href="{module_link}">{filename}</a>')
+                self.filename_label.setText(f'<a href="#">{filename}</a>')
                 self.player_backend_label.setText(backend_name)
                 self.setWindowTitle(f"{self.name} - {module_artist} - {module_title}")
                 self.multiline_label.setText(
