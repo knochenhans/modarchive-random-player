@@ -1,6 +1,6 @@
 # Mod Archive Random Player
 
-![grafik](https://github.com/user-attachments/assets/02af2173-9183-4aae-9f5b-46e750428a6b)
+![grafik](https://github.com/user-attachments/assets/8e156a92-fc21-490b-b544-e90d3a1ee611)
 
 A simple music player application using `libopenmpt` and `libuade` to play random module files from *[The Mod Archive](https://modarchive.org)*. This application is built with Python and PySide6 for the GUI, and uses `pyaudio` for audio playback. It chooses the best player based on the module type.
 
