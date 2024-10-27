@@ -80,7 +80,6 @@ class MainWindow(QMainWindow):
         return families
 
     def setup_ui(self) -> None:
-        self.artist_label: QLabel = QLabel("Unknown")
         self.title_label: QLabel = QLabel("Unknown")
         self.filename_label: QLabel = QLabel("Unknown")
         self.filename_label.linkActivated.connect(self.open_module_link)
@@ -142,7 +141,6 @@ class MainWindow(QMainWindow):
 
         # Create a form layout for the labels and their descriptions
         form_layout: QFormLayout = QFormLayout()
-        form_layout.addRow("Artist:", self.artist_label)
         form_layout.addRow("Title:", self.title_label)
         form_layout.addRow("Filename:", self.filename_label)
         form_layout.addRow("Player backend:", self.player_backend_label)
@@ -577,7 +575,6 @@ class MainWindow(QMainWindow):
 
     def load_and_play_module(self) -> None:
         logger.debug("Loading and playing module")
-        self.artist_label.setText("Loading...")
         self.title_label.setText("Loading...")
         self.filename_label.setText("Loading...")
 
@@ -622,16 +619,14 @@ class MainWindow(QMainWindow):
                         self.song_metadata["sha1"] = sha1
 
                 module_title: str = self.song_metadata.get("title", "Unknown")
-                module_artist: str = self.song_metadata.get("artist", "Unknown")
                 module_message: str = self.song_metadata.get("message", "")
-                self.artist_label.setText(module_artist)
                 self.title_label.setText(module_title)
 
                 filename = module_filename.split("/")[-1]
 
                 self.filename_label.setText(f'<a href="#">{filename}</a>')
                 self.player_backend_label.setText(backend_name)
-                self.setWindowTitle(f"{self.name} - {module_artist} - {module_title}")
+                self.setWindowTitle(f"{self.name} - {module_title}")
                 self.multiline_label.setText(
                     module_message.replace("\r\n", "\n").replace("\r", "\n")
                 )
@@ -654,11 +649,11 @@ class MainWindow(QMainWindow):
 
                 self.tray_icon.showMessage(
                     "Now Playing",
-                    f"{module_artist} - {module_title}",
+                    f"{module_title}",
                     self.icon,
                     10000,
                 )
-                self.tray_icon.setToolTip(f"{module_artist} - {module_title}")
+                self.tray_icon.setToolTip(f"{module_title}")
                 logger.debug("Module loaded and playing")
             else:
                 raise ValueError("No player backend could load the module")
