@@ -199,6 +199,60 @@ class MainWindow(QMainWindow):
         # Add the member_id layout to the vertical layout
         vbox_layout.addLayout(member_id_layout)
 
+        # Add a checkbox and text input field for author
+        self.author_switch: QCheckBox = QCheckBox()
+
+        self.author_label: QLabel = QLabel("Author:")
+        self.author_label.setEnabled(False)
+        self.author_switch.stateChanged.connect(self.toggle_author_input)
+
+        self.author_input: QLineEdit = QLineEdit()
+        self.author_input.setEnabled(False)
+        self.author_input.setPlaceholderText("Author")
+
+        # Load the author input data from settings
+        author_switch_enabled: bool = bool(
+            self.settings.value("author_enabled", type=bool, defaultValue=False)
+        )
+        self.author_switch.setChecked(author_switch_enabled)
+
+        if author_switch_enabled:
+            self.author_label.setEnabled(True)
+            self.author_input.setEnabled(True)
+
+        author: str = str(self.settings.value("author", ""))
+        if author:
+            self.author_input.setText(author)
+
+        # Save the author input data when it changes
+        self.author_input.textChanged.connect(self.save_author_input)
+        self.author_switch.stateChanged.connect(self.save_author_input)
+
+        # Create a horizontal layout for the switch and input field
+        author_layout: QHBoxLayout = QHBoxLayout()
+        author_layout.addWidget(self.author_switch)
+        author_layout.addWidget(self.author_label)
+        author_layout.addWidget(self.author_input)
+
+        # Add the author layout to the vertical layout
+        vbox_layout.addLayout(author_layout)
+
+        # Create a horizontal layout for the buttons
+        buttons_hbox_layout: QHBoxLayout = QHBoxLayout()
+
+        # Add a button in a new row
+        self.history_button: QPushButton = QPushButton("Recent modules")
+        self.history_button.clicked.connect(self.show_history)
+        buttons_hbox_layout.addWidget(self.history_button)
+
+        # Add a button to open the meta data window
+        self.meta_data_button: QPushButton = QPushButton("Show Metadata")
+        self.meta_data_button.clicked.connect(self.show_meta_data)
+        buttons_hbox_layout.addWidget(self.meta_data_button)
+
+        # Add the buttons horizontal layout to the vertical layout
+        vbox_layout.addLayout(buttons_hbox_layout)
+
         container: QWidget = QWidget()
         container.setLayout(vbox_layout)
         self.setCentralWidget(container)
@@ -208,6 +262,7 @@ class MainWindow(QMainWindow):
         if self.member_id_switch.isChecked():
             self.member_id_label.setEnabled(True)
             self.member_id_input.setEnabled(True)
+            self.author_switch.setChecked(False)
         else:
             self.member_id_label.setEnabled(False)
             self.member_id_input.setEnabled(False)
@@ -216,6 +271,21 @@ class MainWindow(QMainWindow):
     def save_member_input(self) -> None:
         self.settings.setValue("member_id", self.member_id_input.text())
         self.settings.setValue("member_id_enabled", self.member_id_switch.isChecked())
+
+    @Slot()
+    def toggle_author_input(self) -> None:
+        if self.author_switch.isChecked():
+            self.author_label.setEnabled(True)
+            self.author_input.setEnabled(True)
+            self.member_id_switch.setChecked(False)
+        else:
+            self.author_label.setEnabled(False)
+            self.author_input.setEnabled(False)
+
+    @Slot()
+    def save_author_input(self) -> None:
+        self.settings.setValue("author", self.author_input.text())
+        self.settings.setValue("author_enabled", self.author_switch.isChecked())
 
     def create_tray_menu(self) -> QMenu:
         tray_menu: QMenu = QMenu(self)
@@ -424,6 +494,68 @@ class MainWindow(QMainWindow):
             logger.error("Member ID is empty")
         return {"filename": filename, "module_link": module_link}
 
+    def download_author_module(self) -> Optional[dict[str, Optional[str]]]:
+        filename: Optional[str] = None
+        module_link: Optional[str] = None
+        author: str = self.author_input.text()
+
+        if author:
+            logger.debug(f"Getting a random module by author: {author}")
+
+            url: str = (
+                f"https://modarchive.org/index.php?request=search&search_type=guessed_artist&query={author}"
+            )
+
+            response: requests.Response = requests.get(url)
+            response.raise_for_status()
+
+            soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
+
+            # Get pagination number
+            pagination = soup.find("select", class_="pagination")
+            if pagination:
+                if isinstance(pagination, Tag):
+                    options = pagination.find_all("option")
+                    if options:
+                        last_page = int(options[-1].text)
+
+                        # Get a random page number
+                        page_number = random.randint(1, last_page)
+
+                        # Get the page with the random number
+                        url = f"{url}&page={page_number}#mods"
+
+                        response = requests.get(url)
+                        response.raise_for_status()
+
+                        soup = BeautifulSoup(response.content, "html.parser")
+
+                        # Get all a tags with title "Download"
+                        download_links = soup.find_all("a", title="Download")
+                        if download_links:
+                            download_link = random.choice(download_links)
+                            module_id = (
+                                download_link["href"].split("=")[-1].split("#")[0]
+                            )
+                            module = self.download_module(module_id)
+                            if module:
+                                filename, module_link = (
+                                    module["filename"],
+                                    module["module_link"],
+                                )
+                        else:
+                            logger.error("No download links found on the page")
+                    else:
+                        logger.error("No pagination options found")
+                else:
+                    logger.error("No pagination tag found")
+            else:
+                logger.error("No pagination found")
+        else:
+            logger.error("Author is empty")
+
+        return {"filename": filename, "module_link": module_link}
+
     def get_checksums(self, filename: str) -> dict:
         md5 = hashlib.md5()
         sha1 = hashlib.sha1()
@@ -449,6 +581,8 @@ class MainWindow(QMainWindow):
 
         if self.member_id_switch.isChecked():
             result = self.download_favorite_module()
+        elif self.author_switch.isChecked():
+            result = self.download_author_module()
         else:
             result = self.download_random_module()
 
