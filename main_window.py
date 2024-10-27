@@ -396,9 +396,13 @@ class MainWindow(QMainWindow):
                                 if len(rows) > 1:
                                     # Get the query id from the first link in row 2
                                     row = rows[1]
-                                    link = row.find("a", href=True, class_="standard-link")
+                                    link = row.find(
+                                        "a", href=True, class_="standard-link"
+                                    )
                                     if link:
-                                        webbrowser.open("https://modarchive.org/" + link["href"])
+                                        webbrowser.open(
+                                            "https://modarchive.org/" + link["href"]
+                                        )
 
     @Slot()
     def seek(self, position: int) -> None:
@@ -428,6 +432,8 @@ class MainWindow(QMainWindow):
         return {"filename": filename, "module_link": module_link}
 
     def download_random_module(self) -> Optional[dict[str, Optional[str]]]:
+        logger.debug("Getting a random module")
+
         url: str = "https://modarchive.org/index.php?request=view_player&query=random"
         response: requests.Response = requests.get(url)
         response.raise_for_status()
@@ -454,6 +460,8 @@ class MainWindow(QMainWindow):
         member_id: str = self.member_id_input.text()
 
         if member_id:
+            logger.debug(f"Getting a random module for member ID: {member_id}")
+
             # Get the member's favorite modules list (links to the modules)
             url: str = (
                 f"https://modarchive.org/index.php?request=view_member_favourites_text&query={member_id}"
