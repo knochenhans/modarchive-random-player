@@ -1,5 +1,6 @@
 import os
 import random
+import re
 import shutil
 import tempfile
 import webbrowser
@@ -364,43 +365,36 @@ class MainWindow(QMainWindow):
 
         menu.exec_(QCursor.pos())
 
-    @Slot()
-    def lookup_msm(self):
+    def get_msm_url(self) -> Optional[str]:
         if self.song_metadata:
-            url = f'https://modsamplemaster.thegang.nu/module.php?sha1={self.song_metadata.get("sha1")}'
+            return f'https://modsamplemaster.thegang.nu/module.php?sha1={self.song_metadata.get("sha1")}'
+        return None
 
+    @Slot()
+    def lookup_msm(self) -> None:
+        url: Optional[str] = self.get_msm_url()
+        if url:
             # Check if the link returns a 404
             response = requests.get(url)
             if response.status_code == 200:
                 webbrowser.open(url)
 
     @Slot()
-    def lookup_modarchive(self):
-        if self.song_metadata:
-            url = f'https://modarchive.org/index.php?request=search&query={self.song_metadata.get("title")}&submit=Find&search_type=songtitle'
+    def lookup_modarchive(self) -> None:
+        # Search via msm as the ModArchive search is not very reliable
+        msm_url: Optional[str] = self.get_msm_url()
 
-            response = requests.get(url)
+        if msm_url:
+            response = requests.get(msm_url)
             if response.status_code == 200:
-                # Find first div with class "bgsegment top2"
+                # Find first link to domain modarchive.org
                 soup = BeautifulSoup(response.content, "html.parser")
-
-                div_segment = soup.find("div", class_="bgsegment top2")
-                if div_segment:
-                    table = div_segment.find("table")
-                    if table:
-                        if isinstance(table, Tag):
-                            rows = table.find_all("tr")
-                            if rows:
-                                if len(rows) > 1:
-                                    # Get the query id from the first link in row 2
-                                    row = rows[1]
-                                    link = row.find(
-                                        "a", href=True, class_="standard-link"
-                                    )
-                                    if link:
-                                        webbrowser.open(
-                                            "https://modarchive.org/" + link["href"]
-                                        )
+                result = soup.find("a", href=re.compile("modarchive.org"))
+                if result:
+                    if isinstance(result, Tag):
+                        modarchive_url = result["href"]
+                    if isinstance(modarchive_url, str):
+                        webbrowser.open(modarchive_url)
 
     @Slot()
     def seek(self, position: int) -> None:
