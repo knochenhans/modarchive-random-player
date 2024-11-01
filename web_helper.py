@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup, Tag
 from loguru import logger
 import requests
 from player_backends.player_backend import SongMetadata
-from requests_html import HTMLSession
+# from requests_html import HTMLSession
 
 
 class WebHelper:
@@ -188,39 +188,39 @@ class WebHelper:
                 return "https://modarchive.org/" + href
         return ""
 
-    def lookup_modarchive_mod_artist(
-        self, song_metadata: SongMetadata
-    ) -> dict[str, str]:
-        logger.debug("Looking up artist on ModArchive")
+    # def lookup_modarchive_mod_artist(
+    #     self, song_metadata: SongMetadata
+    # ) -> dict[str, str]:
+    #     logger.debug("Looking up artist on ModArchive")
 
-        url: str = self.lookup_modarchive_mod_url(song_metadata)
+    #     url: str = self.lookup_modarchive_mod_url(song_metadata)
 
-        result_dict: dict[str, str] = {}
+    #     result_dict: dict[str, str] = {}
 
-        if url:
-            session = HTMLSession()
+    #     if url:
+    #         session = HTMLSession()
 
-            r = session.get(url)
+    #         r = session.get(url)
 
-            r.html.render()
+    #         r.html.render()
 
-            result = r.html.find("div.mod-page-archive-info")
-            if result:
-                # Check for registered artist
-                artist_links = result[0].find("a.standard-link")
+    #         result = r.html.find("div.mod-page-archive-info")
+    #         if result:
+    #             # Check for registered artist
+    #             artist_links = result[0].find("a.standard-link")
 
-                if len(artist_links) == 0:
-                    logger.debug("No artist links found")
+    #             if len(artist_links) == 0:
+    #                 logger.debug("No artist links found")
 
-                for artist_link in artist_links:
-                    href = artist_link.attrs["href"]
-                    if href.startswith("member"):
-                        result_dict["registered_artist"] = artist_link.text
-                        logger.debug(f"Registered artist: {artist_link.text}")
-                    elif href.startswith("index"):
-                        result_dict["guessed_artist"] = artist_link.text
-                        logger.debug(f"Guessed artist: {artist_link.text}")
-        return result_dict
+    #             for artist_link in artist_links:
+    #                 href = artist_link.attrs["href"]
+    #                 if href.startswith("member"):
+    #                     result_dict["registered_artist"] = artist_link.text
+    #                     logger.debug(f"Registered artist: {artist_link.text}")
+    #                 elif href.startswith("index"):
+    #                     result_dict["guessed_artist"] = artist_link.text
+    #                     logger.debug(f"Guessed artist: {artist_link.text}")
+    #     return result_dict
 
     def lookup_msm_mod_url(self, song_metadata: SongMetadata) -> str:
         url: Optional[str] = None
