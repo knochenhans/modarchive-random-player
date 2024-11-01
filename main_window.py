@@ -35,7 +35,7 @@ from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLi
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
 from player_backends.player_backend import PlayerBackend, SongMetadata
 from player_thread import PlayerThread
-
+from web_helper import WebHelper
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
@@ -72,6 +72,8 @@ class MainWindow(QMainWindow):
         self.temp_dir = tempfile.mkdtemp()
 
         self.song_metadata: SongMetadata | None = None
+
+        self.web_helper = WebHelper()
 
     def load_fonts_from_dir(self, directory: str) -> set[str]:
         families = set()
@@ -239,16 +241,6 @@ class MainWindow(QMainWindow):
         # Create a horizontal layout for the buttons
         buttons_hbox_layout: QHBoxLayout = QHBoxLayout()
 
-        # Add a button in a new row
-        self.history_button: QPushButton = QPushButton("Recent modules")
-        self.history_button.clicked.connect(self.show_history)
-        buttons_hbox_layout.addWidget(self.history_button)
-
-        # Add a button to open the meta data window
-        self.meta_data_button: QPushButton = QPushButton("Show Metadata")
-        self.meta_data_button.clicked.connect(self.show_meta_data)
-        buttons_hbox_layout.addWidget(self.meta_data_button)
-
         # Add the buttons horizontal layout to the vertical layout
         vbox_layout.addLayout(buttons_hbox_layout)
 
@@ -372,29 +364,19 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def lookup_msm(self) -> None:
-        url: Optional[str] = self.get_msm_url()
-        if url:
-            # Check if the link returns a 404
-            response = requests.get(url)
-            if response.status_code == 200:
+        if self.song_metadata:
+            url: str = self.web_helper.lookup_msm_mod_url(self.song_metadata)
+
+            if url:
                 webbrowser.open(url)
 
     @Slot()
     def lookup_modarchive(self) -> None:
-        # Search via msm as the ModArchive search is not very reliable
-        msm_url: Optional[str] = self.get_msm_url()
+        if self.song_metadata:
+            url: str = self.web_helper.lookup_modarchive_mod_url(self.song_metadata)
 
-        if msm_url:
-            response = requests.get(msm_url)
-            if response.status_code == 200:
-                # Find first link to domain modarchive.org
-                soup = BeautifulSoup(response.content, "html.parser")
-                result = soup.find("a", href=re.compile("modarchive.org"))
-                if result:
-                    if isinstance(result, Tag):
-                        modarchive_url = result["href"]
-                    if isinstance(modarchive_url, str):
-                        webbrowser.open(modarchive_url)
+            if url:
+                webbrowser.open(url)
 
     @Slot()
     def seek(self, position: int) -> None:
@@ -575,15 +557,16 @@ class MainWindow(QMainWindow):
         # Scroll to the top of the message label
         self.message_scroll_area.verticalScrollBar().setValue(0)
 
-        module_filename: Optional[str]
-        module_link: Optional[str]
-
         if self.member_id_switch.isChecked():
-            result = self.download_favorite_module()
+            result = self.web_helper.download_favorite_module(
+                self.member_id_input.text(), self.temp_dir
+            )
         elif self.author_switch.isChecked():
-            result = self.download_author_module()
+            result = self.web_helper.download_author_module(
+                self.author_input.text(), self.temp_dir
+            )
         else:
-            result = self.download_random_module()
+            result = self.web_helper.download_random_module(self.temp_dir)
 
         if result is None:
             logger.error("Failed to download module")
@@ -599,6 +582,7 @@ class MainWindow(QMainWindow):
 
             if self.player_backend is not None and self.audio_backend is not None:
                 self.song_metadata = self.player_backend.song_metadata
+                self.song_metadata["filename"] = module_filename.split("/")[-1]
 
                 if self.song_metadata.get("md5") == "":
                     md5 = self.get_checksums(module_filename).get("md5")
@@ -640,7 +624,6 @@ class MainWindow(QMainWindow):
                 )
                 self.stop_button.setEnabled(True)
                 self.progress_slider.setEnabled(True)
-
                 self.tray_icon.showMessage(
                     "Now Playing",
                     f"{module_title}",
