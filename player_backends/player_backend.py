@@ -6,6 +6,7 @@ from player_backends.libuade.songinfo import Credits
 
 
 class SongMetadata(TypedDict):
+    filename: str
     type: str
     type_long: str
     originaltype: str
@@ -29,6 +30,7 @@ class SongMetadata(TypedDict):
 class PlayerBackend(ABC):
     def __init__(self) -> None:
         self.song_metadata: SongMetadata = {
+            "filename": "",
             "type": "",
             "type_long": "",
             "originaltype": "",

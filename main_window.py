@@ -27,14 +27,19 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
+    QListWidget,
+    QListWidgetItem,
 )
 import hashlib
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
+from history_window import HistoryWindow
+from metadata_window import MetadataWindow
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
 from player_backends.player_backend import PlayerBackend, SongMetadata
 from player_thread import PlayerThread
+from web_helper import WebHelper
 
 
 class MainWindow(QMainWindow):
@@ -72,6 +77,9 @@ class MainWindow(QMainWindow):
         self.temp_dir = tempfile.mkdtemp()
 
         self.song_metadata: SongMetadata | None = None
+        self.song_history: list[SongMetadata] = []
+
+        self.web_helper = WebHelper()
 
     def load_fonts_from_dir(self, directory: str) -> set[str]:
         families = set()
@@ -365,196 +373,27 @@ class MainWindow(QMainWindow):
 
         menu.exec_(QCursor.pos())
 
-    def get_msm_url(self) -> Optional[str]:
-        if self.song_metadata:
-            return f'https://modsamplemaster.thegang.nu/module.php?sha1={self.song_metadata.get("sha1")}'
-        return None
-
     @Slot()
     def lookup_msm(self) -> None:
-        url: Optional[str] = self.get_msm_url()
-        if url:
-            # Check if the link returns a 404
-            response = requests.get(url)
-            if response.status_code == 200:
+        if self.song_metadata:
+            url: str = self.web_helper.lookup_msm_mod_url(self.song_metadata)
+
+            if url:
                 webbrowser.open(url)
 
     @Slot()
     def lookup_modarchive(self) -> None:
-        # Search via msm as the ModArchive search is not very reliable
-        msm_url: Optional[str] = self.get_msm_url()
+        if self.song_metadata:
+            url: str = self.web_helper.lookup_modarchive_mod_url(self.song_metadata)
 
-        if msm_url:
-            response = requests.get(msm_url)
-            if response.status_code == 200:
-                # Find first link to domain modarchive.org
-                soup = BeautifulSoup(response.content, "html.parser")
-                result = soup.find("a", href=re.compile("modarchive.org"))
-                if result:
-                    if isinstance(result, Tag):
-                        modarchive_url = result["href"]
-                    if isinstance(modarchive_url, str):
-                        webbrowser.open(modarchive_url)
+            if url:
+                webbrowser.open(url)
 
     @Slot()
     def seek(self, position: int) -> None:
         # if self.player_thread:
         #     self.player_thread.seek(position)
         pass
-
-    def download_module(self, module_id: str) -> Optional[dict[str, Optional[str]]]:
-        filename: Optional[str] = None
-        module_link: Optional[str] = None
-
-        url: str = f"https://api.modarchive.org/downloads.php?moduleid={module_id}"
-        response: requests.Response = requests.get(url)
-        response.raise_for_status()
-
-        if response.status_code == 200:
-            module_filename: str = response.headers.get(
-                "content-disposition", f"{module_id}.mod"
-            ).split("filename=")[-1]
-            module_link = f"https://modarchive.org/module.php?{module_id}"
-
-            temp_file_path: str = f"{self.temp_dir}/{module_filename}"
-            with open(temp_file_path, "wb") as temp_file:
-                temp_file.write(response.content)
-            filename = temp_file_path
-            logger.debug(f"Module downloaded to: {filename}")
-        return {"filename": filename, "module_link": module_link}
-
-    def download_random_module(self) -> Optional[dict[str, Optional[str]]]:
-        logger.debug("Getting a random module")
-
-        url: str = "https://modarchive.org/index.php?request=view_player&query=random"
-        response: requests.Response = requests.get(url)
-        response.raise_for_status()
-
-        soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
-        result = soup.find("a", href=True, string=True, class_="standard-link")
-        link_tag: Optional[Tag] = result if isinstance(result, Tag) else None
-        if not link_tag:
-            raise Exception("No module link found in the HTML response.")
-
-        if isinstance(link_tag, Tag):
-            href = link_tag["href"]
-            module_url: str = href[0] if isinstance(href, list) else href
-            if isinstance(module_url, list):
-                module_url = module_url[0]
-            if isinstance(module_url, str):
-                module_id: str = module_url.split("=")[-1].split("#")[0]
-                return self.download_module(module_id)
-        return None
-
-    def download_favorite_module(self) -> Optional[dict[str, Optional[str]]]:
-        filename: Optional[str] = None
-        module_link: Optional[str] = None
-        member_id: str = self.member_id_input.text()
-
-        if member_id:
-            logger.debug(f"Getting a random module for member ID: {member_id}")
-
-            # Get the member's favorite modules list (links to the modules)
-            url: str = (
-                f"https://modarchive.org/index.php?request=view_member_favourites_text&query={member_id}"
-            )
-
-            response: requests.Response = requests.get(url)
-            response.raise_for_status()
-
-            soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
-            result = soup.find("textarea")
-
-            if result:
-                favorite_modules: str = result.text
-                module_links = favorite_modules.split("\n")
-
-                # Remove modules with names already in the temp directory
-                module_links = [
-                    link
-                    for link in module_links
-                    if not os.path.exists(f"{self.temp_dir}/{link.split('#')[-1]}")
-                ]
-
-                if module_links:
-                    # Pick a random module from the resulting list
-                    module_url: str = random.choice(module_links)
-                    module_id_and_name: str = module_url.split("=")[-1]
-                    module_id: str = module_id_and_name.split("#")[0]
-
-                    module = self.download_module(module_id)
-                    if module:
-                        filename, module_link = (
-                            module["filename"],
-                            module["module_link"],
-                        )
-                else:
-                    logger.error("No new module links found in the member's favorites")
-        else:
-            logger.error("Member ID is empty")
-        return {"filename": filename, "module_link": module_link}
-
-    def download_author_module(self) -> Optional[dict[str, Optional[str]]]:
-        filename: Optional[str] = None
-        module_link: Optional[str] = None
-        author: str = self.author_input.text()
-
-        if author:
-            logger.debug(f"Getting a random module by author: {author}")
-
-            url: str = (
-                f"https://modarchive.org/index.php?request=search&search_type=guessed_artist&query={author}"
-            )
-
-            response: requests.Response = requests.get(url)
-            response.raise_for_status()
-
-            soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
-
-            # Get pagination number
-            pagination = soup.find("select", class_="pagination")
-            if pagination:
-                if isinstance(pagination, Tag):
-                    options = pagination.find_all("option")
-                    if options:
-                        last_page = int(options[-1].text)
-
-                        # Get a random page number
-                        page_number = random.randint(1, last_page)
-
-                        # Get the page with the random number
-                        url = f"{url}&page={page_number}#mods"
-
-                        response = requests.get(url)
-                        response.raise_for_status()
-
-                        soup = BeautifulSoup(response.content, "html.parser")
-
-                        # Get all a tags with title "Download"
-                        download_links = soup.find_all("a", title="Download")
-                        if download_links:
-                            download_link = random.choice(download_links)
-                            module_id = (
-                                download_link["href"].split("=")[-1].split("#")[0]
-                            )
-                            module = self.download_module(module_id)
-                            if module:
-                                filename, module_link = (
-                                    module["filename"],
-                                    module["module_link"],
-                                )
-                        else:
-                            logger.error("No download links found on the page")
-                    else:
-                        logger.error("No pagination options found")
-                else:
-                    logger.error("No pagination tag found")
-            else:
-                logger.error("No pagination found")
-        else:
-            logger.error("Author is empty")
-
-        return {"filename": filename, "module_link": module_link}
 
     def get_checksums(self, filename: str) -> dict:
         md5 = hashlib.md5()
@@ -575,15 +414,16 @@ class MainWindow(QMainWindow):
         # Scroll to the top of the message label
         self.message_scroll_area.verticalScrollBar().setValue(0)
 
-        module_filename: Optional[str]
-        module_link: Optional[str]
-
         if self.member_id_switch.isChecked():
-            result = self.download_favorite_module()
+            result = self.web_helper.download_favorite_module(
+                self.member_id_input.text(), self.temp_dir
+            )
         elif self.author_switch.isChecked():
-            result = self.download_author_module()
+            result = self.web_helper.download_author_module(
+                self.author_input.text(), self.temp_dir
+            )
         else:
-            result = self.download_random_module()
+            result = self.web_helper.download_random_module(self.temp_dir)
 
         if result is None:
             logger.error("Failed to download module")
@@ -599,6 +439,7 @@ class MainWindow(QMainWindow):
 
             if self.player_backend is not None and self.audio_backend is not None:
                 self.song_metadata = self.player_backend.song_metadata
+                self.song_metadata["filename"] = module_filename.split("/")[-1]
 
                 if self.song_metadata.get("md5") == "":
                     md5 = self.get_checksums(module_filename).get("md5")
@@ -641,6 +482,19 @@ class MainWindow(QMainWindow):
                 self.stop_button.setEnabled(True)
                 self.progress_slider.setEnabled(True)
 
+                # Get artist
+                # artist_dict = self.web_helper.lookup_modarchive_mod_artist(
+                #     self.song_metadata
+                # )
+
+                # artist = artist_dict.get("registered_artist", "")
+
+                # if artist == "":
+                #     artist = artist_dict.get("guessed_artist", "")
+
+                # if artist != "":
+                #     self.song_metadata["artist"] = artist
+
                 self.tray_icon.showMessage(
                     "Now Playing",
                     f"{module_title}",
@@ -648,6 +502,7 @@ class MainWindow(QMainWindow):
                     10000,
                 )
                 self.tray_icon.setToolTip(f"{module_title}")
+                self.song_history.append(self.song_metadata)
                 logger.debug("Module loaded and playing")
             else:
                 raise ValueError("No player backend could load the module")
@@ -697,3 +552,14 @@ class MainWindow(QMainWindow):
 
         self.tray_icon.hide()
         super().closeEvent(event)
+
+    @Slot()
+    def show_history(self) -> None:
+        self.history_window = HistoryWindow(self.song_history)
+        self.history_window.show()
+
+    @Slot()
+    def show_meta_data(self) -> None:
+        if self.song_metadata is not None:
+            self.meta_data_window = MetadataWindow(self.song_metadata)
+            self.meta_data_window.show()
