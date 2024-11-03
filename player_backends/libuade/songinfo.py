@@ -28,7 +28,7 @@ class Credits(TypedDict):
     max_positions: int
     instruments: List[InstrumentInfo]
     modulename: str
-    authorname: str
+    artistname: str
     specialinfo: str
     file_name: str
     file_length: str
@@ -130,7 +130,7 @@ def process_WTWT_mod(
         if txt_offset < len_buf and txt_offset != chunk:
             if not string_checker(buf, txt_offset, len_buf):
                 raise ValueError("Invalid string at AUTHORNAME")
-            credits["authorname"] = (
+            credits["artistname"] = (
                 buf[txt_offset:].split(b"\x00", 1)[0].decode("cp1251")
             )
 
@@ -324,7 +324,7 @@ def process_custom(credits: Credits, buf: bytes) -> None:
             credit_end = hunk[y:].find(b"\x00")
             if credit_end == -1:
                 raise ValueError("Invalid credit string termination")
-            credits["authorname"] = hunk[y : y + credit_end].decode("cp1251")
+            credits["artistname"] = hunk[y : y + credit_end].decode("cp1251")
 
 
 def process_dm2_mod(credits: Credits, buf: bytes) -> None:
@@ -348,7 +348,7 @@ def process_module(
         "max_positions": 0,
         "instruments": [],
         "modulename": "",
-        "authorname": "",
+        "artistname": "",
         "specialinfo": "",
         "file_name": filename,
         "file_length": f"{modfilelen} bytes",

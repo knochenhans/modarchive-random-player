@@ -200,43 +200,43 @@ class MainWindow(QMainWindow):
         # Add the member_id layout to the vertical layout
         vbox_layout.addLayout(member_id_layout)
 
-        # Add a checkbox and text input field for author
-        self.author_switch: QCheckBox = QCheckBox()
+        # Add a checkbox and text input field for artist
+        self.artist_switch: QCheckBox = QCheckBox()
 
-        self.author_label: QLabel = QLabel("Author:")
-        self.author_label.setEnabled(False)
-        self.author_switch.stateChanged.connect(self.toggle_author_input)
+        self.artist_label: QLabel = QLabel("Artist:")
+        self.artist_label.setEnabled(False)
+        self.artist_switch.stateChanged.connect(self.toggle_artist_input)
 
-        self.author_input: QLineEdit = QLineEdit()
-        self.author_input.setEnabled(False)
-        self.author_input.setPlaceholderText("Author")
+        self.artist_input: QLineEdit = QLineEdit()
+        self.artist_input.setEnabled(False)
+        self.artist_input.setPlaceholderText("Artist")
 
-        # Load the author input data from settings
-        author_switch_enabled: bool = bool(
-            self.settings.value("author_enabled", type=bool, defaultValue=False)
+        # Load the artist input data from settings
+        artist_switch_enabled: bool = bool(
+            self.settings.value("artist_enabled", type=bool, defaultValue=False)
         )
-        self.author_switch.setChecked(author_switch_enabled)
+        self.artist_switch.setChecked(artist_switch_enabled)
 
-        if author_switch_enabled:
-            self.author_label.setEnabled(True)
-            self.author_input.setEnabled(True)
+        if artist_switch_enabled:
+            self.artist_label.setEnabled(True)
+            self.artist_input.setEnabled(True)
 
-        author: str = str(self.settings.value("author", ""))
-        if author:
-            self.author_input.setText(author)
+        artist: str = str(self.settings.value("artist", ""))
+        if artist:
+            self.artist_input.setText(artist)
 
-        # Save the author input data when it changes
-        self.author_input.textChanged.connect(self.save_author_input)
-        self.author_switch.stateChanged.connect(self.save_author_input)
+        # Save the artist input data when it changes
+        self.artist_input.textChanged.connect(self.save_artist_input)
+        self.artist_switch.stateChanged.connect(self.save_artist_input)
 
         # Create a horizontal layout for the switch and input field
-        author_layout: QHBoxLayout = QHBoxLayout()
-        author_layout.addWidget(self.author_switch)
-        author_layout.addWidget(self.author_label)
-        author_layout.addWidget(self.author_input)
+        artist_layout: QHBoxLayout = QHBoxLayout()
+        artist_layout.addWidget(self.artist_switch)
+        artist_layout.addWidget(self.artist_label)
+        artist_layout.addWidget(self.artist_input)
 
-        # Add the author layout to the vertical layout
-        vbox_layout.addLayout(author_layout)
+        # Add the artist layout to the vertical layout
+        vbox_layout.addLayout(artist_layout)
 
         # Create a horizontal layout for the buttons
         buttons_hbox_layout: QHBoxLayout = QHBoxLayout()
@@ -253,7 +253,7 @@ class MainWindow(QMainWindow):
         if self.member_id_switch.isChecked():
             self.member_id_label.setEnabled(True)
             self.member_id_input.setEnabled(True)
-            self.author_switch.setChecked(False)
+            self.artist_switch.setChecked(False)
         else:
             self.member_id_label.setEnabled(False)
             self.member_id_input.setEnabled(False)
@@ -264,19 +264,19 @@ class MainWindow(QMainWindow):
         self.settings.setValue("member_id_enabled", self.member_id_switch.isChecked())
 
     @Slot()
-    def toggle_author_input(self) -> None:
-        if self.author_switch.isChecked():
-            self.author_label.setEnabled(True)
-            self.author_input.setEnabled(True)
+    def toggle_artist_input(self) -> None:
+        if self.artist_switch.isChecked():
+            self.artist_label.setEnabled(True)
+            self.artist_input.setEnabled(True)
             self.member_id_switch.setChecked(False)
         else:
-            self.author_label.setEnabled(False)
-            self.author_input.setEnabled(False)
+            self.artist_label.setEnabled(False)
+            self.artist_input.setEnabled(False)
 
     @Slot()
-    def save_author_input(self) -> None:
-        self.settings.setValue("author", self.author_input.text())
-        self.settings.setValue("author_enabled", self.author_switch.isChecked())
+    def save_artist_input(self) -> None:
+        self.settings.setValue("artist", self.artist_input.text())
+        self.settings.setValue("artist_enabled", self.artist_switch.isChecked())
 
     def create_tray_menu(self) -> QMenu:
         tray_menu: QMenu = QMenu(self)
@@ -476,16 +476,16 @@ class MainWindow(QMainWindow):
             logger.error("Member ID is empty")
         return {"filename": filename, "module_link": module_link}
 
-    def download_author_module(self) -> Optional[dict[str, Optional[str]]]:
+    def download_artist_module(self) -> Optional[dict[str, Optional[str]]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
-        author: str = self.author_input.text()
+        artist: str = self.artist_input.text()
 
-        if author:
-            logger.debug(f"Getting a random module by author: {author}")
+        if artist:
+            logger.debug(f"Getting a random module by artist: {artist}")
 
             url: str = (
-                f"https://modarchive.org/index.php?request=search&search_type=guessed_artist&query={author}"
+                f"https://modarchive.org/index.php?request=search&search_type=guessed_artist&query={artist}"
             )
 
             response: requests.Response = requests.get(url)
@@ -534,7 +534,7 @@ class MainWindow(QMainWindow):
             else:
                 logger.error("No pagination found")
         else:
-            logger.error("Author is empty")
+            logger.error("Artist is empty")
 
         return {"filename": filename, "module_link": module_link}
 
@@ -561,9 +561,9 @@ class MainWindow(QMainWindow):
             result = self.web_helper.download_favorite_module(
                 self.member_id_input.text(), self.temp_dir
             )
-        elif self.author_switch.isChecked():
-            result = self.web_helper.download_author_module(
-                self.author_input.text(), self.temp_dir
+        elif self.artist_switch.isChecked():
+            result = self.web_helper.download_artist_module(
+                self.artist_input.text(), self.temp_dir
             )
         else:
             result = self.web_helper.download_random_module(self.temp_dir)

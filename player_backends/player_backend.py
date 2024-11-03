@@ -50,7 +50,7 @@ class PlayerBackend(ABC):
             "playerfname": "",
             "credits": {
                 "song_title": "",
-                "authorname": "",
+                "artistname": "",
                 "file_length": "",
                 "file_name": "",
                 "file_prefix": "",

@@ -108,17 +108,17 @@ class WebHelper:
             logger.error("Member ID is empty")
         return {"filename": filename, "module_link": module_link}
 
-    def download_author_module(
-        self, author: str, temp_dir
+    def download_artist_module(
+        self, artist: str, temp_dir
     ) -> Optional[dict[str, Optional[str]]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
-        if author:
-            logger.debug(f"Getting a random module by author: {author}")
+        if artist:
+            logger.debug(f"Getting a random module by artist: {artist}")
 
             url: str = (
-                f"https://modarchive.org/index.php?request=search&search_type=guessed_artist&query={author}"
+                f"https://modarchive.org/index.php?request=search&search_type=guessed_artist&query={artist}"
             )
 
             response: requests.Response = requests.get(url)
@@ -167,7 +167,7 @@ class WebHelper:
             else:
                 logger.error("No pagination found")
         else:
-            logger.error("Author is empty")
+            logger.error("Artist is empty")
 
         return {"filename": filename, "module_link": module_link}
 
