@@ -35,7 +35,9 @@ from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLi
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
 from player_backends.player_backend import PlayerBackend, SongMetadata
 from player_thread import PlayerThread
+from settings import SettingsDialog
 from web_helper import WebHelper
+
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
@@ -161,54 +163,41 @@ class MainWindow(QMainWindow):
         vbox_layout.addLayout(hbox_layout)
         vbox_layout.addWidget(self.message_scroll_area)
 
-        # Add a checkbox and number input field for member_id
-        self.member_id_switch: QCheckBox = QCheckBox()
+        # Play favorite functions
+        self.play_favorites_switch: QCheckBox = QCheckBox()
 
-        self.member_id_label: QLabel = QLabel("Member ID:")
-        self.member_id_label.setEnabled(False)
-        self.member_id_switch.stateChanged.connect(self.toggle_member_id_input)
+        self.play_favorites_label: QLabel = QLabel("Play my favorites")
+        self.play_favorites_label.setEnabled(False)
 
-        self.member_id_input: QLineEdit = QLineEdit()
-        self.member_id_input.setEnabled(False)
-        self.member_id_input.setPlaceholderText("Member ID")
-        self.member_id_input.setValidator(QIntValidator())
-
-        # Load the member input data from settings
         member_id_switch_enabled: bool = bool(
-            self.settings.value("member_id_enabled", type=bool, defaultValue=False)
+            self.settings.value("play_favorites_enabled", type=bool, defaultValue=False)
         )
-        self.member_id_switch.setChecked(member_id_switch_enabled)
+        self.play_favorites_switch.setChecked(member_id_switch_enabled)
 
         if member_id_switch_enabled:
-            self.member_id_label.setEnabled(True)
-            self.member_id_input.setEnabled(True)
+            self.play_favorites_label.setEnabled(True)
 
-        member_id: str = str(self.settings.value("member_id", ""))
-        if member_id:
-            self.member_id_input.setText(member_id)
+        # Save the favorite play setting when it changes
+        self.play_favorites_switch.stateChanged.connect(self.toggle_favorite_switch)
 
-        # Save the member input data when it changes
-        self.member_id_input.textChanged.connect(self.save_member_input)
-        self.member_id_switch.stateChanged.connect(self.save_member_input)
 
         # Create a horizontal layout for the switch and input field
-        member_id_layout: QHBoxLayout = QHBoxLayout()
-        member_id_layout.addWidget(self.member_id_switch)
-        member_id_layout.addWidget(self.member_id_label)
-        member_id_layout.addWidget(self.member_id_input)
+        play_favorite_layout: QHBoxLayout = QHBoxLayout()
+        play_favorite_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        play_favorite_layout.addWidget(self.play_favorites_switch)
+        play_favorite_layout.addWidget(self.play_favorites_label)
+        play_favorite_layout.addWidget(self.add_favorite_button)
 
-        # Add the member_id layout to the vertical layout
-        vbox_layout.addLayout(member_id_layout)
+        vbox_layout.addLayout(play_favorite_layout)
 
         # Add a checkbox and text input field for artist
         self.artist_switch: QCheckBox = QCheckBox()
 
         self.artist_label: QLabel = QLabel("Artist:")
         self.artist_label.setEnabled(False)
-        self.artist_switch.stateChanged.connect(self.toggle_artist_input)
+        self.artist_switch.stateChanged.connect(self.toggle_artist_switch)
 
         self.artist_input: QLineEdit = QLineEdit()
-        self.artist_input.setEnabled(False)
         self.artist_input.setPlaceholderText("Artist")
 
         # Load the artist input data from settings
@@ -219,7 +208,6 @@ class MainWindow(QMainWindow):
 
         if artist_switch_enabled:
             self.artist_label.setEnabled(True)
-            self.artist_input.setEnabled(True)
 
         artist: str = str(self.settings.value("artist", ""))
         if artist:
@@ -244,34 +232,46 @@ class MainWindow(QMainWindow):
         # Add the buttons horizontal layout to the vertical layout
         vbox_layout.addLayout(buttons_hbox_layout)
 
+        # Add a settings button
+        self.settings_button: QPushButton = QPushButton("Settings")
+        self.settings_button.clicked.connect(self.open_settings_dialog)
+        vbox_layout.addWidget(self.settings_button)
+
         container: QWidget = QWidget()
         container.setLayout(vbox_layout)
         self.setCentralWidget(container)
 
+    def update_favorite_input(self):
+        # Enable/disable favorite functions based on member id
+        member_id_set = str(self.settings.value("member_id", "")) != ""
+
+        self.play_favorites_switch.setEnabled(member_id_set)
+        self.play_favorites_label.setEnabled(member_id_set)
+        self.play_favorites_switch.setChecked(member_id_set)
+
+    def open_settings_dialog(self) -> None:
+        settings_dialog = SettingsDialog(self.settings, self)
+        settings_dialog.setWindowTitle("Settings")
+        settings_dialog.exec()
+
+        self.update_favorite_input()
+
     @Slot()
-    def toggle_member_id_input(self) -> None:
-        if self.member_id_switch.isChecked():
-            self.member_id_label.setEnabled(True)
-            self.member_id_input.setEnabled(True)
+    def toggle_favorite_switch(self) -> None:
+        favorites_switch_checked = self.play_favorites_switch.isChecked()
+        self.settings.setValue("play_favorites_enabled", favorites_switch_checked)
+        self.play_favorites_label.setEnabled(favorites_switch_checked)
+
+        if self.artist_switch.isChecked():
             self.artist_switch.setChecked(False)
-        else:
-            self.member_id_label.setEnabled(False)
-            self.member_id_input.setEnabled(False)
 
     @Slot()
-    def save_member_input(self) -> None:
-        self.settings.setValue("member_id", self.member_id_input.text())
-        self.settings.setValue("member_id_enabled", self.member_id_switch.isChecked())
-
-    @Slot()
-    def toggle_artist_input(self) -> None:
+    def toggle_artist_switch(self) -> None:
         if self.artist_switch.isChecked():
             self.artist_label.setEnabled(True)
-            self.artist_input.setEnabled(True)
-            self.member_id_switch.setChecked(False)
+            self.play_favorites_switch.setChecked(False)
         else:
             self.artist_label.setEnabled(False)
-            self.artist_input.setEnabled(False)
 
     @Slot()
     def save_artist_input(self) -> None:
@@ -431,7 +431,7 @@ class MainWindow(QMainWindow):
     def download_favorite_module(self) -> Optional[dict[str, Optional[str]]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
-        member_id: str = self.member_id_input.text()
+        member_id: str = str(self.settings.value("member_id", ""))
 
         if member_id:
             logger.debug(f"Getting a random module for member ID: {member_id}")
@@ -557,10 +557,10 @@ class MainWindow(QMainWindow):
         # Scroll to the top of the message label
         self.message_scroll_area.verticalScrollBar().setValue(0)
 
-        if self.member_id_switch.isChecked():
-            result = self.web_helper.download_favorite_module(
-                self.member_id_input.text(), self.temp_dir
-            )
+        member_id = str(self.settings.value("member_id", ""))
+
+        if self.play_favorites_switch.isChecked() and member_id:
+            result = self.web_helper.download_favorite_module(member_id, self.temp_dir)
         elif self.artist_switch.isChecked():
             result = self.web_helper.download_artist_module(
                 self.artist_input.text(), self.temp_dir
