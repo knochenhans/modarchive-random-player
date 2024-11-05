@@ -11,8 +11,7 @@ Only works under Linux for now.
 ## Features
 
 - Play, pause, and stop downloaded module files.
-- Load random module files from *The Mod Archive*, member favourites or by artist.
-- Display the current module name with a link to its page on *The Mod Archive*.
+- Load and play random module files from *The Mod Archive*, member favourites or by artist.
 - Display module meta data.
 - System tray notifications for the currently playing module.
 - Progress slider to show the current playback position.
@@ -21,11 +20,14 @@ Only works under Linux for now.
 
 ## How to use
 
-- Enter Member ID if you want to load random files from a member's favourites.
+- Enter Member ID in the settings if you want to load random files from a member's favourites.
 - Enter artist name if you want to load random files from a specific artist.
+- Choose the desired playing mode (random, member favourites, or artist).
 - Hit Play to load and play a random file from *The Mod Archive* or member favourites.
 - After finishing, the next random file will be loaded and played.
 - Click on the tray icon to show/hide the main window, or press Escape to hide it.
+- The star icon will show if the current module is in your favourites on *The Mod Archive*.
+- To add the current module to your favourites or remove it, click the star icon. This simply calls the respective request page on *The Mod Archive*, so you need to be logged in there.
 
 ## Requirements
 
