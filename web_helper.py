@@ -1,11 +1,12 @@
 import os
 import random
 import re
-from typing import Optional
+from typing import Optional, List
 from bs4 import BeautifulSoup, Tag
 from loguru import logger
 import requests
 from player_backends.player_backend import SongMetadata
+
 # from requests_html import HTMLSession
 
 
@@ -59,6 +60,32 @@ class WebHelper:
                 return self.download_module(module_id, temp_dir)
         return None
 
+    def get_member_module_url_list(self, member_id: str) -> List[str]:
+        url: str = (
+            f"https://modarchive.org/index.php?request=view_member_favourites_text&query={member_id}"
+        )
+
+        response: requests.Response = requests.get(url)
+        response.raise_for_status()
+
+        soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
+        result = soup.find("textarea")
+
+        if result:
+            favorite_modules: str = result.text
+            return favorite_modules.split("\n")
+        return []
+
+    def get_member_module_id_list(self, member_id: str) -> List[str]:
+        module_urls = self.get_member_module_url_list(member_id)
+
+        ids = []
+
+        for module_url in module_urls:
+            ids.append(module_url.split("moduleid=")[-1].split("#")[0])
+
+        return ids
+
     def download_favorite_module(
         self, member_id, temp_dir
     ) -> Optional[dict[str, Optional[str]]]:
@@ -68,42 +95,29 @@ class WebHelper:
         if member_id:
             logger.debug(f"Getting a random module for member ID: {member_id}")
 
-            # Get the member's favorite modules list (links to the modules)
-            url: str = (
-                f"https://modarchive.org/index.php?request=view_member_favourites_text&query={member_id}"
-            )
+            module_links = self.get_member_module_url_list(member_id)
 
-            response: requests.Response = requests.get(url)
-            response.raise_for_status()
+            # Remove modules with names already in the temp directory
+            module_links = [
+                link
+                for link in module_links
+                if not os.path.exists(f"{temp_dir}/{link.split('#')[-1]}")
+            ]
 
-            soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
-            result = soup.find("textarea")
+            if module_links:
+                # Pick a random module from the resulting list
+                module_url: str = random.choice(module_links)
+                module_id_and_name: str = module_url.split("=")[-1]
+                module_id: str = module_id_and_name.split("#")[0]
 
-            if result:
-                favorite_modules: str = result.text
-                module_links = favorite_modules.split("\n")
-
-                # Remove modules with names already in the temp directory
-                module_links = [
-                    link
-                    for link in module_links
-                    if not os.path.exists(f"{temp_dir}/{link.split('#')[-1]}")
-                ]
-
-                if module_links:
-                    # Pick a random module from the resulting list
-                    module_url: str = random.choice(module_links)
-                    module_id_and_name: str = module_url.split("=")[-1]
-                    module_id: str = module_id_and_name.split("#")[0]
-
-                    module = self.download_module(module_id, temp_dir)
-                    if module:
-                        filename, module_link = (
-                            module["filename"],
-                            module["module_link"],
-                        )
-                else:
-                    logger.error("No new module links found in the member's favorites")
+                module = self.download_module(module_id, temp_dir)
+                if module:
+                    filename, module_link = (
+                        module["filename"],
+                        module["module_link"],
+                    )
+            else:
+                logger.error("No new module links found in the member's favorites")
         else:
             logger.error("Member ID is empty")
         return {"filename": filename, "module_link": module_link}

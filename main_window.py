@@ -1,17 +1,13 @@
+from enum import Enum
 import os
-import random
-import re
 import shutil
 import tempfile
 import webbrowser
 from typing import Optional
 
-import requests
-from bs4 import BeautifulSoup
-from bs4.element import Tag
 from loguru import logger
 from PySide6.QtCore import QSettings, Qt, Slot, QDir
-from PySide6.QtGui import QAction, QFont, QIcon, QIntValidator, QFontDatabase, QCursor
+from PySide6.QtGui import QAction, QFont, QIcon, QFontDatabase, QCursor
 from PySide6.QtWidgets import (
     QCheckBox,
     QFormLayout,
@@ -27,6 +23,9 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
+    QButtonGroup,
+    QRadioButton,
+    QGroupBox,
 )
 import hashlib
 
@@ -37,6 +36,13 @@ from player_backends.player_backend import PlayerBackend, SongMetadata
 from player_thread import PlayerThread
 from settings import SettingsDialog
 from web_helper import WebHelper
+import darkdetect
+
+
+class CurrentPlayingMode(Enum):
+    RANDOM = 0
+    FAVORITE = 1
+    ARTIST = 2
 
 
 class MainWindow(QMainWindow):
@@ -77,6 +83,9 @@ class MainWindow(QMainWindow):
 
         self.web_helper = WebHelper()
 
+        self.current_module_id: str | None = None
+        self.current_module_is_favorite: bool = False
+
     def load_fonts_from_dir(self, directory: str) -> set[str]:
         families = set()
         for file_info in QDir(directory).entryInfoList(["*.ttf"]):
@@ -85,6 +94,18 @@ class MainWindow(QMainWindow):
         return families
 
     def setup_ui(self) -> None:
+        self.icons = {}
+
+        # Check if OS uses a dark theme via darkdetect
+        if darkdetect.isDark() or self.settings.value(
+            "dark_theme", type=bool, defaultValue=False
+        ):
+            self.icons["star_empty"] = "icons/star_empty_light.png"
+            self.icons["star_full"] = "icons/star_full_light.png"
+        else:
+            self.icons["star_empty"] = "icons/star_empty.png"
+            self.icons["star_full"] = "icons/star_full.png"
+
         self.title_label: QLabel = QLabel("Unknown")
         self.filename_label: QLabel = QLabel("Unknown")
         self.filename_label.linkActivated.connect(self.open_module_link)
@@ -150,11 +171,19 @@ class MainWindow(QMainWindow):
         form_layout.addRow("Filename:", self.filename_label)
         form_layout.addRow("Player backend:", self.player_backend_label)
 
+        # Create button for adding/removing song as favorite
+        self.add_favorite_button: QPushButton = QPushButton()
+        self.add_favorite_button.setIcon(QIcon(self.icons["star_empty"]))
+        self.add_favorite_button.clicked.connect(self.add_favorite_button_clicked)
+        self.add_favorite_button.setToolTip("Add to favorites")
+        self.add_favorite_button.setFlat(True)
+
         # Create a horizontal layout for the buttons and slider
         hbox_layout: QHBoxLayout = QHBoxLayout()
         hbox_layout.addWidget(self.play_button)
         hbox_layout.addWidget(self.stop_button)
         hbox_layout.addWidget(self.next_button)
+        hbox_layout.addWidget(self.add_favorite_button)
         hbox_layout.addWidget(self.progress_slider)
 
         # Create a vertical layout and add the form layout and horizontal layout to it
@@ -163,68 +192,38 @@ class MainWindow(QMainWindow):
         vbox_layout.addLayout(hbox_layout)
         vbox_layout.addWidget(self.message_scroll_area)
 
-        # Play favorite functions
-        self.play_favorites_switch: QCheckBox = QCheckBox()
+        # Add a source radio buttons
+        self.source_radio_group: QButtonGroup = QButtonGroup()
+        self.random_radio_button: QRadioButton = QRadioButton("Random")
+        self.random_radio_button.setChecked(True)
+        self.favorite_radio_button: QRadioButton = QRadioButton("Favorites")
+        self.artist_radio_button: QRadioButton = QRadioButton("Artist")
 
-        self.play_favorites_label: QLabel = QLabel("Play my favorites")
-        self.play_favorites_label.setEnabled(False)
-
-        member_id_switch_enabled: bool = bool(
-            self.settings.value("play_favorites_enabled", type=bool, defaultValue=False)
-        )
-        self.play_favorites_switch.setChecked(member_id_switch_enabled)
-
-        if member_id_switch_enabled:
-            self.play_favorites_label.setEnabled(True)
-
-        # Save the favorite play setting when it changes
-        self.play_favorites_switch.stateChanged.connect(self.toggle_favorite_switch)
-
-
-        # Create a horizontal layout for the switch and input field
-        play_favorite_layout: QHBoxLayout = QHBoxLayout()
-        play_favorite_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        play_favorite_layout.addWidget(self.play_favorites_switch)
-        play_favorite_layout.addWidget(self.play_favorites_label)
-        play_favorite_layout.addWidget(self.add_favorite_button)
-
-        vbox_layout.addLayout(play_favorite_layout)
-
-        # Add a checkbox and text input field for artist
-        self.artist_switch: QCheckBox = QCheckBox()
-
-        self.artist_label: QLabel = QLabel("Artist:")
-        self.artist_label.setEnabled(False)
-        self.artist_switch.stateChanged.connect(self.toggle_artist_switch)
+        self.source_radio_group.addButton(self.random_radio_button)
+        self.source_radio_group.addButton(self.favorite_radio_button)
+        self.source_radio_group.addButton(self.artist_radio_button)
 
         self.artist_input: QLineEdit = QLineEdit()
         self.artist_input.setPlaceholderText("Artist")
-
-        # Load the artist input data from settings
-        artist_switch_enabled: bool = bool(
-            self.settings.value("artist_enabled", type=bool, defaultValue=False)
-        )
-        self.artist_switch.setChecked(artist_switch_enabled)
-
-        if artist_switch_enabled:
-            self.artist_label.setEnabled(True)
-
-        artist: str = str(self.settings.value("artist", ""))
-        if artist:
-            self.artist_input.setText(artist)
-
-        # Save the artist input data when it changes
         self.artist_input.textChanged.connect(self.save_artist_input)
-        self.artist_switch.stateChanged.connect(self.save_artist_input)
 
-        # Create a horizontal layout for the switch and input field
+        # Create a horizontal layout for the artist radio button and input field
         artist_layout: QHBoxLayout = QHBoxLayout()
-        artist_layout.addWidget(self.artist_switch)
-        artist_layout.addWidget(self.artist_label)
+        artist_layout.addWidget(self.artist_radio_button)
         artist_layout.addWidget(self.artist_input)
 
-        # Add the artist layout to the vertical layout
-        vbox_layout.addLayout(artist_layout)
+        # Create a vertical layout for the radio buttons
+        radio_layout: QVBoxLayout = QVBoxLayout()
+        radio_layout.addWidget(self.random_radio_button)
+        radio_layout.addWidget(self.favorite_radio_button)
+        radio_layout.addLayout(artist_layout)
+
+        # Create a group box for the radio buttons
+        self.source_group_box: QGroupBox = QGroupBox("Source")
+        self.source_group_box.setLayout(radio_layout)
+
+        # Add the group box to the vertical layout
+        vbox_layout.addWidget(self.source_group_box)
 
         # Create a horizontal layout for the buttons
         buttons_hbox_layout: QHBoxLayout = QHBoxLayout()
@@ -241,42 +240,69 @@ class MainWindow(QMainWindow):
         container.setLayout(vbox_layout)
         self.setCentralWidget(container)
 
-    def update_favorite_input(self):
+        artist: str = str(self.settings.value("artist", ""))
+        if artist:
+            self.artist_input.setText(artist)
+
+        self.update_source_input()
+
+        # Load current playing mode
+        self.set_current_playing_mode(
+            CurrentPlayingMode(self.settings.value("current_playing_mode", 0))
+        )
+
+    def set_current_playing_mode(
+        self, current_playing_mode: CurrentPlayingMode
+    ) -> None:
+        if current_playing_mode == CurrentPlayingMode.FAVORITE:
+            self.favorite_radio_button.setChecked(True)
+            self.current_playing_mode = CurrentPlayingMode.FAVORITE
+        elif current_playing_mode == CurrentPlayingMode.ARTIST:
+            self.artist_radio_button.setChecked(True)
+            self.current_playing_mode = CurrentPlayingMode.ARTIST
+        else:
+            self.random_radio_button.setChecked(True)
+
+    def add_favorite_button_clicked(self):
+        if self.current_module_id:
+            action = (
+                "add_favourite"
+                if not self.current_module_is_favorite
+                else "remove_favourite"
+            )
+            webbrowser.open(
+                f"https://modarchive.org/interactive.php?request={action}&query={self.current_module_id}"
+            )
+
+            self.current_module_is_favorite = not self.current_module_is_favorite
+
+            self.add_favorite_button.setIcon(
+                QIcon(self.icons["star_full"])
+                if self.current_module_is_favorite
+                else QIcon(self.icons["star_empty"])
+            )
+
+    def update_source_input(self):
         # Enable/disable favorite functions based on member id
         member_id_set = str(self.settings.value("member_id", "")) != ""
 
-        self.play_favorites_switch.setEnabled(member_id_set)
-        self.play_favorites_label.setEnabled(member_id_set)
-        self.play_favorites_switch.setChecked(member_id_set)
+        self.favorite_radio_button.setEnabled(member_id_set)
+
+        # Enable/disable artist functions based on artist input
+        # artist_set = self.artist_input.text() != ""
+
+        # self.artist_radio_button.setEnabled(artist_set)
 
     def open_settings_dialog(self) -> None:
         settings_dialog = SettingsDialog(self.settings, self)
         settings_dialog.setWindowTitle("Settings")
         settings_dialog.exec()
 
-        self.update_favorite_input()
-
-    @Slot()
-    def toggle_favorite_switch(self) -> None:
-        favorites_switch_checked = self.play_favorites_switch.isChecked()
-        self.settings.setValue("play_favorites_enabled", favorites_switch_checked)
-        self.play_favorites_label.setEnabled(favorites_switch_checked)
-
-        if self.artist_switch.isChecked():
-            self.artist_switch.setChecked(False)
-
-    @Slot()
-    def toggle_artist_switch(self) -> None:
-        if self.artist_switch.isChecked():
-            self.artist_label.setEnabled(True)
-            self.play_favorites_switch.setChecked(False)
-        else:
-            self.artist_label.setEnabled(False)
+        self.update_source_input()
 
     @Slot()
     def save_artist_input(self) -> None:
         self.settings.setValue("artist", self.artist_input.text())
-        self.settings.setValue("artist_enabled", self.artist_switch.isChecked())
 
     def create_tray_menu(self) -> QMenu:
         tray_menu: QMenu = QMenu(self)
@@ -395,6 +421,24 @@ class MainWindow(QMainWindow):
 
         return {"md5": md5.hexdigest(), "sha1": sha1.hexdigest()}
 
+    def check_playing_mode(self):
+        if self.random_radio_button.isChecked():
+            self.current_playing_mode = CurrentPlayingMode.RANDOM
+        elif self.favorite_radio_button.isChecked():
+            self.current_playing_mode = CurrentPlayingMode.FAVORITE
+        elif self.artist_radio_button.isChecked():
+            self.current_playing_mode = CurrentPlayingMode.ARTIST
+
+        if (
+            self.current_playing_mode == CurrentPlayingMode.ARTIST
+            and self.artist_input.text() == ""
+        ):
+            self.random_radio_button.setChecked(True)
+            self.current_playing_mode = CurrentPlayingMode.RANDOM
+            logger.error("No artist input, switching to random")
+
+        return
+
     def load_and_play_module(self) -> None:
         logger.debug("Loading and playing module")
         self.title_label.setText("Loading...")
@@ -405,14 +449,24 @@ class MainWindow(QMainWindow):
 
         member_id = str(self.settings.value("member_id", ""))
 
-        if self.play_favorites_switch.isChecked() and member_id:
-            result = self.web_helper.download_favorite_module(member_id, self.temp_dir)
-        elif self.artist_switch.isChecked():
-            result = self.web_helper.download_artist_module(
-                self.artist_input.text(), self.temp_dir
-            )
-        else:
-            result = self.web_helper.download_random_module(self.temp_dir)
+        self.check_playing_mode()
+
+        match (self.current_playing_mode):
+            case CurrentPlayingMode.RANDOM:
+                result = self.web_helper.download_random_module(self.temp_dir)
+            case CurrentPlayingMode.FAVORITE:
+                if member_id:
+                    result = self.web_helper.download_favorite_module(
+                        member_id, self.temp_dir
+                    )
+                else:
+                    result = None
+            case CurrentPlayingMode.ARTIST:
+                result = self.web_helper.download_artist_module(
+                    self.artist_input.text(), self.temp_dir
+                )
+            case _:
+                result = None
 
         if result is None:
             logger.error("Failed to download module")
@@ -420,6 +474,7 @@ class MainWindow(QMainWindow):
 
         module_filename = result.get("filename")
         module_link = result.get("module_link")
+        self.current_module_id = module_link.split("?")[-1] if module_link else None
 
         if module_filename:
             # self.audio_backend = AudioBackendPyAudio(44100, 1024)
@@ -478,10 +533,30 @@ class MainWindow(QMainWindow):
                 )
                 self.tray_icon.setToolTip(f"{module_title}")
                 logger.debug("Module loaded and playing")
+
+                self.current_module_is_favorite = self.check_favorite(
+                    str(self.settings.value("member_id", ""))
+                )
             else:
                 raise ValueError("No player backend could load the module")
         else:
             raise ValueError("Invalid module URL")
+
+    def check_favorite(self, member_id: str) -> bool:
+        # Check if the module is the current members favorite
+        member_favorites = self.web_helper.get_member_module_id_list(member_id)
+
+        is_favorite = self.current_module_id in member_favorites
+        self.add_favorite_button.setIcon(
+            QIcon(self.icons["star_full"])
+            if is_favorite
+            else QIcon(self.icons["star_empty"])
+        )
+
+        if is_favorite:
+            logger.debug("Current module is a member favorite")
+
+        return is_favorite
 
     def find_and_set_player(self, filename) -> str:
         # Try to load the module by going through the available player backends
@@ -519,8 +594,12 @@ class MainWindow(QMainWindow):
     @Slot()
     def closeEvent(self, event) -> None:
         self.stop()
+
         # Remove temporary directory
         shutil.rmtree(self.temp_dir)
+
+        # Save current playing mode
+        self.settings.setValue("current_playing_mode", self.current_playing_mode.value)
 
         self.settings.sync()
 

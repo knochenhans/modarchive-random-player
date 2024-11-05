@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QCheckBox,
 )
 
 
@@ -32,11 +33,19 @@ class SettingsDialog(QDialog):
         # Save the member input data when it changes
         self.member_id_input.textChanged.connect(self.save_member_input)
 
+        # Add dark/light theme option
+        self.theme_checkbox = QCheckBox("Enable Dark Theme")
+        theme_enabled = bool(self.settings.value("dark_theme", False))
+        self.theme_checkbox.setChecked(theme_enabled)
+        self.theme_checkbox.stateChanged.connect(self.save_theme_preference)
+
         layout = QVBoxLayout()
         member_id_layout = QHBoxLayout()
         member_id_layout.addWidget(self.member_id_label)
         member_id_layout.addWidget(self.member_id_input)
         layout.addLayout(member_id_layout)
+
+        layout.addWidget(self.theme_checkbox)
 
         save_button = QPushButton("Save")
         save_button.clicked.connect(self.accept)
@@ -47,3 +56,7 @@ class SettingsDialog(QDialog):
     @Slot()
     def save_member_input(self) -> None:
         self.settings.setValue("member_id", self.member_id_input.text())
+
+    @Slot()
+    def save_theme_preference(self) -> None:
+        self.settings.setValue("dark_theme", self.theme_checkbox.isChecked())
