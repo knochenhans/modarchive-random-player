@@ -30,19 +30,16 @@ from PySide6.QtWidgets import (
 import hashlib
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
+from current_playing_mode import CurrentPlayingMode
+from download_manager import DownloadManager
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
 from player_backends.player_backend import PlayerBackend, SongMetadata
 from player_thread import PlayerThread
 from settings import SettingsDialog
+from settings_manager import SettingsManager
 from web_helper import WebHelper
 import darkdetect
-
-
-class CurrentPlayingMode(Enum):
-    RANDOM = 0
-    FAVORITE = 1
-    ARTIST = 2
 
 
 class MainWindow(QMainWindow):
@@ -54,6 +51,7 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon(self.icon))
 
         self.settings = QSettings("Andre Jonas", "ModArchiveRandomPlayer")
+        self.settings_manager = SettingsManager(self.settings)
 
         self.setup_ui()
 
@@ -77,14 +75,14 @@ class MainWindow(QMainWindow):
         self.tray_icon.activated.connect(self.tray_icon_activated)
         self.hide()
 
-        self.temp_dir = tempfile.mkdtemp()
-
         self.song_metadata: SongMetadata | None = None
 
         self.web_helper = WebHelper()
 
         self.current_module_id: str | None = None
         self.current_module_is_favorite: bool = False
+
+        self.download_manager = DownloadManager(self.web_helper)
 
     def load_fonts_from_dir(self, directory: str) -> set[str]:
         families = set()
@@ -240,16 +238,14 @@ class MainWindow(QMainWindow):
         container.setLayout(vbox_layout)
         self.setCentralWidget(container)
 
-        artist: str = str(self.settings.value("artist", ""))
+        artist: str = self.settings_manager.get_artist()
         if artist:
             self.artist_input.setText(artist)
 
         self.update_source_input()
 
         # Load current playing mode
-        self.set_current_playing_mode(
-            CurrentPlayingMode(self.settings.value("current_playing_mode", 0))
-        )
+        self.set_current_playing_mode(self.settings_manager.get_current_playing_mode())
 
     def set_current_playing_mode(
         self, current_playing_mode: CurrentPlayingMode
@@ -284,7 +280,7 @@ class MainWindow(QMainWindow):
 
     def update_source_input(self):
         # Enable/disable favorite functions based on member id
-        member_id_set = str(self.settings.value("member_id", "")) != ""
+        member_id_set = self.settings_manager.get_member_id() != ""
 
         self.favorite_radio_button.setEnabled(member_id_set)
 
@@ -302,7 +298,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def save_artist_input(self) -> None:
-        self.settings.setValue("artist", self.artist_input.text())
+        self.settings_manager.set_artist(self.artist_input.text())
 
     def create_tray_menu(self) -> QMenu:
         tray_menu: QMenu = QMenu(self)
@@ -447,26 +443,13 @@ class MainWindow(QMainWindow):
         # Scroll to the top of the message label
         self.message_scroll_area.verticalScrollBar().setValue(0)
 
-        member_id = str(self.settings.value("member_id", ""))
+        member_id = self.settings_manager.get_member_id()
 
         self.check_playing_mode()
 
-        match (self.current_playing_mode):
-            case CurrentPlayingMode.RANDOM:
-                result = self.web_helper.download_random_module(self.temp_dir)
-            case CurrentPlayingMode.FAVORITE:
-                if member_id:
-                    result = self.web_helper.download_favorite_module(
-                        member_id, self.temp_dir
-                    )
-                else:
-                    result = None
-            case CurrentPlayingMode.ARTIST:
-                result = self.web_helper.download_artist_module(
-                    self.artist_input.text(), self.temp_dir
-                )
-            case _:
-                result = None
+        result = self.download_manager.download_module(
+            self.current_playing_mode, member_id, self.artist_input.text()
+        )
 
         if result is None:
             logger.error("Failed to download module")
@@ -535,7 +518,7 @@ class MainWindow(QMainWindow):
                 logger.debug("Module loaded and playing")
 
                 self.current_module_is_favorite = self.check_favorite(
-                    str(self.settings.value("member_id", ""))
+                    self.settings_manager.get_member_id()
                 )
             else:
                 raise ValueError("No player backend could load the module")
@@ -595,11 +578,8 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         self.stop()
 
-        # Remove temporary directory
-        shutil.rmtree(self.temp_dir)
-
         # Save current playing mode
-        self.settings.setValue("current_playing_mode", self.current_playing_mode.value)
+        self.settings_manager.set_current_playing_mode(self.current_playing_mode)
 
         self.settings.sync()
 
