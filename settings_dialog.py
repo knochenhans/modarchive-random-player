@@ -47,9 +47,15 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(self.theme_checkbox)
 
-        save_button = QPushButton("Save")
-        save_button.clicked.connect(self.accept)
-        layout.addWidget(save_button)
+        button_layout = QHBoxLayout()
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(self.accept)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+
+        layout.addLayout(button_layout)
 
         self.setLayout(layout)
 
