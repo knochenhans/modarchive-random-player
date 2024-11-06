@@ -3,11 +3,10 @@ from typing import Optional
 
 from loguru import logger
 from PySide6.QtCore import QSettings, Qt, Slot, QDir
-from PySide6.QtGui import QAction, QIcon, QFontDatabase, QCursor
+from PySide6.QtGui import QAction, QFontDatabase, QCursor
 from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
-    QStyle,
     QSystemTrayIcon,
 )
 import hashlib
@@ -30,12 +29,12 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.name: str = "Mod Archive Random Player"
         self.setWindowTitle(self.name)
-        self.icon = self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
-        self.setWindowIcon(QIcon(self.icon))
         self.settings = QSettings("Andre Jonas", "ModArchiveRandomPlayer")
         self.settings_manager = SettingsManager(self.settings)
 
         self.ui_manager = UIManager(self)
+        self.icon = self.ui_manager.pixmap_icons["application_icon"]
+        self.setWindowIcon(self.icon)
         self.web_helper = WebHelper()
         self.download_manager = DownloadManager(self.web_helper)
 
@@ -103,11 +102,8 @@ class MainWindow(QMainWindow):
                 self.player_backend.free_module()
             self.audio_backend = None
 
-            self.ui_manager.set_play_button_icon(
-                self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
-            )
-            self.stop_button.setEnabled(False)
-            self.progress_slider.setEnabled(False)
+            self.ui_manager.set_play_button_icon("play")
+            self.ui_manager.set_stopped()
             logger.debug("Player thread stopped")
 
     @Slot()
@@ -168,19 +164,14 @@ class MainWindow(QMainWindow):
         return {"md5": md5.hexdigest(), "sha1": sha1.hexdigest()}
 
     def check_playing_mode(self):
-        if self.random_radio_button.isChecked():
-            self.current_playing_mode = CurrentPlayingMode.RANDOM
-        elif self.favorite_radio_button.isChecked():
-            self.current_playing_mode = CurrentPlayingMode.FAVORITE
-        elif self.artist_radio_button.isChecked():
-            self.current_playing_mode = CurrentPlayingMode.ARTIST
+        self.current_playing_mode = self.settings_manager.get_current_playing_mode()
 
         if (
             self.current_playing_mode == CurrentPlayingMode.ARTIST
-            and self.artist_input.text() == ""
+            and self.ui_manager.get_artist_input() == ""
         ):
-            self.random_radio_button.setChecked(True)
             self.current_playing_mode = CurrentPlayingMode.RANDOM
+            self.ui_manager.set_current_playing_mode(self.current_playing_mode)
             logger.error("No artist input, switching to random")
 
         return
@@ -195,7 +186,7 @@ class MainWindow(QMainWindow):
         self.check_playing_mode()
 
         result = self.download_manager.download_module(
-            self.current_playing_mode, member_id, self.artist_input.text()
+            self.current_playing_mode, member_id, self.ui_manager.get_artist_input()
         )
 
         if result is None:
@@ -248,18 +239,10 @@ class MainWindow(QMainWindow):
                     self.update_progress
                 )  # Connect position changed signal
                 self.player_thread.start()
-                self.ui_manager.set_play_button_icon(
-                    self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause)
-                )
-                self.stop_button.setEnabled(True)
-                self.progress_slider.setEnabled(True)
-                self.tray_icon.showMessage(
-                    "Now Playing",
-                    f"{module_title}",
-                    self.icon,
-                    10000,
-                )
-                self.tray_icon.setToolTip(f"{module_title}")
+
+                self.ui_manager.set_play_button_icon("pause")
+                self.ui_manager.set_playing()
+                self.ui_manager.show_tray_notification("Now Playing", module_title)
                 logger.debug("Module loaded and playing")
 
                 self.current_module_is_favorite = self.check_favorite(
@@ -320,8 +303,7 @@ class MainWindow(QMainWindow):
 
         # Save current playing mode
         self.settings_manager.set_current_playing_mode(self.current_playing_mode)
-
         self.settings.sync()
+        self.ui_manager.close_ui()
 
-        self.tray_icon.hide()
         super().closeEvent(event)

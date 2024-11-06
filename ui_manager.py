@@ -1,6 +1,6 @@
 import os
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QFont, QIcon, QFontDatabase
+from PySide6.QtGui import QAction, QFont, QIcon, QFontDatabase, QPixmap
 from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -25,14 +25,15 @@ from current_playing_mode import CurrentPlayingMode
 
 # FILE: ui_manager.py
 class UIManager:
-    def __init__(self, main_window):
+    def __init__(self, main_window) -> None:
         self.main_window = main_window
-        self.icons = {}
+        self.icons: dict[str, str] = {}
+        self.pixmap_icons: dict[str, QPixmap] = {}
+        self.setup_icons()
         self.setup_ui()
         self.load_settings()
 
     def setup_ui(self) -> None:
-        self.load_icons()
         self.main_window.title_label = QLabel("Unknown")
         self.main_window.filename_label = QLabel("Unknown")
         self.main_window.filename_label.linkActivated.connect(
@@ -41,23 +42,15 @@ class UIManager:
         self.main_window.player_backend_label = QLabel("Unknown")
 
         self.main_window.play_button = QPushButton()
-        self.main_window.play_button.setIcon(
-            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
-        )
+        self.main_window.play_button.setIcon(self.pixmap_icons["play"])
         self.main_window.play_button.clicked.connect(self.main_window.play_pause)
 
         self.main_window.stop_button = QPushButton()
-        self.main_window.stop_button.setIcon(
-            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop)
-        )
+        self.main_window.stop_button.setIcon(self.pixmap_icons["stop"])
         self.main_window.stop_button.clicked.connect(self.main_window.stop)
 
         self.main_window.next_button = QPushButton()
-        self.main_window.next_button.setIcon(
-            self.main_window.style().standardIcon(
-                QStyle.StandardPixmap.SP_MediaSkipForward
-            )
-        )
+        self.main_window.next_button.setIcon(self.pixmap_icons["forward"])
         self.main_window.next_button.clicked.connect(self.main_window.next_module)
 
         self.main_window.progress_slider = QSlider()
@@ -105,7 +98,9 @@ class UIManager:
 
         # Create button for adding/removing song as favorite
         self.main_window.add_favorite_button = QPushButton()
-        self.main_window.add_favorite_button.setIcon(QIcon(self.icons["star_empty"]))
+        self.main_window.add_favorite_button.setIcon(
+            QIcon(fileName=str(self.icons["star_empty"]))
+        )
         self.main_window.add_favorite_button.clicked.connect(
             self.main_window.add_favorite_button_clicked
         )
@@ -145,9 +140,7 @@ class UIManager:
 
         self.main_window.artist_input = QLineEdit()
         self.main_window.artist_input.setPlaceholderText("Artist")
-        self.main_window.artist_input.textChanged.connect(
-            self.save_artist_input
-        )
+        self.main_window.artist_input.textChanged.connect(self.save_artist_input)
 
         # Create a horizontal layout for the artist radio button and input field
         artist_layout = QHBoxLayout()
@@ -185,10 +178,10 @@ class UIManager:
         self.main_window.setCentralWidget(container)
 
         self.setup_tray()
-    
+
     def setup_tray(self) -> None:
         self.main_window.tray_icon = QSystemTrayIcon(self.main_window)
-        self.main_window.tray_icon.setIcon(self.main_window.icon)
+        self.main_window.tray_icon.setIcon(self.pixmap_icons["application_icon"])
 
         # Create tray menu
         self.main_window.tray_menu = self.create_tray_menu()
@@ -196,7 +189,9 @@ class UIManager:
         self.main_window.tray_icon.show()
 
         # Minimize to tray
-        self.main_window.tray_icon.activated.connect(self.main_window.tray_icon_activated)
+        self.main_window.tray_icon.activated.connect(
+            self.main_window.tray_icon_activated
+        )
         self.main_window.hide()
 
     def create_tray_menu(self) -> QMenu:
@@ -222,7 +217,7 @@ class UIManager:
 
         return tray_menu
 
-    def load_icons(self) -> None:
+    def setup_icons(self) -> None:
         # Check if OS uses a dark theme via darkdetect
         if darkdetect.isDark() or self.main_window.settings.value(
             "dark_theme", type=bool, defaultValue=False
@@ -233,25 +228,39 @@ class UIManager:
             self.icons["star_empty"] = "icons/star_empty.png"
             self.icons["star_full"] = "icons/star_full.png"
 
-    def update_loading_ui(self):
+        self.pixmap_icons["application_icon"] = self.main_window.style().standardIcon(
+            QStyle.StandardPixmap.SP_MediaPlay
+        )
+        self.pixmap_icons["play"] = self.pixmap_icons["application_icon"]
+        self.pixmap_icons["pause"] = self.main_window.style().standardIcon(
+            QStyle.StandardPixmap.SP_MediaPause
+        )
+        self.pixmap_icons["stop"] = self.main_window.style().standardIcon(
+            QStyle.StandardPixmap.SP_MediaStop
+        )
+        self.pixmap_icons["forward"] = self.main_window.style().standardIcon(
+            QStyle.StandardPixmap.SP_MediaSkipForward
+        )
+
+    def update_loading_ui(self) -> None:
         self.main_window.title_label.setText("Loading...")
         self.main_window.filename_label.setText("Loading...")
         self.main_window.message_scroll_area.verticalScrollBar().setValue(0)
 
-    def update_title_label(self, text):
+    def update_title_label(self, text: str) -> None:
         self.main_window.title_label.setText(text)
 
-    def update_filename_label(self, text):
+    def update_filename_label(self, text: str) -> None:
         self.main_window.filename_label.setText(text)
 
-    def update_player_backend_label(self, text):
+    def update_player_backend_label(self, text: str) -> None:
         self.main_window.player_backend_label.setText(text)
 
-    def set_play_button_icon(self, icon):
-        self.main_window.play_button.setIcon(icon)
+    def set_play_button_icon(self, icon_name: str) -> None:
+        self.main_window.play_button.setIcon(self.pixmap_icons[icon_name])
 
-    def set_stop_button_icon(self, icon):
-        self.main_window.stop_button.setIcon(icon)
+    def set_stop_button_icon(self, icon_name: str) -> None:
+        self.main_window.stop_button.setIcon(self.pixmap_icons[icon_name])
 
     def set_current_playing_mode(
         self, current_playing_mode: CurrentPlayingMode
@@ -265,37 +274,32 @@ class UIManager:
         else:
             self.main_window.random_radio_button.setChecked(True)
 
-    def update_progress(self, length, position) -> None:
+    def update_progress(self, length: int, position: int) -> None:
         self.main_window.progress_slider.setMaximum(length)
         self.main_window.progress_slider.setValue(position)
 
     def set_favorite_button(self, is_favorite: bool) -> None:
         self.main_window.add_favorite_button.setIcon(
-            QIcon(self.icons["star_full"])
+            QIcon(str(self.icons["star_full"]))
             if is_favorite
-            else QIcon(self.icons["star_empty"])
+            else QIcon(str(self.icons["star_empty"]))
         )
 
-    def set_play_button(self, state: bool):
+    def set_play_button(self, state: bool) -> None:
         if state:
-            self.set_play_button_icon(
-                self.main_window.style().standardIcon(
-                    QStyle.StandardPixmap.SP_MediaPlay
-                )
-            )
+            self.set_play_button_icon("play")
             self.main_window.stop_button.setEnabled(False)
         else:
-            self.set_play_button_icon(
-                self.main_window.style().standardIcon(
-                    QStyle.StandardPixmap.SP_MediaPause
-                )
-            )
+            self.set_play_button_icon("pause")
             self.main_window.stop_button.setEnabled(True)
 
     def set_message_label(self, module_message: str) -> None:
         self.main_window.multiline_label.setText(
             module_message.replace("\r\n", "\n").replace("\r", "\n")
         )
+
+    def get_artist_input(self) -> str:
+        return self.main_window.artist_input.text()
 
     def load_settings(self) -> None:
         self.update_source_input()
@@ -310,7 +314,7 @@ class UIManager:
 
     def update_source_input(self) -> None:
         # Enable/disable favorite functions based on member id
-        member_id_set = self.main_window.settings_manager.get_member_id() != ""
+        member_id_set: bool = self.main_window.settings_manager.get_member_id() != ""
 
         self.main_window.favorite_radio_button.setEnabled(member_id_set)
 
@@ -320,4 +324,44 @@ class UIManager:
         # self.artist_radio_button.setEnabled(artist_set)
 
     def save_artist_input(self) -> None:
-        self.main_window.settings_manager.set_artist(self.main_window.artist_input.text())
+        self.main_window.settings_manager.set_artist(
+            self.main_window.artist_input.text()
+        )
+
+    def show_tray_notification(self, title: str, message: str) -> None:
+        self.main_window.tray_icon.showMessage(
+            title,
+            message,
+            self.main_window.icon,
+            10000,
+        )
+        self.main_window.tray_icon.setToolTip(message)
+
+    def set_stopped(self) -> None:
+        self.main_window.stop_button.setEnabled(False)
+        self.main_window.progress_slider.setEnabled(False)
+
+    def set_playing(self) -> None:
+        self.main_window.stop_button.setEnabled(True)
+        self.main_window.progress_slider.setEnabled(True)
+
+    def get_playing_mode(self) -> CurrentPlayingMode:
+        if self.main_window.random_radio_button.isChecked():
+            return CurrentPlayingMode.RANDOM
+        elif self.main_window.favorite_radio_button.isChecked():
+            return CurrentPlayingMode.FAVORITE
+        elif self.main_window.artist_radio_button.isChecked():
+            return CurrentPlayingMode.ARTIST
+        else:
+            return CurrentPlayingMode.RANDOM
+
+    def set_playing_mode(self, mode: CurrentPlayingMode) -> None:
+        if mode == CurrentPlayingMode.RANDOM:
+            self.main_window.random_radio_button.setChecked(True)
+        elif mode == CurrentPlayingMode.FAVORITE:
+            self.main_window.favorite_radio_button.setChecked(True)
+        elif mode == CurrentPlayingMode.ARTIST:
+            self.main_window.artist_radio_button.setChecked(True)
+
+    def close_ui(self) -> None:
+        self.main_window.tray_icon.hide()
