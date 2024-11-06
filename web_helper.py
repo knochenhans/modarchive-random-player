@@ -1,13 +1,11 @@
 import os
 import random
 import re
-from typing import Optional, List
+from typing import Optional, List, Dict
 from bs4 import BeautifulSoup, Tag
 from loguru import logger
 import requests
 from player_backends.player_backend import SongMetadata
-
-# from requests_html import HTMLSession
 
 
 class WebHelper:
@@ -15,8 +13,8 @@ class WebHelper:
         return f'https://modsamplemaster.thegang.nu/module.php?sha1={song_metadata.get("sha1")}'
 
     def download_module(
-        self, module_id: str, temp_dir
-    ) -> Optional[dict[str, Optional[str]]]:
+        self, module_id: str, temp_dir: str
+    ) -> Optional[Dict[str, Optional[str]]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
@@ -37,7 +35,9 @@ class WebHelper:
             logger.debug(f"Module downloaded to: {filename}")
         return {"filename": filename, "module_link": module_link}
 
-    def download_random_module(self, temp_dir) -> Optional[dict[str, Optional[str]]]:
+    def download_random_module(
+        self, temp_dir: str
+    ) -> Optional[Dict[str, Optional[str]]]:
         logger.debug("Getting a random module")
 
         url: str = "https://modarchive.org/index.php?request=view_player&query=random"
@@ -79,7 +79,7 @@ class WebHelper:
     def get_member_module_id_list(self, member_id: str) -> List[str]:
         module_urls = self.get_member_module_url_list(member_id)
 
-        ids = []
+        ids: List[str] = []
 
         for module_url in module_urls:
             ids.append(module_url.split("moduleid=")[-1].split("#")[0])
@@ -87,8 +87,8 @@ class WebHelper:
         return ids
 
     def download_favorite_module(
-        self, member_id, temp_dir
-    ) -> Optional[dict[str, Optional[str]]]:
+        self, member_id: str, temp_dir: str
+    ) -> Optional[Dict[str, Optional[str]]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
@@ -123,8 +123,8 @@ class WebHelper:
         return {"filename": filename, "module_link": module_link}
 
     def download_artist_module(
-        self, artist: str, temp_dir
-    ) -> Optional[dict[str, Optional[str]]]:
+        self, artist: str, temp_dir: str
+    ) -> Optional[Dict[str, Optional[str]]]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
@@ -201,40 +201,6 @@ class WebHelper:
                     href = href[0]
                 return "https://modarchive.org/" + href
         return ""
-
-    # def lookup_modarchive_mod_artist(
-    #     self, song_metadata: SongMetadata
-    # ) -> dict[str, str]:
-    #     logger.debug("Looking up artist on ModArchive")
-
-    #     url: str = self.lookup_modarchive_mod_url(song_metadata)
-
-    #     result_dict: dict[str, str] = {}
-
-    #     if url:
-    #         session = HTMLSession()
-
-    #         r = session.get(url)
-
-    #         r.html.render()
-
-    #         result = r.html.find("div.mod-page-archive-info")
-    #         if result:
-    #             # Check for registered artist
-    #             artist_links = result[0].find("a.standard-link")
-
-    #             if len(artist_links) == 0:
-    #                 logger.debug("No artist links found")
-
-    #             for artist_link in artist_links:
-    #                 href = artist_link.attrs["href"]
-    #                 if href.startswith("member"):
-    #                     result_dict["registered_artist"] = artist_link.text
-    #                     logger.debug(f"Registered artist: {artist_link.text}")
-    #                 elif href.startswith("index"):
-    #                     result_dict["guessed_artist"] = artist_link.text
-    #                     logger.debug(f"Guessed artist: {artist_link.text}")
-    #     return result_dict
 
     def lookup_msm_mod_url(self, song_metadata: SongMetadata) -> str:
         url: Optional[str] = None

@@ -1,5 +1,5 @@
 import webbrowser
-from typing import Optional
+from typing import Optional, Dict
 
 from loguru import logger
 from PySide6.QtCore import QSettings, Qt, Slot, QDir
@@ -38,17 +38,17 @@ class MainWindow(QMainWindow):
         self.web_helper = WebHelper()
         self.download_manager = DownloadManager(self.web_helper)
 
-        self.player_backends = {
+        self.player_backends: Dict[str, type[PlayerBackend]] = {
             "LibUADE": PlayerBackendLibUADE,
             "LibOpenMPT": PlayerBackendLibOpenMPT,
         }
-        self.player_backend: Optional[PlayerBackend]
+        self.player_backend: Optional[PlayerBackend] = None
         self.audio_backend: Optional[AudioBackendPyAudio] = None
         self.player_thread: Optional[PlayerThread] = None
 
-        self.song_metadata: SongMetadata | None = None
+        self.song_metadata: Optional[SongMetadata] = None
 
-        self.current_module_id: str | None = None
+        self.current_module_id: Optional[str] = None
         self.current_module_is_favorite: bool = False
 
         self.ui_manager.load_settings()
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
             families |= set(QFontDatabase.applicationFontFamilies(_id))
         return families
 
-    def add_favorite_button_clicked(self):
+    def add_favorite_button_clicked(self) -> None:
         if self.current_module_id:
             action = (
                 "add_favourite"
@@ -152,7 +152,7 @@ class MainWindow(QMainWindow):
         #     self.player_thread.seek(position)
         pass
 
-    def get_checksums(self, filename: str) -> dict:
+    def get_checksums(self, filename: str) -> Dict[str, str]:
         md5 = hashlib.md5()
         sha1 = hashlib.sha1()
 
@@ -163,7 +163,7 @@ class MainWindow(QMainWindow):
 
         return {"md5": md5.hexdigest(), "sha1": sha1.hexdigest()}
 
-    def check_playing_mode(self):
+    def check_playing_mode(self) -> None:
         self.current_playing_mode = self.settings_manager.get_current_playing_mode()
 
         if (
@@ -265,7 +265,7 @@ class MainWindow(QMainWindow):
 
         return is_favorite
 
-    def find_and_set_player(self, filename) -> str:
+    def find_and_set_player(self, filename: str) -> str:
         # Try to load the module by going through the available player backends
         for backend_name, backend_class in self.player_backends.items():
             logger.debug(f"Trying player backend: {backend_name}")
