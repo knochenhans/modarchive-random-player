@@ -124,7 +124,7 @@ class PlayerBackendLibUADE(PlayerBackend):
             raise RuntimeWarning(f"Amiga message: {n.uade_notification_union.msg}")
         elif n.type == UADE_NOTIFICATION_TYPE.UADE_NOTIFICATION_SONG_END:
             if n.uade_notification_union.song_end.happy:
-                raise RuntimeWarning("Song end")
+                logger.info("Song end")
             else:
                 raise RuntimeError("Bad Song end")
         else:
