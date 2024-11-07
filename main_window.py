@@ -50,6 +50,7 @@ class MainWindow(QMainWindow):
 
         self.current_module_id: Optional[str] = None
         self.current_module_is_favorite: bool = False
+        self.current_playing_mode: CurrentPlayingMode = CurrentPlayingMode.RANDOM
 
         self.ui_manager.load_settings()
 
@@ -296,7 +297,7 @@ class MainWindow(QMainWindow):
 
         # Save current playing mode
         self.settings_manager.set_current_playing_mode(self.current_playing_mode)
-        self.settings.sync()
+        self.settings_manager.close()
         self.ui_manager.close_ui()
 
         super().closeEvent(event)

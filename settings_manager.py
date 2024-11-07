@@ -25,3 +25,6 @@ class SettingsManager:
 
     def set_current_playing_mode(self, mode: CurrentPlayingMode) -> None:
         self.settings.setValue("current_playing_mode", mode.value)
+
+    def close(self) -> None:
+        self.settings.sync()
