@@ -43,15 +43,18 @@ class UIManager:
 
         self.play_button = QPushButton()
         self.play_button.setIcon(self.pixmap_icons["play"])
-        self.play_button.clicked.connect(self.main_window.play_pause)
+        self.play_button.clicked.connect(self.main_window.on_play_pause_pressed)
+        self.play_button.setToolTip("Play/Pause")
 
         self.stop_button = QPushButton()
         self.stop_button.setIcon(self.pixmap_icons["stop"])
-        self.stop_button.clicked.connect(self.main_window.stop)
+        self.stop_button.clicked.connect(self.main_window.on_stop_pressed)
+        self.stop_button.setToolTip("Stop")
 
         self.next_button = QPushButton()
         self.next_button.setIcon(self.pixmap_icons["forward"])
-        self.next_button.clicked.connect(self.main_window.next_module)
+        self.next_button.clicked.connect(self.main_window.on_skip_pressed)
+        self.next_button.setToolTip("Next")
 
         self.progress_slider = QSlider()
         self.progress_slider.setOrientation(Qt.Orientation.Horizontal)
@@ -198,15 +201,15 @@ class UIManager:
         tray_menu = QMenu(self.main_window)
 
         play_pause_action = QAction("Play/Pause", self.main_window)
-        play_pause_action.triggered.connect(self.main_window.play_pause)
+        play_pause_action.triggered.connect(self.main_window.on_play_pause_pressed)
         tray_menu.addAction(play_pause_action)
 
         stop_action = QAction("Stop", self.main_window)
-        stop_action.triggered.connect(self.main_window.stop)
+        stop_action.triggered.connect(self.main_window.on_stop_pressed)
         tray_menu.addAction(stop_action)
 
         next_action = QAction("Next", self.main_window)
-        next_action.triggered.connect(self.main_window.next_module)
+        next_action.triggered.connect(self.main_window.on_skip_pressed)
         tray_menu.addAction(next_action)
 
         tray_menu.addSeparator()

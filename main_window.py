@@ -2,7 +2,7 @@ import webbrowser
 from typing import Optional, Dict
 
 from loguru import logger
-from PySide6.QtCore import QSettings, Qt, Slot
+from PySide6.QtCore import QSettings, Qt, Slot, QThread, Signal
 from PySide6.QtGui import QAction, QCursor
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -14,6 +14,7 @@ import hashlib
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
 from current_playing_mode import CurrentPlayingMode
 from download_manager import DownloadManager
+from module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
 from player_backends.player_backend import PlayerBackend, SongMetadata
@@ -54,6 +55,8 @@ class MainWindow(QMainWindow):
 
         self.ui_manager.load_settings()
 
+        self.current_playlist: list[str] = []
+
     def add_favorite_button_clicked(self) -> None:
         if self.current_module_id:
             action = (
@@ -76,12 +79,13 @@ class MainWindow(QMainWindow):
         self.ui_manager.update_source_input()
 
     @Slot()
-    def play_pause(self) -> None:
+    def on_play_pause_pressed(self) -> None:
         if self.player_thread and self.player_thread.isRunning():
             self.player_thread.pause()
             self.ui_manager.set_play_button(self.player_thread.pause_flag)
         else:
-            self.load_and_play_module()
+            self.ui_manager.update_loading_ui()
+            self.load_next_module()
 
     @Slot()
     def stop(self) -> None:
@@ -101,9 +105,25 @@ class MainWindow(QMainWindow):
             logger.debug("Player thread stopped")
 
     @Slot()
-    def next_module(self) -> None:
+    def on_stop_pressed(self) -> None:
         self.stop()
-        self.load_and_play_module()
+
+    @Slot()
+    def on_playing_finished(self) -> None:
+        self.play_next()
+
+    @Slot()
+    def on_skip_pressed(self) -> None:
+        self.play_next()
+
+    def play_next(self) -> None:
+        self.stop()
+
+        if len(self.current_playlist) > 0:
+            self.play_next_in_playlist()
+        else:
+            self.ui_manager.update_loading_ui()
+            self.load_next_module()
 
     @Slot()
     def open_module_link(self, link: str) -> None:
@@ -193,6 +213,19 @@ class MainWindow(QMainWindow):
 
         return result
 
+    def add_to_playlist(self, module_filename: str) -> None:
+        self.current_playlist.append(module_filename)
+        logger.debug(
+            f"Added {module_filename} to playlist, current playlist length: {len(self.current_playlist)}"
+        )
+
+    def play_next_in_playlist(self) -> None:
+        if self.current_playlist:
+            next_module = self.current_playlist.pop(0)
+            self.play_module(next_module)
+        else:
+            logger.debug("No more modules in playlist")
+
     def play_module(self, module_filename: str) -> None:
         logger.debug("Playing module")
 
@@ -227,15 +260,9 @@ class MainWindow(QMainWindow):
             self.setWindowTitle(f"{self.name} - {module_title}")
             self.ui_manager.set_message_label(module_message)
 
-            self.player_thread = PlayerThread(
-                self.player_backend, self.audio_backend
-            )
-            self.player_thread.song_finished.connect(
-                self.next_module
-            )  # Connect finished signal
-            self.player_thread.position_changed.connect(
-                self.update_progress
-            )  # Connect position changed signal
+            self.player_thread = PlayerThread(self.player_backend, self.audio_backend)
+            self.player_thread.song_finished.connect(self.on_playing_finished)
+            self.player_thread.position_changed.connect(self.update_progress)
             self.player_thread.start()
 
             self.ui_manager.set_play_button_icon("pause")
@@ -246,18 +273,36 @@ class MainWindow(QMainWindow):
             self.current_module_is_favorite = self.check_favorite(
                 self.settings_manager.get_member_id()
             )
+
+            # Buffer the next module
+            self.load_next_module()
         else:
             raise ValueError("No player backend could load the module")
 
-    def load_and_play_module(self) -> None:
-        result = self.load_module()
+    def load_next_module(self) -> None:
+        self.check_playing_mode()
+        member_id = self.settings_manager.get_member_id()
+        artist_input = self.ui_manager.get_artist_input()
+
+        self.module_loader_thread = ModuleLoaderThread(
+            self.download_manager, self.current_playing_mode, member_id, artist_input
+        )
+        self.module_loader_thread.module_loaded.connect(self.on_module_loaded)
+        self.module_loader_thread.start()
+
+    @Slot()
+    def on_module_loaded(self, result: dict) -> None:
         if result:
             module_filename = result.get("filename")
             if module_filename:
-                self.play_module(module_filename)
+                if self.player_thread and self.player_thread.isRunning():
+                    self.add_to_playlist(module_filename)
+                else:
+                    self.play_module(module_filename)
             else:
-                raise ValueError("Invalid module URL")
-
+                logger.error("Invalid module URL")
+        else:
+            logger.error("Failed to download module")
 
     def check_favorite(self, member_id: str) -> bool:
         # Check if the module is the current members favorite
