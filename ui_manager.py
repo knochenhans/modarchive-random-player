@@ -59,7 +59,7 @@ class UIManager:
         self.progress_slider = QSlider()
         self.progress_slider.setOrientation(Qt.Orientation.Horizontal)
         self.progress_slider.setEnabled(False)
-        self.progress_slider.sliderMoved.connect(self.main_window.seek)
+        self.progress_slider.sliderMoved.connect(self.main_window.on_seek)
 
         # Create a multiline text label with fixed-width font
         self.multiline_label = QLabel("No module loaded")
