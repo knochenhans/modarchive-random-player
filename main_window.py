@@ -170,8 +170,8 @@ class MainWindow(QMainWindow):
 
         return
 
-    def load_and_play_module(self) -> None:
-        logger.debug("Loading and playing module")
+    def load_module(self) -> Optional[Dict[str, Optional[str]]]:
+        logger.debug("Loading module")
 
         self.ui_manager.update_loading_ui()
 
@@ -185,67 +185,79 @@ class MainWindow(QMainWindow):
 
         if result is None:
             logger.error("Failed to download module")
-            return
+            return None
 
         module_filename = result.get("filename")
         module_link = result.get("module_link")
         self.current_module_id = module_link.split("?")[-1] if module_link else None
 
-        if module_filename:
-            # self.audio_backend = AudioBackendPyAudio(44100, 1024)
-            self.audio_backend = AudioBackendPyAudio(44100, 8192)
-            backend_name = self.find_and_set_player(module_filename)
+        return result
 
-            if self.player_backend is not None and self.audio_backend is not None:
-                self.song_metadata = self.player_backend.song_metadata
-                self.song_metadata["filename"] = module_filename.split("/")[-1]
+    def play_module(self, module_filename: str) -> None:
+        logger.debug("Playing module")
 
-                if self.song_metadata.get("md5") == "":
-                    md5 = self.get_checksums(module_filename).get("md5")
+        # self.audio_backend = AudioBackendPyAudio(44100, 1024)
+        self.audio_backend = AudioBackendPyAudio(44100, 8192)
+        backend_name = self.find_and_set_player(module_filename)
 
-                    if md5:
-                        self.song_metadata["md5"] = md5
+        if self.player_backend is not None and self.audio_backend is not None:
+            self.song_metadata = self.player_backend.song_metadata
+            self.song_metadata["filename"] = module_filename.split("/")[-1]
 
-                if self.song_metadata.get("sha1") == "":
-                    sha1 = self.get_checksums(module_filename).get("sha1")
+            if self.song_metadata.get("md5") == "":
+                md5 = self.get_checksums(module_filename).get("md5")
 
-                    if sha1:
-                        self.song_metadata["sha1"] = sha1
+                if md5:
+                    self.song_metadata["md5"] = md5
 
-                module_title: str = self.song_metadata.get("title", "Unknown")
-                module_message: str = self.song_metadata.get("message", "")
-                self.ui_manager.update_title_label(module_title)
+            if self.song_metadata.get("sha1") == "":
+                sha1 = self.get_checksums(module_filename).get("sha1")
 
-                filename = module_filename.split("/")[-1]
+                if sha1:
+                    self.song_metadata["sha1"] = sha1
 
-                self.ui_manager.update_filename_label(f'<a href="#">{filename}</a>')
-                self.ui_manager.update_player_backend_label(backend_name)
-                self.setWindowTitle(f"{self.name} - {module_title}")
-                self.ui_manager.set_message_label(module_message)
+            module_title: str = self.song_metadata.get("title", "Unknown")
+            module_message: str = self.song_metadata.get("message", "")
+            self.ui_manager.update_title_label(module_title)
 
-                self.player_thread = PlayerThread(
-                    self.player_backend, self.audio_backend
-                )
-                self.player_thread.song_finished.connect(
-                    self.next_module
-                )  # Connect finished signal
-                self.player_thread.position_changed.connect(
-                    self.update_progress
-                )  # Connect position changed signal
-                self.player_thread.start()
+            filename = module_filename.split("/")[-1]
 
-                self.ui_manager.set_play_button_icon("pause")
-                self.ui_manager.set_playing()
-                self.ui_manager.show_tray_notification("Now Playing", module_title)
-                logger.debug("Module loaded and playing")
+            self.ui_manager.update_filename_label(f'<a href="#">{filename}</a>')
+            self.ui_manager.update_player_backend_label(backend_name)
+            self.setWindowTitle(f"{self.name} - {module_title}")
+            self.ui_manager.set_message_label(module_message)
 
-                self.current_module_is_favorite = self.check_favorite(
-                    self.settings_manager.get_member_id()
-                )
-            else:
-                raise ValueError("No player backend could load the module")
+            self.player_thread = PlayerThread(
+                self.player_backend, self.audio_backend
+            )
+            self.player_thread.song_finished.connect(
+                self.next_module
+            )  # Connect finished signal
+            self.player_thread.position_changed.connect(
+                self.update_progress
+            )  # Connect position changed signal
+            self.player_thread.start()
+
+            self.ui_manager.set_play_button_icon("pause")
+            self.ui_manager.set_playing()
+            self.ui_manager.show_tray_notification("Now Playing", module_title)
+            logger.debug("Module loaded and playing")
+
+            self.current_module_is_favorite = self.check_favorite(
+                self.settings_manager.get_member_id()
+            )
         else:
-            raise ValueError("Invalid module URL")
+            raise ValueError("No player backend could load the module")
+
+    def load_and_play_module(self) -> None:
+        result = self.load_module()
+        if result:
+            module_filename = result.get("filename")
+            if module_filename:
+                self.play_module(module_filename)
+            else:
+                raise ValueError("Invalid module URL")
+
 
     def check_favorite(self, member_id: str) -> bool:
         # Check if the module is the current members favorite
