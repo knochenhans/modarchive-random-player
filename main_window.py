@@ -130,22 +130,17 @@ class MainWindow(QMainWindow):
         menu = QMenu(self)
 
         lookup_modarchive_action = QAction("Lookup on ModArchive", self)
-        lookup_modarchive_action.triggered.connect(self.lookup_modarchive)
+        lookup_modarchive_action.triggered.connect(self.on_lookup_modarchive)
         menu.addAction(lookup_modarchive_action)
 
         lookup_msm_action = QAction("Lookup on .mod Sample Master", self)
-        lookup_msm_action.triggered.connect(self.lookup_msm)
+        lookup_msm_action.triggered.connect(self.on_lookup_msm)
         menu.addAction(lookup_msm_action)
 
         menu.exec_(QCursor.pos())
 
-    def get_msm_url(self) -> Optional[str]:
-        if self.song_metadata:
-            return f'https://modsamplemaster.thegang.nu/module.php?sha1={self.song_metadata.get("sha1")}'
-        return None
-
     @Slot()
-    def lookup_msm(self) -> None:
+    def on_lookup_msm(self) -> None:
         if self.song_metadata:
             url: str = self.web_helper.lookup_msm_mod_url(self.song_metadata)
 
@@ -153,7 +148,7 @@ class MainWindow(QMainWindow):
                 webbrowser.open(url)
 
     @Slot()
-    def lookup_modarchive(self) -> None:
+    def on_lookup_modarchive(self) -> None:
         if self.song_metadata:
             url: str = self.web_helper.lookup_modarchive_mod_url(self.song_metadata)
 
@@ -161,7 +156,7 @@ class MainWindow(QMainWindow):
                 webbrowser.open(url)
 
     @Slot()
-    def seek(self, position: int) -> None:
+    def on_seek(self, position: int) -> None:
         # if self.player_thread:
         #     self.player_thread.seek(position)
         pass
@@ -224,7 +219,6 @@ class MainWindow(QMainWindow):
     def play_module(self, module_entry: Dict) -> None:
         logger.debug("Playing module")
 
-        # self.audio_backend = AudioBackendPyAudio(44100, 1024)
         self.audio_backend = AudioBackendPyAudio(44100, self.settings_manager.get_audio_buffer())
         
         filename = module_entry.get("filename")
