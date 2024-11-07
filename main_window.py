@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
 
         self.ui_manager.load_settings()
 
-        self.current_playlist: list[str] = []
+        self.current_playlist: list[Dict] = []
 
     def add_favorite_button_clicked(self) -> None:
         if self.current_module_id:
@@ -190,7 +190,7 @@ class MainWindow(QMainWindow):
 
         return
 
-    def load_module(self) -> Optional[Dict[str, Optional[str]]]:
+    def load_module(self) -> bool:
         logger.debug("Loading module")
 
         self.ui_manager.update_loading_ui()
@@ -203,48 +203,50 @@ class MainWindow(QMainWindow):
             self.current_playing_mode, member_id, self.ui_manager.get_artist_input()
         )
 
-        if result is None:
-            logger.error("Failed to download module")
-            return None
+        if result is not None:
+            return True
 
-        module_filename = result.get("filename")
-        module_link = result.get("module_link")
-        self.current_module_id = module_link.split("?")[-1] if module_link else None
+        logger.error("Failed to download module")
+        return False
 
-        return result
-
-    def add_to_playlist(self, module_filename: str) -> None:
-        self.current_playlist.append(module_filename)
+    def add_to_playlist(self, module_entry: Dict) -> None:
+        self.current_playlist.append(module_entry)
         logger.debug(
-            f"Added {module_filename} to playlist, current playlist length: {len(self.current_playlist)}"
+            f"Added {module_entry} to playlist, current playlist length: {len(self.current_playlist)}"
         )
 
     def play_next_in_playlist(self) -> None:
         if self.current_playlist:
-            next_module = self.current_playlist.pop(0)
-            self.play_module(next_module)
+            self.play_module(self.current_playlist.pop(0))
         else:
             logger.debug("No more modules in playlist")
 
-    def play_module(self, module_filename: str) -> None:
+    def play_module(self, module_entry: Dict) -> None:
         logger.debug("Playing module")
 
         # self.audio_backend = AudioBackendPyAudio(44100, 1024)
-        self.audio_backend = AudioBackendPyAudio(44100, 8192)
-        backend_name = self.find_and_set_player(module_filename)
+        self.audio_backend = AudioBackendPyAudio(44100, self.settings_manager.get_audio_buffer())
+        
+        filename = module_entry.get("filename")
+        if filename is None:
+            raise ValueError("Module entry does not contain a filename")
+        
+        self.current_module_id = module_entry.get("module_id")
+
+        backend_name = self.find_and_set_player(filename)
 
         if self.player_backend is not None and self.audio_backend is not None:
             self.song_metadata = self.player_backend.song_metadata
-            self.song_metadata["filename"] = module_filename.split("/")[-1]
+            self.song_metadata["filename"] = filename.split("/")[-1]
 
             if self.song_metadata.get("md5") == "":
-                md5 = self.get_checksums(module_filename).get("md5")
+                md5 = self.get_checksums(filename).get("md5")
 
                 if md5:
                     self.song_metadata["md5"] = md5
 
             if self.song_metadata.get("sha1") == "":
-                sha1 = self.get_checksums(module_filename).get("sha1")
+                sha1 = self.get_checksums(filename).get("sha1")
 
                 if sha1:
                     self.song_metadata["sha1"] = sha1
@@ -253,7 +255,7 @@ class MainWindow(QMainWindow):
             module_message: str = self.song_metadata.get("message", "")
             self.ui_manager.update_title_label(module_title)
 
-            filename = module_filename.split("/")[-1]
+            filename = filename.split("/")[-1]
 
             self.ui_manager.update_filename_label(f'<a href="#">{filename}</a>')
             self.ui_manager.update_player_backend_label(backend_name)
@@ -291,14 +293,14 @@ class MainWindow(QMainWindow):
         self.module_loader_thread.start()
 
     @Slot()
-    def on_module_loaded(self, result: dict) -> None:
+    def on_module_loaded(self, result: Dict) -> None:
         if result:
             module_filename = result.get("filename")
             if module_filename:
                 if self.player_thread and self.player_thread.isRunning():
-                    self.add_to_playlist(module_filename)
+                    self.add_to_playlist(result)
                 else:
-                    self.play_module(module_filename)
+                    self.play_module(result)
             else:
                 logger.error("Invalid module URL")
         else:

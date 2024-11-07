@@ -14,7 +14,7 @@ class WebHelper:
 
     def download_module(
         self, module_id: str, temp_dir: str
-    ) -> Optional[Dict[str, Optional[str]]]:
+    ) -> Dict:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
@@ -33,11 +33,11 @@ class WebHelper:
                 temp_file.write(response.content)
             filename = temp_file_path
             logger.debug(f"Module downloaded to: {filename}")
-        return {"filename": filename, "module_link": module_link}
+        return {"filename": filename, "module_link": module_link, "module_id": module_id}
 
     def download_random_module(
         self, temp_dir: str
-    ) -> Optional[Dict[str, Optional[str]]]:
+    ) -> Optional[Dict]:
         logger.debug("Getting a random module")
 
         url: str = "https://modarchive.org/index.php?request=view_player&query=random"
@@ -88,10 +88,7 @@ class WebHelper:
 
     def download_favorite_module(
         self, member_id: str, temp_dir: str
-    ) -> Optional[Dict[str, Optional[str]]]:
-        filename: Optional[str] = None
-        module_link: Optional[str] = None
-
+    ) -> Optional[Dict]:
         if member_id:
             logger.debug(f"Getting a random module for member ID: {member_id}")
 
@@ -110,24 +107,16 @@ class WebHelper:
                 module_id_and_name: str = module_url.split("=")[-1]
                 module_id: str = module_id_and_name.split("#")[0]
 
-                module = self.download_module(module_id, temp_dir)
-                if module:
-                    filename, module_link = (
-                        module["filename"],
-                        module["module_link"],
-                    )
+                return self.download_module(module_id, temp_dir)
             else:
                 logger.error("No new module links found in the member's favorites")
         else:
             logger.error("Member ID is empty")
-        return {"filename": filename, "module_link": module_link}
+        return None
 
     def download_artist_module(
         self, artist: str, temp_dir: str
-    ) -> Optional[Dict[str, Optional[str]]]:
-        filename: Optional[str] = None
-        module_link: Optional[str] = None
-
+    ) -> Optional[Dict]:
         if artist:
             logger.debug(f"Getting a random module by artist: {artist}")
 
@@ -166,12 +155,7 @@ class WebHelper:
                             module_id = (
                                 download_link["href"].split("=")[-1].split("#")[0]
                             )
-                            module = self.download_module(module_id, temp_dir)
-                            if module:
-                                filename, module_link = (
-                                    module["filename"],
-                                    module["module_link"],
-                                )
+                            return self.download_module(module_id, temp_dir)
                         else:
                             logger.error("No download links found on the page")
                     else:
@@ -183,7 +167,7 @@ class WebHelper:
         else:
             logger.error("Artist is empty")
 
-        return {"filename": filename, "module_link": module_link}
+        return None
 
     def lookup_modarchive_mod_url(self, song_metadata: SongMetadata) -> str:
         filename = song_metadata.get("filename")

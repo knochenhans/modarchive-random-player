@@ -47,6 +47,24 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(self.theme_checkbox)
 
+        self.buffer_size_label: QLabel = QLabel("Audio Buffer Size:")
+        self.buffer_size_input: QLineEdit = QLineEdit()
+        self.buffer_size_input.setPlaceholderText("8192")
+        self.buffer_size_input.setValidator(QIntValidator())
+
+        # Load the buffer size input data from settings
+        buffer_size: str = str(self.settings.value("buffer_size", "8192"))
+        if buffer_size:
+            self.buffer_size_input.setText(buffer_size)
+
+        # Save the buffer size input data when it changes
+        self.buffer_size_input.textChanged.connect(self.save_buffer_size_input)
+
+        buffer_size_layout: QHBoxLayout = QHBoxLayout()
+        buffer_size_layout.addWidget(self.buffer_size_label)
+        buffer_size_layout.addWidget(self.buffer_size_input)
+        layout.addLayout(buffer_size_layout)
+
         button_layout: QHBoxLayout = QHBoxLayout()
         ok_button: QPushButton = QPushButton("OK")
         ok_button.clicked.connect(self.accept)
@@ -66,3 +84,7 @@ class SettingsDialog(QDialog):
     @Slot()
     def save_theme_preference(self) -> None:
         self.settings.setValue("dark_theme", self.theme_checkbox.isChecked())
+
+    @Slot()
+    def save_buffer_size_input(self) -> None:
+        self.settings.setValue("buffer_size", self.buffer_size_input.text())

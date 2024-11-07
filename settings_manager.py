@@ -28,3 +28,11 @@ class SettingsManager:
 
     def close(self) -> None:
         self.settings.sync()
+
+    def get_audio_buffer(self) -> int:
+        result = str(self.settings.value("audio_buffer", 8192))
+
+        return int(result)
+
+    def set_audio_buffer(self, buffer_size: int) -> None:
+        self.settings.setValue("audio_buffer", buffer_size)
