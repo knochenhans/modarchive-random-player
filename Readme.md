@@ -18,6 +18,7 @@ Only works under Linux for now.
 - Progress slider to show the current playback position.
 - Tray icon to show/hide the main window, also provides play/pause/stop controls.
 - Allows looking up the current module on *The Mod Archive* and *.mod Sample Master*.
+- Preloads the next module while the current one is playing.
 
 ## How to use
 
