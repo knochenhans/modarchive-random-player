@@ -2,8 +2,8 @@ import webbrowser
 from typing import Optional, Dict
 
 from loguru import logger
-from PySide6.QtCore import QSettings, Qt, Slot, QDir
-from PySide6.QtGui import QAction, QFontDatabase, QCursor
+from PySide6.QtCore import QSettings, Qt, Slot
+from PySide6.QtGui import QAction, QCursor
 from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
@@ -52,13 +52,6 @@ class MainWindow(QMainWindow):
         self.current_module_is_favorite: bool = False
 
         self.ui_manager.load_settings()
-
-    def load_fonts_from_dir(self, directory: str) -> set[str]:
-        families = set()
-        for file_info in QDir(directory).entryInfoList(["*.ttf"]):
-            _id = QFontDatabase.addApplicationFont(file_info.absoluteFilePath())
-            families |= set(QFontDatabase.applicationFontFamilies(_id))
-        return families
 
     def add_favorite_button_clicked(self) -> None:
         if self.current_module_id:
