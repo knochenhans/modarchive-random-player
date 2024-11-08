@@ -28,6 +28,8 @@ class UIManager:
         self.main_window = main_window
         self.icons: dict[str, str] = {}
         self.pixmap_icons: dict[str, QPixmap] = {}
+        self.default_message_line_count = 30
+
         self.setup_icons()
         self.setup_ui()
         self.load_settings()
@@ -61,17 +63,38 @@ class UIManager:
         # Create a multiline text label with fixed-width font
         self.multiline_label = QLabel("No module loaded")
         self.multiline_label.setWordWrap(True)
-        # self.multiline_label.setFont(QFont("Courier", 10))
+
+        self.setup_fonts()
 
         self.message_scroll_area = QScrollArea()
         self.message_scroll_area.setWidget(self.multiline_label)
         self.message_scroll_area.setWidgetResizable(True)
+
         self.message_scroll_area.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
-        self.message_scroll_area.setMinimumWidth(
-            self.multiline_label.fontMetrics().horizontalAdvance(" " * 24)
+        self.message_scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+        # self.message_scroll_area.setMinimumWidth(
+        #     self.multiline_label.fontMetrics().horizontalAdvance(" " * 24)
+        # )
+        self.message_scroll_area.setMinimumHeight(
+            self.main_window.fontMetrics().height() * 15
+        )
+
+        # Set height of the scroll area to the height of the text
+
+        # default_height = (
+        #     self.multiline_label.fontMetrics().height()
+        #     * self.default_message_line_count
+        #     + 1
+        # )
+
+        # self.message_scroll_area.resize(
+        #     self.message_scroll_area.width(),
+        #     default_height,
+        # )
 
         # Create a form layout for the labels and their descriptions
         form_layout = QFormLayout()
@@ -162,7 +185,6 @@ class UIManager:
         self.main_window.setCentralWidget(container)
 
         self.setup_tray()
-        self.setup_fonts()
 
     def setup_fonts(self) -> None:
         # Set Topaz font for the multiline label
@@ -323,6 +345,13 @@ class UIManager:
             module_message.replace("\r\n", "\n").replace("\r", "\n")
         )
 
+        # # Set height of the scroll area to the height of the text
+        # self.message_scroll_area.setMinimumHeight(
+        #     self.multiline_label.fontMetrics().height()
+        #     * self.multiline_label.text().count("\n")
+        #     + 1
+        # )
+
     def get_artist_input(self) -> str:
         return self.artist_input.text()
 
@@ -342,11 +371,6 @@ class UIManager:
         member_id_set: bool = self.main_window.settings_manager.get_member_id() != ""
 
         self.favorite_radio_button.setEnabled(member_id_set)
-
-        # Enable/disable artist functions based on artist input
-        # artist_set = self.artist_input.text() != ""
-
-        # self.artist_radio_button.setEnabled(artist_set)
 
     def save_artist_input(self) -> None:
         self.main_window.settings_manager.set_artist(self.artist_input.text())
