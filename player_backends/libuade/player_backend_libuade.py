@@ -1,48 +1,42 @@
 import ctypes
 
-import debugpy
-
 from player_backends.libuade import songinfo
 from player_backends.libuade.ctypes_classes import (
     UADE_BYTES_PER_FRAME,
     UADE_MAX_MESSAGE_SIZE,
     UADE_NOTIFICATION_TYPE,
     uade_config,
-    uade_effect,
     uade_event,
     uade_event_data,
     uade_event_songend,
     uade_event_union,
-    uade_ipc,
     uade_notification,
-    uade_song,
-    uade_song_info,
     uade_state,
     uade_subsong_info,
 )
 from player_backends.libuade.ctypes_functions import libuade
 from loguru import logger
 
-from player_backends.player_backend import PlayerBackend
+from player_backends.player_backend import PlayerBackend, Song
 
 
 class PlayerBackendLibUADE(PlayerBackend):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, name: str = "LibUADE") -> None:
+        super().__init__(name)
         self.state_ptr: ctypes._Pointer[uade_state] = libuade.uade_new_state(None)
         self.config_ptr: ctypes._Pointer[uade_config] = libuade.uade_new_config()
         # self.config = ctypes.cast(libuade.uade_new_config(), ctypes.POINTER(uade_config))
 
         logger.debug("PlayerBackendUADE initialized")
 
-    def load_module(self, module_filename: str) -> bool:
+    def check_module(self) -> bool:
         self.module_size = ctypes.c_size_t()
         ret = libuade.uade_read_file(
-            ctypes.byref(self.module_size), str.encode(module_filename)
+            ctypes.byref(self.module_size), str.encode(self.song.filename)
         )
 
         if not ret:
-            error_message = f"Could not read file {module_filename}"
+            error_message = f"Could not read file {self.song.filename}"
             logger.error(error_message)
             return False
 
@@ -51,23 +45,30 @@ class PlayerBackendLibUADE(PlayerBackend):
         )
 
         if ret < 1:
-            error_message = f"LibUADE is unable to play {module_filename}"
-            logger.error(error_message)
+            logger.warning(f"LibUADE is unable to play {self.song.filename}")
             return False
 
+        return True
+
+    def retrieve_song_info(self) -> None:
         info = libuade.uade_get_song_info(self.state_ptr).contents
 
-        self.song_metadata["credits"] = songinfo.get_credits(module_filename)
-        self.song_metadata["title"] = self.song_metadata["credits"]["song_title"]
-        self.song_metadata["md5"] = info.modulemd5.decode("utf-8")
-        self.song_metadata["playerfname"] = info.playerfname.decode("utf-8")
-        self.song_metadata["playername"] = info.playername.decode("utf-8")
-        self.song_metadata["type"] = info.formatname.decode("utf-8")
+        self.song.credits = songinfo.get_credits(self.song.filename)
+        self.song.formatname = info.formatname.decode("utf-8")
+        self.song.extensions = info.detectioninfo.ext.decode("utf-8")
+        self.song.modulebytes = info.modulebytes
+        self.song.title = info.modulename.decode("utf-8")
+        # self.song.title = self.song.credits["song_title"]
+        # self.song.md5 = info.modulemd5.decode("utf-8")
+        self.song.playerfname = info.playerfname.decode("utf-8")
+        self.song.playername = info.playername.decode("utf-8")
+        self.song.type = info.formatname.decode("utf-8")
 
-        for instrument in self.song_metadata["credits"]["instruments"]:
-            self.song_metadata["message"] += f"{instrument['name']}\n"
+        self.song.message = "\n".join(
+            instrument["name"] for instrument in self.song.credits["instruments"]
+        )
 
-        return True
+        self.calculate_checksums()
 
     def get_module_length(self) -> float:
         info = libuade.uade_get_song_info(self.state_ptr).contents

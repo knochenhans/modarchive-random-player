@@ -17,7 +17,7 @@ from download_manager import DownloadManager
 from module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
-from player_backends.player_backend import PlayerBackend, SongMetadata
+from player_backends.player_backend import PlayerBackend, Song
 from player_thread import PlayerThread
 from settings_dialog import SettingsDialog
 from settings_manager import SettingsManager
@@ -46,30 +46,33 @@ class MainWindow(QMainWindow):
         self.player_backend: Optional[PlayerBackend] = None
         self.audio_backend: Optional[AudioBackendPyAudio] = None
         self.player_thread: Optional[PlayerThread] = None
+        self.module_loader_thread: Optional[ModuleLoaderThread] = None
 
-        self.song_metadata: Optional[SongMetadata] = None
+        self.song: Optional[Song] = None
 
-        self.current_module_id: Optional[str] = None
+        self.current_song: Optional[Song] = None
         self.current_module_is_favorite: bool = False
         self.current_playing_mode: CurrentPlayingMode = CurrentPlayingMode.RANDOM
 
         self.ui_manager.load_settings()
 
-        self.current_playlist: list[Dict] = []
+        self.playlist: list[Song] = []
+
+        self.wait_for_loading = False
 
     def add_favorite_button_clicked(self) -> None:
-        if self.current_module_id:
+        if self.current_song:
             action = (
                 "add_favourite"
                 if not self.current_module_is_favorite
                 else "remove_favourite"
             )
             webbrowser.open(
-                f"https://modarchive.org/interactive.php?request={action}&query={self.current_module_id}"
+                f"https://modarchive.org/interactive.php?request={action}&query={self.current_song.modarchive_id}"
             )
 
             self.current_module_is_favorite = not self.current_module_is_favorite
-            self.ui_manager.set_favorite_button(self.current_module_is_favorite)
+            self.ui_manager.set_favorite_button_state(self.current_module_is_favorite)
 
     def open_settings_dialog(self) -> None:
         settings_dialog = SettingsDialog(self.settings, self)
@@ -84,8 +87,9 @@ class MainWindow(QMainWindow):
             self.player_thread.pause()
             self.ui_manager.set_play_button(self.player_thread.pause_flag)
         else:
-            self.ui_manager.update_loading_ui()
-            self.load_next_module()
+            # self.ui_manager.update_loading_ui()
+            self.load_random_module()
+            self.wait_for_loading = True
 
     @Slot()
     def stop(self) -> None:
@@ -119,11 +123,16 @@ class MainWindow(QMainWindow):
     def play_next(self) -> None:
         self.stop()
 
-        if len(self.current_playlist) > 0:
+        if len(self.playlist) == 0:
+            if self.module_loader_thread and self.module_loader_thread.isRunning():
+                self.module_loader_thread.quit()
+                self.module_loader_thread.wait()
+
+        if len(self.playlist) > 0:
             self.play_next_in_playlist()
         else:
-            self.ui_manager.update_loading_ui()
-            self.load_next_module()
+            # self.ui_manager.update_loading_ui()
+            self.load_random_module()
 
     @Slot()
     def open_module_link(self, link: str) -> None:
@@ -141,16 +150,16 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_lookup_msm(self) -> None:
-        if self.song_metadata:
-            url: str = self.web_helper.lookup_msm_mod_url(self.song_metadata)
+        if self.song:
+            url: str = self.web_helper.lookup_msm_mod_url(self.song)
 
             if url:
                 webbrowser.open(url)
 
     @Slot()
     def on_lookup_modarchive(self) -> None:
-        if self.song_metadata:
-            url: str = self.web_helper.lookup_modarchive_mod_url(self.song_metadata)
+        if self.song:
+            url: str = self.web_helper.lookup_modarchive_mod_url(self.song)
 
             if url:
                 webbrowser.open(url)
@@ -161,19 +170,9 @@ class MainWindow(QMainWindow):
         #     self.player_thread.seek(position)
         pass
 
-    def get_checksums(self, filename: str) -> Dict[str, str]:
-        md5 = hashlib.md5()
-        sha1 = hashlib.sha1()
-
-        with open(filename, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                md5.update(chunk)
-                sha1.update(chunk)
-
-        return {"md5": md5.hexdigest(), "sha1": sha1.hexdigest()}
-
     def check_playing_mode(self) -> None:
-        self.current_playing_mode = self.settings_manager.get_current_playing_mode()
+        # self.current_playing_mode = self.settings_manager.get_current_playing_mode()
+        self.current_playing_mode = self.ui_manager.get_current_playing_mode()
 
         if (
             self.current_playing_mode == CurrentPlayingMode.ARTIST
@@ -182,77 +181,58 @@ class MainWindow(QMainWindow):
             self.current_playing_mode = CurrentPlayingMode.RANDOM
             self.ui_manager.set_current_playing_mode(self.current_playing_mode)
             logger.error("No artist input, switching to random")
-
         return
 
-    def load_module(self) -> bool:
-        logger.debug("Loading module")
+    def on_playing_mode_changed(self, new_playing_mode) -> None:
+        if new_playing_mode != self.current_playing_mode:
+            # Clear the playlist and load a new module
+            logger.debug("Playing mode changed, clearing playlist and loading new module")
+            self.playlist.clear()
+            self.load_random_module()
 
-        self.ui_manager.update_loading_ui()
-
-        member_id = self.settings_manager.get_member_id()
-
+        self.current_playing_mode = new_playing_mode
         self.check_playing_mode()
 
-        result = self.download_manager.download_module(
-            self.current_playing_mode, member_id, self.ui_manager.get_artist_input()
-        )
-
-        if result is not None:
-            return True
-
-        logger.error("Failed to download module")
-        return False
-
-    def add_to_playlist(self, module_entry: Dict) -> None:
-        self.current_playlist.append(module_entry)
+    def add_to_playlist(self, song: Song) -> None:
+        self.playlist.append(song)
         logger.debug(
-            f"Added {module_entry} to playlist, current playlist length: {len(self.current_playlist)}"
+            f"Added {song.filename} to playlist, current playlist length: {len(self.playlist)}"
         )
 
     def play_next_in_playlist(self) -> None:
-        if self.current_playlist:
-            self.play_module(self.current_playlist.pop(0))
+        if self.playlist:
+            self.play_module(self.playlist.pop(0))
         else:
             logger.debug("No more modules in playlist")
 
-    def play_module(self, module_entry: Dict) -> None:
+    def play_module(self, song: Song) -> None:
         logger.debug("Playing module")
 
-        self.audio_backend = AudioBackendPyAudio(44100, self.settings_manager.get_audio_buffer())
-        
-        filename = module_entry.get("filename")
+        self.audio_backend = AudioBackendPyAudio(
+            44100, self.settings_manager.get_audio_buffer()
+        )
+
+        filename = song.filename
         if filename is None:
             raise ValueError("Module entry does not contain a filename")
-        
-        self.current_module_id = module_entry.get("module_id")
 
-        backend_name = self.find_and_set_player(filename)
+        # Create player backend from backend name in song info
+        self.player_backend = self.player_backends[song.backend_name](song.backend_name)
 
         if self.player_backend is not None and self.audio_backend is not None:
-            self.song_metadata = self.player_backend.song_metadata
-            self.song_metadata["filename"] = filename.split("/")[-1]
+            self.player_backend.song = song
+            self.player_backend.check_module()
+            # self.song.filename = filename.split("/")[-1]
+            self.current_song = song
 
-            if self.song_metadata.get("md5") == "":
-                md5 = self.get_checksums(filename).get("md5")
-
-                if md5:
-                    self.song_metadata["md5"] = md5
-
-            if self.song_metadata.get("sha1") == "":
-                sha1 = self.get_checksums(filename).get("sha1")
-
-                if sha1:
-                    self.song_metadata["sha1"] = sha1
-
-            module_title: str = self.song_metadata.get("title", "Unknown")
-            module_message: str = self.song_metadata.get("message", "")
+            module_title: str = song.title or "Unknown"
+            module_message: str = song.message or ""
             self.ui_manager.update_title_label(module_title)
 
             filename = filename.split("/")[-1]
 
             self.ui_manager.update_filename_label(f'<a href="#">{filename}</a>')
-            self.ui_manager.update_player_backend_label(backend_name)
+            self.ui_manager.update_player_backend_label(self.player_backend.name)
             self.setWindowTitle(f"{self.name} - {module_title}")
             self.ui_manager.set_message_label(module_message)
 
@@ -271,11 +251,13 @@ class MainWindow(QMainWindow):
             )
 
             # Buffer the next module
-            self.load_next_module()
+            self.load_random_module()
         else:
-            raise ValueError("No player backend could load the module")
+            raise ValueError("No player backend loaded")
 
-    def load_next_module(self) -> None:
+    def load_random_module(self) -> None:
+        logger.debug("Loading random module")
+
         self.check_playing_mode()
         member_id = self.settings_manager.get_member_id()
         artist_input = self.ui_manager.get_artist_input()
@@ -287,46 +269,50 @@ class MainWindow(QMainWindow):
         self.module_loader_thread.start()
 
     @Slot()
-    def on_module_loaded(self, result: Dict) -> None:
-        if result:
-            module_filename = result.get("filename")
-            if module_filename:
-                if self.player_thread and self.player_thread.isRunning():
-                    self.add_to_playlist(result)
-                else:
-                    self.play_module(result)
-            else:
-                logger.error("Invalid module URL")
+    def on_module_loaded(self, song: Song) -> None:
+        if song:
+            result = self.update_song_info(song)
+
+            if result:
+                self.add_to_playlist(song)
         else:
             logger.error("Failed to download module")
 
+        # Check if we have been waiting for the module to load (when pressing play after starting the application)
+        if self.wait_for_loading:
+            self.wait_for_loading = False
+            self.play_next_in_playlist()
+
     def check_favorite(self, member_id: str) -> bool:
         # Check if the module is the current members favorite
-        member_favorites = self.web_helper.get_member_module_id_list(member_id)
+        member_favorites_id_list = self.web_helper.get_member_module_id_list(member_id)
 
-        is_favorite = self.current_module_id in member_favorites
-        self.ui_manager.set_favorite_button(is_favorite)
+        if self.current_song:
+            is_favorite = self.current_song.modarchive_id in member_favorites_id_list
+            self.ui_manager.set_favorite_button_state(is_favorite)
 
-        if is_favorite:
-            logger.debug("Current module is a member favorite")
+            if is_favorite:
+                logger.debug("Current module is a member favorite")
 
         return is_favorite
 
-    def find_and_set_player(self, filename: str) -> str:
+    def update_song_info(self, song: Song) -> Optional[Song]:
         # Try to load the module by going through the available player backends
         for backend_name, backend_class in self.player_backends.items():
             logger.debug(f"Trying player backend: {backend_name}")
 
-            player_backend = backend_class()
+            player_backend = backend_class(backend_name)
             if player_backend is not None:
-                if player_backend.load_module(filename):
-                    self.player_backend = player_backend
-                    break
-
-        if self.player_backend is None:
-            raise ValueError("No player backend could load the module")
-        logger.debug(f"Module loaded with player backend: {backend_name}")
-        return backend_name
+                player_backend.song = song
+                if player_backend.check_module():
+                    logger.debug(f"Module loaded with player backend: {backend_name}")
+                    song.backend_name = backend_name
+                    player_backend.song = song
+                    player_backend.retrieve_song_info()
+                    return player_backend.song
+            else:
+                raise ValueError("No player backend could load the module")
+        return None
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape:

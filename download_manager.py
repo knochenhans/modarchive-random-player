@@ -1,8 +1,8 @@
 from current_playing_mode import CurrentPlayingMode
-import os
 import shutil
 import tempfile
-from typing import Dict, Optional
+from typing import Optional
+from player_backends.player_backend import Song
 from web_helper import WebHelper
 
 
@@ -16,7 +16,7 @@ class DownloadManager:
         mode: CurrentPlayingMode,
         member_id: Optional[str] = None,
         artist: Optional[str] = None,
-    ) -> Optional[Dict[str, Optional[str]]]:
+    ) -> Optional[Song]:
         match mode:
             case CurrentPlayingMode.RANDOM:
                 return self.web_helper.download_random_module(self.temp_dir)

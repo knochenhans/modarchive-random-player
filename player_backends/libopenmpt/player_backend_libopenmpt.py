@@ -8,7 +8,7 @@ from loguru import logger
 sys.path.append("./libopenmpt_py")
 
 from libopenmpt_py import libopenmpt
-from player_backends.player_backend import PlayerBackend, SongMetadata
+from player_backends.player_backend import PlayerBackend, Song
 
 
 def error_callback():
@@ -46,11 +46,11 @@ def print_error(
 
 
 class PlayerBackendLibOpenMPT(PlayerBackend):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, name: str = "LibOpenMPT") -> None:
+        super().__init__(name)
         logger.debug("PlayerBackendLibOpenMPT initialized")
 
-    def load_module(self, module_filename: str) -> bool:
+    def check_module(self) -> bool:
         openmpt_log_func = ctypes.CFUNCTYPE(
             None, ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p
         )
@@ -63,7 +63,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         error = ctypes.c_int()
         error_message = ctypes.c_char_p()
 
-        self.module_data = open(module_filename, "rb").read()
+        self.module_data = open(self.song.filename, "rb").read()
         self.module_size = len(self.module_data)
 
         logger.debug("Loading module")
@@ -80,7 +80,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         )
 
         if not self.mod:
-            logger.error("Failed to load module: {}", error_message.value)
+            logger.error(f"LibOpenMPT is unable to load {self.song.filename}")
             print_error(
                 ctypes.c_char(b"openmpt_module_create_from_memory2()"),
                 error.value,
@@ -88,9 +88,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             )
             libopenmpt.openmpt_free_string(error_message)
             return False
-
-        self.fill_module_metadata()
-
+        
         return True
 
     def get_module_length(self) -> float:
@@ -120,7 +118,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
     def get_module_title(self) -> Optional[str]:
         return libopenmpt.openmpt_module_get_metadata(self.mod, b"title")
 
-    def fill_module_metadata(self):
+    def retrieve_song_info(self) -> None:
         keys = (
             libopenmpt.openmpt_module_get_metadata_keys(self.mod)
             .decode("utf-8")
@@ -134,31 +132,33 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             if value != "":
                 match key:
                     case "type":
-                        self.song_metadata["type"] = value
+                        self.song.type = value
                     case "type_long":
-                        self.song_metadata["type_long"] = value
+                        self.song.type_long = value
                     case "originaltype":
-                        self.song_metadata["originaltype"] = value
+                        self.song.originaltype = value
                     case "originaltype_long":
-                        self.song_metadata["originaltype_long"] = value
+                        self.song.originaltype_long = value
                     case "container":
-                        self.song_metadata["container"] = value
+                        self.song.container = value
                     case "container_long":
-                        self.song_metadata["container_long"] = value
+                        self.song.container_long = value
                     case "tracker":
-                        self.song_metadata["tracker"] = value
+                        self.song.tracker = value
                     case "artist":
-                        self.song_metadata["artist"] = value
+                        self.song.artist = value
                     case "title":
-                        self.song_metadata["title"] = value
+                        self.song.title = value
                     case "date":
-                        self.song_metadata["date"] = value
+                        self.song.date = value
                     case "message":
-                        self.song_metadata["message"] = value
+                        self.song.message = value
                     case "message_raw":
-                        self.song_metadata["message_raw"] = value
+                        self.song.message_raw = value
                     case "warnings":
-                        self.song_metadata["warnings"] = value
+                        self.song.warnings = value
+
+        self.calculate_checksums()
 
     def free_module(self) -> None:
         if self.mod:

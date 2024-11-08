@@ -1,9 +1,11 @@
 from PySide6.QtCore import QThread, Signal
 from typing import Optional
 
+from player_backends.player_backend import Song
+
 
 class ModuleLoaderThread(QThread):
-    module_loaded = Signal(dict)
+    module_loaded = Signal(Song)
 
     def __init__(
         self, download_manager, current_playing_mode, member_id, artist_input
@@ -17,10 +19,10 @@ class ModuleLoaderThread(QThread):
         self.module_loader_thread: Optional[ModuleLoaderThread] = None
 
     def run(self) -> None:
-        result = self.download_manager.download_module(
+        song = self.download_manager.download_module(
             self.current_playing_mode, self.member_id, self.artist_input
         )
-        if result:
-            self.module_loaded.emit(result)
+        if song:
+            self.module_loaded.emit(song)
         else:
             self.module_loaded.emit({})

@@ -23,7 +23,6 @@ import darkdetect
 from current_playing_mode import CurrentPlayingMode
 
 
-# FILE: ui_manager.py
 class UIManager:
     def __init__(self, main_window) -> None:
         self.main_window = main_window
@@ -36,9 +35,7 @@ class UIManager:
     def setup_ui(self) -> None:
         self.title_label = QLabel("Unknown")
         self.filename_label = QLabel("Unknown")
-        self.filename_label.linkActivated.connect(
-            self.main_window.open_module_link
-        )
+        self.filename_label.linkActivated.connect(self.main_window.open_module_link)
         self.player_backend_label = QLabel("Unknown")
 
         self.play_button = QPushButton()
@@ -66,23 +63,6 @@ class UIManager:
         self.multiline_label.setWordWrap(True)
         # self.multiline_label.setFont(QFont("Courier", 10))
 
-        # Set Topaz font for the multiline label
-        font_path: str = os.path.join(os.path.dirname(__file__), "fonts")
-        self.load_fonts_from_dir(font_path)
-        font_db = QFontDatabase()
-        font = font_db.font("TopazPlus a600a1200a4000", "Regular", 12)
-        font.setStyleStrategy(QFont.StyleStrategy.NoAntialias)
-        font.setFixedPitch(True)
-        font.setKerning(False)
-        font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
-        font.setStyleHint(QFont.StyleHint.TypeWriter)
-
-        self.multiline_label.setFont(font)
-
-        # Set maximum lines shown to 8 and show scrollbar if more are displayed
-        self.multiline_label.setMinimumHeight(
-            self.main_window.fontMetrics().height() * 8
-        )
         self.message_scroll_area = QScrollArea()
         self.message_scroll_area.setWidget(self.multiline_label)
         self.message_scroll_area.setWidgetResizable(True)
@@ -101,27 +81,32 @@ class UIManager:
 
         # Create button for adding/removing song as favorite
         self.add_favorite_button = QPushButton()
-        self.add_favorite_button.setIcon(
-            QIcon(fileName=str(self.icons["star_empty"]))
-        )
+        self.add_favorite_button.setIcon(QIcon(fileName=str(self.icons["star_empty"])))
         self.add_favorite_button.clicked.connect(
             self.main_window.add_favorite_button_clicked
         )
         self.add_favorite_button.setToolTip("Add to favorites")
         self.add_favorite_button.setFlat(True)
 
-        # Create a horizontal layout for the buttons and slider
+        # Create a horizontal layout for the buttons
         hbox_layout = QHBoxLayout()
         hbox_layout.addWidget(self.play_button)
         hbox_layout.addWidget(self.stop_button)
         hbox_layout.addWidget(self.next_button)
         hbox_layout.addWidget(self.add_favorite_button)
-        hbox_layout.addWidget(self.progress_slider)
 
         # Create a vertical layout and add the form layout and horizontal layout to it
         vbox_layout = QVBoxLayout()
         vbox_layout.addLayout(form_layout)
         vbox_layout.addLayout(hbox_layout)
+
+        # Create a horizontal layout for the slider and time display
+        slider_layout = QHBoxLayout()
+        self.time_display = QLabel("00:00 / 00:00")
+        slider_layout.addWidget(self.progress_slider)
+        slider_layout.addWidget(self.time_display)
+
+        vbox_layout.addLayout(slider_layout)
         vbox_layout.addWidget(self.message_scroll_area)
 
         # Add a source radio buttons
@@ -131,15 +116,13 @@ class UIManager:
         self.favorite_radio_button = QRadioButton("Favorites")
         self.artist_radio_button = QRadioButton("Artist")
 
-        self.source_radio_group.addButton(
-            self.random_radio_button
-        )
-        self.source_radio_group.addButton(
-            self.favorite_radio_button
-        )
-        self.source_radio_group.addButton(
-            self.artist_radio_button
-        )
+        self.random_radio_button.toggled.connect(self.on_radio_button_toggled)
+        self.favorite_radio_button.toggled.connect(self.on_radio_button_toggled)
+        self.artist_radio_button.toggled.connect(self.on_radio_button_toggled)
+
+        self.source_radio_group.addButton(self.random_radio_button)
+        self.source_radio_group.addButton(self.favorite_radio_button)
+        self.source_radio_group.addButton(self.artist_radio_button)
 
         self.artist_input = QLineEdit()
         self.artist_input.setPlaceholderText("Artist")
@@ -171,9 +154,7 @@ class UIManager:
 
         # Add a settings button
         self.settings_button = QPushButton("Settings")
-        self.settings_button.clicked.connect(
-            self.main_window.open_settings_dialog
-        )
+        self.settings_button.clicked.connect(self.main_window.open_settings_dialog)
         vbox_layout.addWidget(self.settings_button)
 
         container: QWidget = QWidget()
@@ -181,6 +162,26 @@ class UIManager:
         self.main_window.setCentralWidget(container)
 
         self.setup_tray()
+        self.setup_fonts()
+
+    def setup_fonts(self) -> None:
+        # Set Topaz font for the multiline label
+        font_path: str = os.path.join(os.path.dirname(__file__), "fonts")
+        self.load_fonts_from_dir(font_path)
+        font_db = QFontDatabase()
+        font = font_db.font("TopazPlus a600a1200a4000", "Regular", 12)
+        font.setStyleStrategy(QFont.StyleStrategy.NoAntialias)
+        font.setFixedPitch(True)
+        font.setKerning(False)
+        font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+        font.setStyleHint(QFont.StyleHint.TypeWriter)
+
+        self.multiline_label.setFont(font)
+
+        # Set maximum lines shown to 8 and show scrollbar if more are displayed
+        self.multiline_label.setMinimumHeight(
+            self.main_window.fontMetrics().height() * 8
+        )
 
     def setup_tray(self) -> None:
         self.tray_icon = QSystemTrayIcon(self.main_window)
@@ -192,9 +193,7 @@ class UIManager:
         self.tray_icon.show()
 
         # Minimize to tray
-        self.tray_icon.activated.connect(
-            self.main_window.tray_icon_activated
-        )
+        self.tray_icon.activated.connect(self.main_window.tray_icon_activated)
         self.main_window.hide()
 
     def create_tray_menu(self) -> QMenu:
@@ -259,11 +258,25 @@ class UIManager:
     def update_player_backend_label(self, text: str) -> None:
         self.player_backend_label.setText(text)
 
+    def on_radio_button_toggled(self) -> None:
+        current_mode = self.get_current_playing_mode()
+        self.main_window.on_playing_mode_changed(current_mode)
+
     def set_play_button_icon(self, icon_name: str) -> None:
         self.play_button.setIcon(self.pixmap_icons[icon_name])
 
     def set_stop_button_icon(self, icon_name: str) -> None:
         self.stop_button.setIcon(self.pixmap_icons[icon_name])
+
+    def get_current_playing_mode(self) -> CurrentPlayingMode:
+        if self.random_radio_button.isChecked():
+            return CurrentPlayingMode.RANDOM
+        elif self.favorite_radio_button.isChecked():
+            return CurrentPlayingMode.FAVORITE
+        elif self.artist_radio_button.isChecked():
+            return CurrentPlayingMode.ARTIST
+        else:
+            return CurrentPlayingMode.RANDOM
 
     def set_current_playing_mode(
         self, current_playing_mode: CurrentPlayingMode
@@ -277,11 +290,20 @@ class UIManager:
         else:
             self.random_radio_button.setChecked(True)
 
-    def update_progress(self, length: int, position: int) -> None:
+    def update_progress(self, position: int, length: int) -> None:
         self.progress_slider.setMaximum(length)
         self.progress_slider.setValue(position)
 
-    def set_favorite_button(self, is_favorite: bool) -> None:
+        self.progress_slider.setDisabled(length == 0)
+
+        # Update the time display
+        position_minutes, position_seconds = divmod(position, 60)
+        length_minutes, length_seconds = divmod(length, 60)
+        self.time_display.setText(
+            f"{position_minutes:02}:{position_seconds:02} / {length_minutes:02}:{length_seconds:02}"
+        )
+
+    def set_favorite_button_state(self, is_favorite: bool) -> None:
         self.add_favorite_button.setIcon(
             QIcon(str(self.icons["star_full"]))
             if is_favorite
@@ -327,9 +349,7 @@ class UIManager:
         # self.artist_radio_button.setEnabled(artist_set)
 
     def save_artist_input(self) -> None:
-        self.main_window.settings_manager.set_artist(
-            self.artist_input.text()
-        )
+        self.main_window.settings_manager.set_artist(self.artist_input.text())
 
     def show_tray_notification(self, title: str, message: str) -> None:
         self.tray_icon.showMessage(
@@ -365,7 +385,7 @@ class UIManager:
             self.favorite_radio_button.setChecked(True)
         elif mode == CurrentPlayingMode.ARTIST:
             self.artist_radio_button.setChecked(True)
-    
+
     def load_fonts_from_dir(self, directory: str) -> set[str]:
         families = set()
         for file_info in QDir(directory).entryInfoList(["*.ttf"]):

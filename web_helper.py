@@ -5,16 +5,14 @@ from typing import Optional, List, Dict
 from bs4 import BeautifulSoup, Tag
 from loguru import logger
 import requests
-from player_backends.player_backend import SongMetadata
+from player_backends.player_backend import Song
 
 
 class WebHelper:
-    def get_msm_url(self, song_metadata: SongMetadata) -> str:
-        return f'https://modsamplemaster.thegang.nu/module.php?sha1={song_metadata.get("sha1")}'
+    def get_msm_url(self, song: Song) -> str:
+        return f"https://modsamplemaster.thegang.nu/module.php?sha1={song.sha1}"
 
-    def download_module(
-        self, module_id: str, temp_dir: str
-    ) -> Dict:
+    def download_module_file(self, module_id: str, temp_dir: str) -> Optional[str]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
@@ -33,12 +31,14 @@ class WebHelper:
                 temp_file.write(response.content)
             filename = temp_file_path
             logger.debug(f"Module downloaded to: {filename}")
-        return {"filename": filename, "module_link": module_link, "module_id": module_id}
+        else:
+            logger.error(f"Failed to download module with ID: {module_id}")
+        return filename
 
-    def download_random_module(
-        self, temp_dir: str
-    ) -> Optional[Dict]:
+    def download_random_module(self, temp_dir: str) -> Optional[Song]:
         logger.debug("Getting a random module")
+
+        song: Song = Song()
 
         url: str = "https://modarchive.org/index.php?request=view_player&query=random"
         response: requests.Response = requests.get(url)
@@ -57,7 +57,12 @@ class WebHelper:
                 module_url = module_url[0]
             if isinstance(module_url, str):
                 module_id: str = module_url.split("=")[-1].split("#")[0]
-                return self.download_module(module_id, temp_dir)
+                filename = self.download_module_file(module_id, temp_dir)
+
+                if filename:
+                    song.filename = filename
+                    song.modarchive_id = module_id
+                    return song
         return None
 
     def get_member_module_url_list(self, member_id: str) -> List[str]:
@@ -86,10 +91,10 @@ class WebHelper:
 
         return ids
 
-    def download_favorite_module(
-        self, member_id: str, temp_dir: str
-    ) -> Optional[Dict]:
+    def download_favorite_module(self, member_id: str, temp_dir: str) -> Optional[Song]:
         if member_id:
+            song: Song = Song()
+
             logger.debug(f"Getting a random module for member ID: {member_id}")
 
             module_links = self.get_member_module_url_list(member_id)
@@ -107,17 +112,22 @@ class WebHelper:
                 module_id_and_name: str = module_url.split("=")[-1]
                 module_id: str = module_id_and_name.split("#")[0]
 
-                return self.download_module(module_id, temp_dir)
+                filename = self.download_module_file(module_id, temp_dir)
+
+                if filename:
+                    song.filename = filename
+                    song.modarchive_id = module_id
+                    return song
             else:
                 logger.error("No new module links found in the member's favorites")
         else:
             logger.error("Member ID is empty")
         return None
 
-    def download_artist_module(
-        self, artist: str, temp_dir: str
-    ) -> Optional[Dict]:
+    def download_artist_module(self, artist: str, temp_dir: str) -> Optional[Song]:
         if artist:
+            song: Song = Song()
+
             logger.debug(f"Getting a random module by artist: {artist}")
 
             url: str = (
@@ -155,7 +165,12 @@ class WebHelper:
                             module_id = (
                                 download_link["href"].split("=")[-1].split("#")[0]
                             )
-                            return self.download_module(module_id, temp_dir)
+                            filename = self.download_module_file(module_id, temp_dir)
+
+                            if filename:
+                                song.filename = filename
+                                song.modarchive_id = module_id
+                                return song
                         else:
                             logger.error("No download links found on the page")
                     else:
@@ -169,15 +184,14 @@ class WebHelper:
 
         return None
 
-    def lookup_modarchive_mod_url(self, song_metadata: SongMetadata) -> str:
-        filename = song_metadata.get("filename")
-        url = f"https://modarchive.org/index.php?request=search&query={filename}&submit=Find&search_type=filename"
+    def lookup_modarchive_mod_url(self, song: Song) -> str:
+        url = f"https://modarchive.org/index.php?request=search&query={song.filename}&submit=Find&search_type=filename"
 
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, "html.parser")
 
-            result = soup.find("a", string=filename)
+            result = soup.find("a", string=song.filename)
 
             if result and isinstance(result, Tag):
                 href = result["href"]
@@ -186,10 +200,10 @@ class WebHelper:
                 return "https://modarchive.org/" + href
         return ""
 
-    def lookup_msm_mod_url(self, song_metadata: SongMetadata) -> str:
+    def lookup_msm_mod_url(self, song: Song) -> str:
         url: Optional[str] = None
-        if song_metadata:
-            url = self.get_msm_url(song_metadata)
+        if song:
+            url = self.get_msm_url(song)
         if url:
             # Check if the link returns a 404
             response = requests.get(url)
