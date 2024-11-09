@@ -185,6 +185,11 @@ class UIManager:
         self.history_button.clicked.connect(self.main_window.open_history_dialog)
         vbox_layout.addWidget(self.history_button)
 
+        # Add a meta data button
+        self.meta_data_button = QPushButton("Meta Data")
+        self.meta_data_button.clicked.connect(self.main_window.open_meta_data_dialog)
+        vbox_layout.addWidget(self.meta_data_button)
+
         container: QWidget = QWidget()
         container.setLayout(vbox_layout)
         self.main_window.setCentralWidget(container)

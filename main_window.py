@@ -14,6 +14,7 @@ from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
 from current_playing_mode import CurrentPlayingMode
 from download_manager import DownloadManager
 from history_dialog import HistoryDialog
+from meta_data_dialog import MetaDataDialog
 from module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
@@ -221,6 +222,11 @@ class MainWindow(QMainWindow):
         self.song_added_to_history.connect(history_dialog.on_new_entry)
         history_dialog.entry_double_clicked.connect(self.play_module)
         history_dialog.show()
+
+    def open_meta_data_dialog(self) -> None:
+        if self.current_song:
+            meta_data_dialog = MetaDataDialog(self.current_song, self)
+            meta_data_dialog.show()
 
     def play_module(self, song: Song) -> None:
         self.stop()
