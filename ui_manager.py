@@ -180,6 +180,11 @@ class UIManager:
         self.settings_button.clicked.connect(self.main_window.open_settings_dialog)
         vbox_layout.addWidget(self.settings_button)
 
+        # Add a history button
+        self.history_button = QPushButton("History")
+        self.history_button.clicked.connect(self.main_window.open_history_dialog)
+        vbox_layout.addWidget(self.history_button)
+
         container: QWidget = QWidget()
         container.setLayout(vbox_layout)
         self.main_window.setCentralWidget(container)

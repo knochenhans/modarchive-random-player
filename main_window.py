@@ -2,18 +2,18 @@ import webbrowser
 from typing import Optional, Dict
 
 from loguru import logger
-from PySide6.QtCore import QSettings, Qt, Slot, QThread, Signal
+from PySide6.QtCore import QSettings, Qt, Slot, Signal
 from PySide6.QtGui import QAction, QCursor
 from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QSystemTrayIcon,
 )
-import hashlib
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
 from current_playing_mode import CurrentPlayingMode
 from download_manager import DownloadManager
+from history_dialog import HistoryDialog
 from module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
@@ -26,6 +26,8 @@ from web_helper import WebHelper
 
 
 class MainWindow(QMainWindow):
+    song_added_to_history = Signal(Song)
+
     def __init__(self) -> None:
         super().__init__()
         self.name: str = "Mod Archive Random Player"
@@ -57,6 +59,7 @@ class MainWindow(QMainWindow):
         self.ui_manager.load_settings()
 
         self.playlist: list[Song] = []
+        self.history: list[Song] = []
 
         self.wait_for_loading = False
 
@@ -186,7 +189,9 @@ class MainWindow(QMainWindow):
     def on_playing_mode_changed(self, new_playing_mode) -> None:
         if new_playing_mode != self.current_playing_mode:
             # Clear the playlist and load a new module
-            logger.debug("Playing mode changed, clearing playlist and loading new module")
+            logger.debug(
+                "Playing mode changed, clearing playlist and loading new module"
+            )
             self.playlist.clear()
             self.load_random_module()
 
@@ -201,11 +206,25 @@ class MainWindow(QMainWindow):
 
     def play_next_in_playlist(self) -> None:
         if self.playlist:
-            self.play_module(self.playlist.pop(0))
+            song = self.playlist.pop(0)
+            self.play_module(song)
+            self.history.append(song)
+            self.song_added_to_history.emit(song)
+            
+            # Buffer the next module
+            self.load_random_module()
         else:
             logger.debug("No more modules in playlist")
 
+    def open_history_dialog(self) -> None:
+        history_dialog = HistoryDialog(self.history, self)
+        self.song_added_to_history.connect(history_dialog.on_new_entry)
+        history_dialog.entry_double_clicked.connect(self.play_module)
+        history_dialog.show()
+
     def play_module(self, song: Song) -> None:
+        self.stop()
+
         logger.debug("Playing module")
 
         self.audio_backend = AudioBackendPyAudio(
@@ -220,6 +239,7 @@ class MainWindow(QMainWindow):
         self.player_backend = self.player_backends[song.backend_name](song.backend_name)
 
         if self.player_backend is not None and self.audio_backend is not None:
+            # self.stop()
             self.player_backend.song = song
             self.player_backend.check_module()
             # self.song.filename = filename.split("/")[-1]
@@ -249,9 +269,6 @@ class MainWindow(QMainWindow):
             self.current_module_is_favorite = self.check_favorite(
                 self.settings_manager.get_member_id()
             )
-
-            # Buffer the next module
-            self.load_random_module()
         else:
             raise ValueError("No player backend loaded")
 
