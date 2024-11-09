@@ -106,7 +106,6 @@ class MainWindow(QMainWindow):
 
             if self.player_backend:
                 self.player_backend.free_module()
-            self.audio_backend = None
 
             self.ui_manager.set_play_button_icon("play")
             self.ui_manager.set_stopped()
@@ -115,6 +114,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def on_stop_pressed(self) -> None:
         self.stop()
+        self.audio_backend = None
 
     @Slot()
     def on_playing_finished(self) -> None:
@@ -211,7 +211,7 @@ class MainWindow(QMainWindow):
             self.play_module(song)
             self.history.append(song)
             self.song_added_to_history.emit(song)
-            
+
             # Buffer the next module
             self.load_random_module()
         else:
@@ -233,9 +233,10 @@ class MainWindow(QMainWindow):
 
         logger.debug("Playing module")
 
-        self.audio_backend = AudioBackendPyAudio(
-            44100, self.settings_manager.get_audio_buffer()
-        )
+        if self.audio_backend is None:
+            self.audio_backend = AudioBackendPyAudio(
+                44100, self.settings_manager.get_audio_buffer()
+            )
 
         filename = song.filename
         if filename is None:

@@ -49,8 +49,6 @@ class PlayerThread(QThread):
             current_position: float = self.player_backend.get_position_seconds()
             self.position_changed.emit(int(current_position), int(module_length))
 
-        self.audio_backend.stop()
-
         if count == 0:
             self.song_finished.emit()
             logger.debug("Song finished")
