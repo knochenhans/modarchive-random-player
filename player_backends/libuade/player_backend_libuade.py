@@ -115,14 +115,13 @@ class PlayerBackendLibUADE(PlayerBackend):
             raise RuntimeError("Playback error")
 
         if nbytes == 0:
-            # raise RuntimeWarning("Song end")
             logger.info("Song end")
 
         return nbytes, bytes(buf)
 
     def handle_notification(self, n: uade_notification) -> None:
         if n.type == UADE_NOTIFICATION_TYPE.UADE_NOTIFICATION_MESSAGE:
-            raise RuntimeWarning(f"Amiga message: {n.uade_notification_union.msg}")
+            logger.info(f"Amiga message: {n.uade_notification_union.msg}")
         elif n.type == UADE_NOTIFICATION_TYPE.UADE_NOTIFICATION_SONG_END:
             if n.uade_notification_union.song_end.happy:
                 logger.info("Song end")
