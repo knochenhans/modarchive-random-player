@@ -85,3 +85,7 @@ class PlayerBackend(ABC):
 
         self.song.md5 = md5.hexdigest()
         self.song.sha1 = sha1.hexdigest()
+
+    @abstractmethod
+    def seek(self, position: int) -> None:
+        pass

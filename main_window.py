@@ -181,9 +181,8 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_seek(self, position: int) -> None:
-        # if self.player_thread:
-        #     self.player_thread.seek(position)
-        pass
+        if self.player_thread:
+            self.player_thread.seek(position)
 
     def check_playing_mode(self) -> None:
         # self.current_playing_mode = self.settings_manager.get_current_playing_mode()

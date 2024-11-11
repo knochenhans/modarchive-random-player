@@ -5,12 +5,14 @@ from player_backends.libuade.ctypes_classes import (
     UADE_BYTES_PER_FRAME,
     UADE_MAX_MESSAGE_SIZE,
     UADE_NOTIFICATION_TYPE,
+    UADE_SEEK_MODE,
     uade_config,
     uade_event,
     uade_event_data,
     uade_event_songend,
     uade_event_union,
     uade_notification,
+    uade_song_info,
     uade_state,
     uade_subsong_info,
 )
@@ -156,3 +158,17 @@ class PlayerBackendLibUADE(PlayerBackend):
             libuade.uade_cleanup_state(self.state_ptr)
             self.state_ptr = libuade.uade_new_state(None)
             logger.info("UADE instance deleted")
+
+    def seek(self, position: int) -> None:
+        songinfo: uade_song_info = libuade.uade_get_song_info(self.state_ptr).contents
+
+        if (
+            libuade.uade_seek(
+                UADE_SEEK_MODE.UADE_SEEK_SUBSONG_RELATIVE,
+                position,
+                songinfo.subsongs.cur,
+                self.state_ptr,
+            )
+            != 0
+        ):
+            logger.error("Seeking failed")

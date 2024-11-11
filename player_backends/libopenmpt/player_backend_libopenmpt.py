@@ -172,3 +172,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         if self.mod:
             libopenmpt.openmpt_module_destroy(self.mod)
             self.mod = None
+
+    def seek(self, position: int) -> None:
+        libopenmpt.openmpt_module_set_position_seconds(self.mod, position)
+        logger.debug("Seeked to position: {}", position)

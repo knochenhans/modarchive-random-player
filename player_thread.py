@@ -63,3 +63,7 @@ class PlayerThread(QThread):
     def pause(self) -> None:
         self.pause_flag = not self.pause_flag
         logger.debug("Pause toggled: {}", self.pause_flag)
+
+    def seek(self, position: int) -> None:
+        logger.debug("Seeking to position: {}", position)
+        self.player_backend.seek(position)
