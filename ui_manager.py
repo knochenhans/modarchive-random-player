@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QButtonGroup,
     QRadioButton,
     QGroupBox,
+    QCheckBox,
 )
 import darkdetect
 
@@ -138,29 +139,51 @@ class UIManager:
         self.random_radio_button.setChecked(True)
         self.favorite_radio_button = QRadioButton("Favorites")
         self.artist_radio_button = QRadioButton("Artist")
+        self.local_folder_radio_button = QRadioButton("Local Folder")
 
         self.random_radio_button.toggled.connect(self.on_radio_button_toggled)
         self.favorite_radio_button.toggled.connect(self.on_radio_button_toggled)
         self.artist_radio_button.toggled.connect(self.on_radio_button_toggled)
+        self.local_folder_radio_button.toggled.connect(self.on_radio_button_toggled)
 
         self.source_radio_group.addButton(self.random_radio_button)
         self.source_radio_group.addButton(self.favorite_radio_button)
         self.source_radio_group.addButton(self.artist_radio_button)
+        self.source_radio_group.addButton(self.local_folder_radio_button)
 
         self.artist_input = QLineEdit()
         self.artist_input.setPlaceholderText("Artist")
         self.artist_input.textChanged.connect(self.save_artist_input)
+
+        self.local_select_folder_button = QPushButton()
+        self.local_select_folder_button.setIcon(self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
+        self.local_select_folder_button.setToolTip("Select Folder")
+        self.local_select_folder_button.clicked.connect(
+            self.main_window.on_open_local_folder_dialog
+        )
+
+        self.local_recursively_checkbox = QCheckBox("Recursively")
+        self.local_recursively_checkbox.setChecked(True)
+
+        self.local_random_checkbox = QCheckBox("Random")
 
         # Create a horizontal layout for the artist radio button and input field
         artist_layout = QHBoxLayout()
         artist_layout.addWidget(self.artist_radio_button)
         artist_layout.addWidget(self.artist_input)
 
+        local_layout = QHBoxLayout()
+        local_layout.addWidget(self.local_folder_radio_button)
+        local_layout.addWidget(self.local_select_folder_button)
+        local_layout.addWidget(self.local_recursively_checkbox)
+        local_layout.addWidget(self.local_random_checkbox)
+
         # Create a vertical layout for the radio buttons
         radio_layout = QVBoxLayout()
         radio_layout.addWidget(self.random_radio_button)
         radio_layout.addWidget(self.favorite_radio_button)
         radio_layout.addLayout(artist_layout)
+        radio_layout.addLayout(local_layout)
 
         # Create a group box for the radio buttons
         self.source_group_box = QGroupBox("Source")
@@ -307,20 +330,26 @@ class UIManager:
             return CurrentPlayingMode.FAVORITE
         elif self.artist_radio_button.isChecked():
             return CurrentPlayingMode.ARTIST
+        elif self.local_folder_radio_button.isChecked():
+            return CurrentPlayingMode.LOCAL
         else:
             return CurrentPlayingMode.RANDOM
 
     def set_current_playing_mode(
         self, current_playing_mode: CurrentPlayingMode
     ) -> None:
-        if current_playing_mode == CurrentPlayingMode.FAVORITE:
-            self.favorite_radio_button.setChecked(True)
-            self.main_window.current_playing_mode = CurrentPlayingMode.FAVORITE
-        elif current_playing_mode == CurrentPlayingMode.ARTIST:
-            self.artist_radio_button.setChecked(True)
-            self.main_window.current_playing_mode = CurrentPlayingMode.ARTIST
-        else:
-            self.random_radio_button.setChecked(True)
+        match current_playing_mode:
+            case CurrentPlayingMode.FAVORITE:
+                self.favorite_radio_button.setChecked(True)
+                self.main_window.current_playing_mode = CurrentPlayingMode.FAVORITE
+            case CurrentPlayingMode.ARTIST:
+                self.artist_radio_button.setChecked(True)
+                self.main_window.current_playing_mode = CurrentPlayingMode.ARTIST
+            case CurrentPlayingMode.LOCAL:
+                self.local_folder_radio_button.setChecked(True)
+                self.main_window.current_playing_mode = CurrentPlayingMode.LOCAL
+            case _:
+                self.random_radio_button.setChecked(True)
 
     def update_progress(self, position: int, length: int) -> None:
         self.progress_slider.setMaximum(length)
@@ -376,6 +405,11 @@ class UIManager:
             self.main_window.settings_manager.get_current_playing_mode()
         )
 
+        local_folder: str = self.main_window.settings_manager.get_local_folder()
+        if local_folder:
+            self.main_window.set_local_folder(local_folder)
+            self.local_select_folder_button.setToolTip(local_folder)
+
     def update_source_input(self) -> None:
         # Enable/disable favorite functions based on member id
         member_id_set: bool = self.main_window.settings_manager.get_member_id() != ""
@@ -397,6 +431,7 @@ class UIManager:
     def set_stopped(self) -> None:
         self.stop_button.setEnabled(False)
         self.progress_slider.setEnabled(False)
+        self.update_progress(0, 0)
 
     def set_playing(self) -> None:
         self.stop_button.setEnabled(True)

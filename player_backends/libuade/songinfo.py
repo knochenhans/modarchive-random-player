@@ -2,6 +2,8 @@ import os
 from enum import Enum
 from typing import Dict, List, Union
 
+from loguru import logger
+
 from player_backends.libuade.ctypes_functions import libuade
 from ctypes import POINTER, c_ubyte, cast, create_string_buffer
 from typing import TypedDict
@@ -168,7 +170,7 @@ def process_ahx_mod(credits: Credits, buf: bytes) -> None:
             instrument_names.append(
                 InstrumentInfo(
                     index=i + 1,
-                    name=buf[offset:].split(b"\x00", 1)[0].decode("cp1251"),
+                    name=buf[offset:].split(b"\x00", 1)[0].decode("cp1251").replace("'", "\'"),
                     size=0,
                     vol=0,
                     fine=0,
@@ -215,7 +217,7 @@ def process_ptk_mod(
             inst_info.append(
                 InstrumentInfo(
                     index=i + 1,
-                    name=name,
+                    name=name.replace("'", "\'"),
                     size=size,
                     vol=vol,
                     fine=fine,
@@ -254,7 +256,7 @@ def process_digi_mod(credits: Credits, buf: bytes) -> None:
             inst_info.append(
                 InstrumentInfo(
                     index=i + 1,
-                    name=name,
+                    name=name.replace("'", "\'"),
                     size=size,
                     vol=vol,
                     fine=fine,
@@ -416,7 +418,8 @@ def process_module(
     elif pre == "BDS":
         process_WTWT_mod(credits, buf, b"DAGL", b"ISH!", 0x14)
     else:
-        raise ValueError(f"Unknown file prefix: {pre}")
+        # raise ValueError(f"Unknown file prefix: {pre}")
+        logger.warning(f"Unknown file prefix: {pre_str}")
 
     return credits
 

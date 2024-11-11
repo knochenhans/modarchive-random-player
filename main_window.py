@@ -1,20 +1,19 @@
+import shutil
+import tempfile
 import webbrowser
 from typing import Optional, Dict
 
 from loguru import logger
 from PySide6.QtCore import QSettings, Qt, Slot, Signal
 from PySide6.QtGui import QAction, QCursor
-from PySide6.QtWidgets import (
-    QMainWindow,
-    QMenu,
-    QSystemTrayIcon,
-)
+from PySide6.QtWidgets import QMainWindow, QMenu, QSystemTrayIcon, QFileDialog
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
 from current_playing_mode import CurrentPlayingMode
-from download_manager import DownloadManager
 from history_dialog import HistoryDialog
+from local_loader_thread import LocalLoaderThread
 from meta_data_dialog import MetaDataDialog
+from modarchive_loader_thread import ModArchiveLoaderThread
 from module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
@@ -24,6 +23,7 @@ from settings_dialog import SettingsDialog
 from settings_manager import SettingsManager
 from ui_manager import UIManager
 from web_helper import WebHelper
+import os
 
 
 class MainWindow(QMainWindow):
@@ -34,13 +34,6 @@ class MainWindow(QMainWindow):
         self.name: str = "Mod Archive Random Player"
         self.setWindowTitle(self.name)
         self.settings = QSettings("Andre Jonas", "ModArchiveRandomPlayer")
-        self.settings_manager = SettingsManager(self.settings)
-
-        self.ui_manager = UIManager(self)
-        self.icon = self.ui_manager.pixmap_icons["application_icon"]
-        self.setWindowIcon(self.icon)
-        self.web_helper = WebHelper()
-        self.download_manager = DownloadManager(self.web_helper)
 
         self.player_backends: Dict[str, type[PlayerBackend]] = {
             "LibUADE": PlayerBackendLibUADE,
@@ -51,18 +44,27 @@ class MainWindow(QMainWindow):
         self.player_thread: Optional[PlayerThread] = None
         self.module_loader_thread: Optional[ModuleLoaderThread] = None
 
-        self.song: Optional[Song] = None
-
         self.current_song: Optional[Song] = None
         self.current_module_is_favorite: bool = False
         self.current_playing_mode: CurrentPlayingMode = CurrentPlayingMode.RANDOM
-
-        self.ui_manager.load_settings()
+        self.current_playing_mode_changed = False
 
         self.playlist: list[Song] = []
         self.history: list[Song] = []
 
         self.wait_for_loading = False
+        self.local_files: list[str] = []
+
+        self.settings_manager = SettingsManager(self.settings)
+
+        self.ui_manager = UIManager(self)
+        self.icon = self.ui_manager.pixmap_icons["application_icon"]
+        self.setWindowIcon(self.icon)
+        self.web_helper = WebHelper()
+
+        self.ui_manager.load_settings()
+
+        self.temp_dir = tempfile.mkdtemp()
 
     def add_favorite_button_clicked(self) -> None:
         if self.current_song:
@@ -87,12 +89,16 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_play_pause_pressed(self) -> None:
+        if self.current_playing_mode_changed:
+            self.update_playing_mode()
+            self.current_playing_mode_changed = False
+
         if self.player_thread and self.player_thread.isRunning():
             self.player_thread.pause()
             self.ui_manager.set_play_button(self.player_thread.pause_flag)
         else:
             # self.ui_manager.update_loading_ui()
-            self.load_random_module()
+            self.load_module()
             self.wait_for_loading = True
 
     @Slot()
@@ -127,6 +133,11 @@ class MainWindow(QMainWindow):
     def play_next(self) -> None:
         self.stop()
 
+        if self.current_playing_mode_changed:
+            self.update_playing_mode()
+            self.current_playing_mode_changed = False
+            self.wait_for_loading = True
+
         if len(self.playlist) == 0:
             if self.module_loader_thread and self.module_loader_thread.isRunning():
                 self.module_loader_thread.quit()
@@ -136,7 +147,7 @@ class MainWindow(QMainWindow):
             self.play_next_in_playlist()
         else:
             # self.ui_manager.update_loading_ui()
-            self.load_random_module()
+            self.load_module()
 
     @Slot()
     def open_module_link(self, link: str) -> None:
@@ -154,16 +165,16 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_lookup_msm(self) -> None:
-        if self.song:
-            url: str = self.web_helper.lookup_msm_mod_url(self.song)
+        if self.current_song:
+            url: str = self.web_helper.lookup_msm_mod_url(self.current_song)
 
             if url:
                 webbrowser.open(url)
 
     @Slot()
     def on_lookup_modarchive(self) -> None:
-        if self.song:
-            url: str = self.web_helper.lookup_modarchive_mod_url(self.song)
+        if self.current_song:
+            url: str = self.web_helper.lookup_modarchive_mod_url(self.current_song)
 
             if url:
                 webbrowser.open(url)
@@ -187,17 +198,26 @@ class MainWindow(QMainWindow):
             logger.error("No artist input, switching to random")
         return
 
-    def on_playing_mode_changed(self, new_playing_mode) -> None:
-        if new_playing_mode != self.current_playing_mode:
-            # Clear the playlist and load a new module
-            logger.debug(
-                "Playing mode changed, clearing playlist and loading new module"
-            )
-            self.playlist.clear()
-            self.load_random_module()
+    def update_playing_mode(self) -> None:
+        # Clear the playlist and load a new module
+        logger.debug(
+            "Playing mode changed, clearing playlist and loading new module"
+        )
 
-        self.current_playing_mode = new_playing_mode
+        if self.current_playing_mode == CurrentPlayingMode.LOCAL:
+            if len(self.local_files) == 0:
+                self.on_open_local_folder_dialog()
+                self.wait_for_loading = True
+            self.playlist.clear()
+        else:
+            self.playlist.clear()
+            self.load_module()
+
         self.check_playing_mode()
+
+    def on_playing_mode_changed(self, new_playing_mode) -> None:
+        self.current_playing_mode = new_playing_mode
+        self.current_playing_mode_changed = True
 
     def add_to_playlist(self, song: Song) -> None:
         self.playlist.append(song)
@@ -213,7 +233,7 @@ class MainWindow(QMainWindow):
             self.song_added_to_history.emit(song)
 
             # Buffer the next module
-            self.load_random_module()
+            self.load_module()
         else:
             logger.debug("No more modules in playlist")
 
@@ -279,18 +299,26 @@ class MainWindow(QMainWindow):
         else:
             raise ValueError("No player backend loaded")
 
-    def load_random_module(self) -> None:
-        logger.debug("Loading random module")
+    def load_module(self) -> None:
+        logger.debug("Loading module")
 
-        self.check_playing_mode()
         member_id = self.settings_manager.get_member_id()
         artist_input = self.ui_manager.get_artist_input()
 
-        self.module_loader_thread = ModuleLoaderThread(
-            self.download_manager, self.current_playing_mode, member_id, artist_input
-        )
-        self.module_loader_thread.module_loaded.connect(self.on_module_loaded)
-        self.module_loader_thread.start()
+        if self.current_playing_mode == CurrentPlayingMode.LOCAL:
+            self.module_loader_thread = LocalLoaderThread()
+            self.module_loader_thread.files = self.local_files
+        else:
+            self.module_loader_thread = ModArchiveLoaderThread()
+            self.module_loader_thread.web_helper = self.web_helper
+            self.module_loader_thread.current_playing_mode = self.current_playing_mode
+            self.module_loader_thread.member_id = member_id
+            self.module_loader_thread.artist = artist_input
+            self.module_loader_thread.temp_dir = self.temp_dir
+
+        if self.module_loader_thread:
+            self.module_loader_thread.module_loaded.connect(self.on_module_loaded)
+            self.module_loader_thread.start()
 
     @Slot()
     def on_module_loaded(self, song: Song) -> None:
@@ -300,18 +328,20 @@ class MainWindow(QMainWindow):
             if result:
                 self.add_to_playlist(song)
         else:
-            logger.error("Failed to download module")
+            logger.error("Failed to load module")
 
         # Check if we have been waiting for the module to load (when pressing play after starting the application)
         if self.wait_for_loading:
             self.wait_for_loading = False
             self.play_next_in_playlist()
 
-    def check_favorite(self, member_id: str) -> bool:
+    def check_favorite(self, member_id: int) -> bool:
         # Check if the module is the current members favorite
         member_favorites_id_list = self.web_helper.get_member_module_id_list(member_id)
 
-        if self.current_song:
+        is_favorite = False
+
+        if self.current_song and self.current_song.modarchive_id:
             is_favorite = self.current_song.modarchive_id in member_favorites_id_list
             self.ui_manager.set_favorite_button_state(is_favorite)
 
@@ -355,6 +385,29 @@ class MainWindow(QMainWindow):
                 self.show()
 
     @Slot()
+    def on_open_local_folder_dialog(self) -> None:
+        folder_path = QFileDialog.getExistingDirectory(self, "Select Folder")
+        if folder_path:
+            logger.debug(f"Selected folder: {folder_path}")
+
+            self.set_local_folder(folder_path)
+            self.settings_manager.set_local_folder(folder_path)
+    
+    def set_local_folder(self, local_folder: str) -> None:
+        self.local_files = self.get_files_recursive(local_folder)
+
+    def get_files_recursive(self, folder_path: str) -> list[str]:
+        file_list = []
+        for root, dirs, files in os.walk(folder_path):
+            dirs.sort()
+            files.sort()
+            for dir in dirs:
+                file_list.extend(self.get_files_recursive(os.path.join(root, dir)))
+            for file in files:
+                file_list.append(os.path.join(root, file))
+        return file_list
+
+    @Slot()
     def closeEvent(self, event) -> None:
         self.stop()
 
@@ -362,5 +415,7 @@ class MainWindow(QMainWindow):
         self.settings_manager.set_current_playing_mode(self.current_playing_mode)
         self.settings_manager.close()
         self.ui_manager.close_ui()
+
+        shutil.rmtree(self.temp_dir)
 
         super().closeEvent(event)

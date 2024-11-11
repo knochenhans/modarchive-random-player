@@ -30,13 +30,13 @@ class WebHelper:
             with open(temp_file_path, "wb") as temp_file:
                 temp_file.write(response.content)
             filename = temp_file_path
-            logger.debug(f"Module downloaded to: {filename}")
+            logger.info(f"Module downloaded to: {filename}")
         else:
             logger.error(f"Failed to download module with ID: {module_id}")
         return filename
 
     def download_random_module(self, temp_dir: str) -> Optional[Song]:
-        logger.debug("Getting a random module")
+        logger.info("Getting a random module")
 
         song: Song = Song()
 
@@ -65,7 +65,7 @@ class WebHelper:
                     return song
         return None
 
-    def get_member_module_url_list(self, member_id: str) -> List[str]:
+    def get_member_module_url_list(self, member_id: int) -> List[str]:
         url: str = (
             f"https://modarchive.org/index.php?request=view_member_favourites_text&query={member_id}"
         )
@@ -81,7 +81,7 @@ class WebHelper:
             return favorite_modules.split("\n")
         return []
 
-    def get_member_module_id_list(self, member_id: str) -> List[str]:
+    def get_member_module_id_list(self, member_id: int) -> List[str]:
         module_urls = self.get_member_module_url_list(member_id)
 
         ids: List[str] = []
@@ -91,11 +91,11 @@ class WebHelper:
 
         return ids
 
-    def download_favorite_module(self, member_id: str, temp_dir: str) -> Optional[Song]:
+    def download_favorite_module(self, member_id: int, temp_dir: str) -> Optional[Song]:
         if member_id:
             song: Song = Song()
 
-            logger.debug(f"Getting a random module for member ID: {member_id}")
+            logger.info(f"Getting a random module for member ID: {member_id}")
 
             module_links = self.get_member_module_url_list(member_id)
 
@@ -128,7 +128,7 @@ class WebHelper:
         if artist:
             song: Song = Song()
 
-            logger.debug(f"Getting a random module by artist: {artist}")
+            logger.info(f"Getting a random module by artist: {artist}")
 
             url: str = (
                 f"https://modarchive.org/index.php?request=search&search_type=guessed_artist&query={artist}"
@@ -185,13 +185,14 @@ class WebHelper:
         return None
 
     def lookup_modarchive_mod_url(self, song: Song) -> str:
-        url = f"https://modarchive.org/index.php?request=search&query={song.filename}&submit=Find&search_type=filename"
+        filename = song.filename.split("/")[-1]
+        url = f"https://modarchive.org/index.php?request=search&query={filename}&submit=Find&search_type=filename"
 
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, "html.parser")
 
-            result = soup.find("a", string=song.filename)
+            result = soup.find("a", string=filename)
 
             if result and isinstance(result, Tag):
                 href = result["href"]
