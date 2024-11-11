@@ -66,6 +66,14 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         self.module_data = open(self.song.filename, "rb").read()
         self.module_size = len(self.module_data)
 
+        # Check if this extention is supported
+        extension = self.song.filename.split(".")[-1].lower().encode()
+        if libopenmpt.openmpt_is_extension_supported(extension) == 0:
+            logger.warning(
+                f"LibOpenMPT does not support the extension {extension.decode()}"
+            )
+            return False
+
         logger.debug("Loading module")
         self.mod = load_mod(
             self.module_data,  # const void * filedata
