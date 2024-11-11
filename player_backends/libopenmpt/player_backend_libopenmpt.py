@@ -11,12 +11,12 @@ from libopenmpt_py import libopenmpt
 from player_backends.player_backend import PlayerBackend, Song
 
 
-def error_callback():
-    pass
+def log_callback(user_data, level, message):
+    print(f"Log: {message}")
 
 
-def log_callback():
-    pass
+def error_callback(user_data, message):
+    print(f"Error: {message}")
 
 
 def print_error(
