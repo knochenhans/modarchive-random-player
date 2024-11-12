@@ -419,7 +419,7 @@ def process_module(
         process_WTWT_mod(credits, buf, b"DAGL", b"ISH!", 0x14)
     else:
         # raise ValueError(f"Unknown file prefix: {pre}")
-        logger.warning(f"Unknown file prefix: {pre_str}")
+        logger.warning(f"Unknown file prefix: {pre_str}, unable to get credits")
 
     return credits
 
