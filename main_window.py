@@ -385,7 +385,10 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_open_local_folder_dialog(self) -> None:
-        folder_path = QFileDialog.getExistingDirectory(self, "Select Folder")
+        current_folder = self.settings_manager.get_local_folder()
+        folder_path = QFileDialog.getExistingDirectory(
+            self, "Select Folder", current_folder
+        )
         if folder_path:
             logger.debug(f"Selected folder: {folder_path}")
 
