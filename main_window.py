@@ -179,8 +179,7 @@ class MainWindow(QMainWindow):
             if url:
                 webbrowser.open(url)
 
-    @Slot()
-    def on_seek(self, position: int) -> None:
+    def seek(self, position: int) -> None:
         if self.player_thread:
             self.player_thread.seek(position)
 

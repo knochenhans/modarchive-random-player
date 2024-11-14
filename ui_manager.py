@@ -33,7 +33,9 @@ class UIManager:
 
         self.setup_icons()
         self.setup_ui()
-        self.load_settings()
+
+        self.slider_value: int = 0
+        self.update_slider: bool = True
 
     def setup_ui(self) -> None:
         self.title_label = QLabel("Unknown")
@@ -59,7 +61,9 @@ class UIManager:
         self.progress_slider = QSlider()
         self.progress_slider.setOrientation(Qt.Orientation.Horizontal)
         self.progress_slider.setEnabled(False)
-        self.progress_slider.sliderMoved.connect(self.main_window.on_seek)
+        self.progress_slider.sliderPressed.connect(self.slider_pressed)
+        self.progress_slider.sliderMoved.connect(self.slider_moved)
+        self.progress_slider.sliderReleased.connect(self.slider_released)
 
         # Create a multiline text label with fixed-width font
         self.multiline_label = QLabel("No module loaded")
@@ -352,10 +356,11 @@ class UIManager:
                 self.random_radio_button.setChecked(True)
 
     def update_progress(self, position: int, length: int) -> None:
-        self.progress_slider.setMaximum(length)
-        self.progress_slider.setValue(position)
+        if self.update_slider:
+            self.progress_slider.setMaximum(length)
+            self.progress_slider.setValue(position)
 
-        self.progress_slider.setDisabled(length == 0)
+            self.progress_slider.setDisabled(length == 0)
 
         # Update the time display
         position_minutes, position_seconds = divmod(position, 60)
@@ -363,6 +368,17 @@ class UIManager:
         self.time_display.setText(
             f"{position_minutes:02}:{position_seconds:02} / {length_minutes:02}:{length_seconds:02}"
         )
+
+    def slider_pressed(self) -> None:
+        self.update_slider = False
+
+    def slider_moved(self) -> None:
+        self.slider_value = self.progress_slider.value()
+
+    def slider_released(self) -> None:
+        self.update_slider = True
+        self.update_progress(self.slider_value, self.progress_slider.maximum())
+        self.main_window.seek(self.slider_value)
 
     def set_favorite_button_state(self, is_favorite: bool) -> None:
         self.add_favorite_button.setIcon(
