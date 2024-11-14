@@ -36,6 +36,8 @@ class UIManager:
 
         self.slider_value: int = 0
         self.update_slider: bool = True
+        self.slider_last_length: int = -1
+        self.slider_handle_default_style: str = ""
 
     def setup_ui(self) -> None:
         self.title_label = QLabel("Unknown")
@@ -64,6 +66,7 @@ class UIManager:
         self.progress_slider.sliderPressed.connect(self.slider_pressed)
         self.progress_slider.sliderMoved.connect(self.slider_moved)
         self.progress_slider.sliderReleased.connect(self.slider_released)
+        self.slider_handle_default_style = self.progress_slider.styleSheet()
 
         # Create a multiline text label with fixed-width font
         self.multiline_label = QLabel("No module loaded")
@@ -356,11 +359,20 @@ class UIManager:
                 self.random_radio_button.setChecked(True)
 
     def update_progress(self, position: int, length: int) -> None:
+        if length != self.slider_last_length:
+            if length == 0:
+                self.progress_slider.setStyleSheet(
+                    "QSlider::handle:horizontal {background: transparent;}"
+                )
+            else:
+                self.progress_slider.setStyleSheet(self.slider_handle_default_style)
+            self.slider_last_length = length
+
         if self.update_slider:
             self.progress_slider.setMaximum(length)
             self.progress_slider.setValue(position)
 
-            self.progress_slider.setDisabled(length == 0)
+        self.progress_slider.setDisabled(length == 0)
 
         # Update the time display
         position_minutes, position_seconds = divmod(position, 60)
