@@ -102,7 +102,8 @@ class PlayerBackendLibUADE(PlayerBackend):
 
         while libuade.uade_read_notification(n, self.state_ptr):
             try:
-                self.handle_notification(n)
+                if not self.handle_notification(n):
+                    break
             except EOFError as e:
                 logger.info("handle_notification: {}", e)
                 raise e
@@ -121,16 +122,19 @@ class PlayerBackendLibUADE(PlayerBackend):
 
         return nbytes, bytes(buf)
 
-    def handle_notification(self, n: uade_notification) -> None:
+    def handle_notification(self, n: uade_notification) -> bool:
         if n.type == UADE_NOTIFICATION_TYPE.UADE_NOTIFICATION_MESSAGE:
             logger.info(f"Amiga message: {n.uade_notification_union.msg}")
         elif n.type == UADE_NOTIFICATION_TYPE.UADE_NOTIFICATION_SONG_END:
             if n.uade_notification_union.song_end.happy:
+                # Subsong ended
                 logger.info("Song end")
+                return False
             else:
                 raise RuntimeError("Bad Song end")
         else:
             raise RuntimeWarning("Unknown notification type from libuade")
+        return True
 
     def get_event(self) -> uade_event:
         charbytes256 = (ctypes.c_char * 256)()

@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
 )
 import darkdetect
+import pyqtspinner
 
 from current_playing_mode import CurrentPlayingMode
 
@@ -163,7 +164,9 @@ class UIManager:
         self.artist_input.textChanged.connect(self.save_artist_input)
 
         self.local_select_folder_button = QPushButton()
-        self.local_select_folder_button.setIcon(self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
+        self.local_select_folder_button.setIcon(
+            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon)
+        )
         self.local_select_folder_button.setToolTip("Select Folder")
         self.local_select_folder_button.clicked.connect(
             self.main_window.on_open_local_folder_dialog

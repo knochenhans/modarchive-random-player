@@ -1,48 +1,8 @@
 from abc import ABC, abstractmethod
 import hashlib
 from typing import Any
-from dataclasses import dataclass, field
 
-from player_backends.libuade.songinfo import Credits
-
-
-@dataclass
-class Song:
-    filename: str = ""
-    backend_name: str = ""
-    modarchive_id: str = ""
-    artist: str = ""
-    container: str = ""
-    container_long: str = ""
-    date: str = ""
-    extensions: str = ""
-    formatname: str = ""
-    message: str = ""
-    message_raw: str = ""
-    md5: str = ""
-    modulebytes: int = 0
-    originaltype: str = ""
-    originaltype_long: str = ""
-    playername: str = ""
-    playerfname: str = ""
-    sha1: str = ""
-    title: str = ""
-    tracker: str = ""
-    type: str = ""
-    type_long: str = ""
-    warnings: str = ""
-    credits: Credits = field(default_factory=lambda: Credits(
-        song_title="",
-        artistname="",
-        file_length="",
-        file_name="",
-        file_prefix="",
-        max_positions=0,
-        modulename="",
-        specialinfo="",
-        instruments=[],
-    ))
-
+from player_backends.Song import Song
 
 class PlayerBackend(ABC):
     def __init__(self, name: str) -> None:

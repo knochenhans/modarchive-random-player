@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Slot, Signal
 
-from player_backends.player_backend import Song
+from player_backends.Song import Song
 
 
 class HistoryDialog(QDialog):

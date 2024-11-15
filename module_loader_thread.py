@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from PySide6.QtCore import QThread, Signal
 from typing import Optional
 
-from player_backends.player_backend import Song
+from player_backends.Song import Song
 
 
 class ModuleLoaderThread(QThread):

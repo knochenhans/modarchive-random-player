@@ -9,7 +9,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtCore import Qt
 
-from player_backends.player_backend import Song
+from player_backends.Song import Song
 import inspect
 import json
 

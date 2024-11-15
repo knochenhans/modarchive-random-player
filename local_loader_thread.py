@@ -3,7 +3,7 @@ from typing import Optional
 
 from loguru import logger
 
-from player_backends.player_backend import Song
+from player_backends.Song import Song
 from module_loader_thread import ModuleLoaderThread
 
 
@@ -19,6 +19,7 @@ class LocalLoaderThread(ModuleLoaderThread):
         if self.files:
             song: Song = Song()
             song.filename = self.files.pop(0)
-            logger.info(f"Loading module: {song.filename}")
+            song.is_ready = True
+            logger.info(f"Loading local module: {song.filename}")
             return song
         return None

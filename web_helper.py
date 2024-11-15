@@ -5,14 +5,14 @@ from typing import Optional, List, Dict
 from bs4 import BeautifulSoup, Tag
 from loguru import logger
 import requests
-from player_backends.player_backend import Song
+from player_backends.Song import Song
 
 
 class WebHelper:
     def get_msm_url(self, song: Song) -> str:
         return f"https://modsamplemaster.thegang.nu/module.php?sha1={song.sha1}"
 
-    def download_module_file(self, module_id: str, temp_dir: str) -> Optional[str]:
+    def download_module_file(self, module_id: int, temp_dir: str) -> Optional[str]:
         filename: Optional[str] = None
         module_link: Optional[str] = None
 
@@ -35,11 +35,7 @@ class WebHelper:
             logger.error(f"Failed to download module with ID: {module_id}")
         return filename
 
-    def download_random_module(self, temp_dir: str) -> Optional[Song]:
-        logger.info("Getting a random module")
-
-        song: Song = Song()
-
+    def get_random_module_id(self) -> Optional[int]:
         url: str = "https://modarchive.org/index.php?request=view_player&query=random"
         response: requests.Response = requests.get(url)
         response.raise_for_status()
@@ -47,22 +43,14 @@ class WebHelper:
         soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
         result = soup.find("a", href=True, string=True, class_="standard-link")
         link_tag: Optional[Tag] = result if isinstance(result, Tag) else None
-        if not link_tag:
-            raise Exception("No module link found in the HTML response.")
-
-        if isinstance(link_tag, Tag):
+        if link_tag:
             href = link_tag["href"]
             module_url: str = href[0] if isinstance(href, list) else href
             if isinstance(module_url, list):
                 module_url = module_url[0]
             if isinstance(module_url, str):
                 module_id: str = module_url.split("=")[-1].split("#")[0]
-                filename = self.download_module_file(module_id, temp_dir)
-
-                if filename:
-                    song.filename = filename
-                    song.modarchive_id = module_id
-                    return song
+                return int(module_id)
         return None
 
     def get_member_module_url_list(self, member_id: int) -> List[str]:
@@ -81,107 +69,71 @@ class WebHelper:
             return favorite_modules.split("\n")
         return []
 
-    def get_member_module_id_list(self, member_id: int) -> List[str]:
+    def get_member_module_id_list(self, member_id: int) -> List[int]:
         module_urls = self.get_member_module_url_list(member_id)
 
-        ids: List[str] = []
+        ids: List[int] = []
 
         for module_url in module_urls:
-            ids.append(module_url.split("moduleid=")[-1].split("#")[0])
+            id_str = module_url.split("moduleid=")[-1].split("#")[0]
+
+            if id_str:
+                module_id = int(id_str)
+                ids.append(module_id)
 
         return ids
 
-    def download_favorite_module(self, member_id: int, temp_dir: str) -> Optional[Song]:
-        if member_id:
-            song: Song = Song()
-
-            logger.info(f"Getting a random module for member ID: {member_id}")
-
-            module_links = self.get_member_module_url_list(member_id)
-
-            # Remove modules with names already in the temp directory
-            module_links = [
-                link
-                for link in module_links
-                if not os.path.exists(f"{temp_dir}/{link.split('#')[-1]}")
-            ]
-
-            if module_links:
-                # Pick a random module from the resulting list
-                module_url: str = random.choice(module_links)
-                module_id_and_name: str = module_url.split("=")[-1]
-                module_id: str = module_id_and_name.split("#")[0]
-
-                filename = self.download_module_file(module_id, temp_dir)
-
-                if filename:
-                    song.filename = filename
-                    song.modarchive_id = module_id
-                    return song
-            else:
-                logger.error("No new module links found in the member's favorites")
-        else:
-            logger.error("Member ID is empty")
+    def get_random_favorite_module_id(self, member_id: int) -> Optional[int]:
+        module_ids = self.get_member_module_id_list(member_id)
+        if module_ids:
+            return random.choice(module_ids)
         return None
 
-    def download_artist_module(self, artist: str, temp_dir: str) -> Optional[Song]:
-        if artist:
-            song: Song = Song()
+    def get_random_artist_module_id(self, artist: str) -> Optional[int]:
+        url: str = (
+            f"https://modarchive.org/index.php?request=search&search_type=guessed_artist&query={artist}"
+        )
 
-            logger.info(f"Getting a random module by artist: {artist}")
+        response: requests.Response = requests.get(url)
+        response.raise_for_status()
 
-            url: str = (
-                f"https://modarchive.org/index.php?request=search&search_type=guessed_artist&query={artist}"
-            )
+        soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
 
-            response: requests.Response = requests.get(url)
-            response.raise_for_status()
+        # Get pagination number
+        pagination = soup.find("select", class_="pagination")
+        if pagination:
+            if isinstance(pagination, Tag):
+                options = pagination.find_all("option")
+                if options:
+                    last_page = int(options[-1].text)
 
-            soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
+                    # Get a random page number
+                    page_number = random.randint(1, last_page)
 
-            # Get pagination number
-            pagination = soup.find("select", class_="pagination")
-            if pagination:
-                if isinstance(pagination, Tag):
-                    options = pagination.find_all("option")
-                    if options:
-                        last_page = int(options[-1].text)
+                    # Get the page with the random number
+                    url = f"{url}&page={page_number}#mods"
 
-                        # Get a random page number
-                        page_number = random.randint(1, last_page)
+                    response = requests.get(url)
+                    response.raise_for_status()
 
-                        # Get the page with the random number
-                        url = f"{url}&page={page_number}#mods"
+                    soup = BeautifulSoup(response.content, "html.parser")
 
-                        response = requests.get(url)
-                        response.raise_for_status()
-
-                        soup = BeautifulSoup(response.content, "html.parser")
-
-                        # Get all a tags with title "Download"
-                        download_links = soup.find_all("a", title="Download")
-                        if download_links:
-                            download_link = random.choice(download_links)
-                            module_id = (
-                                download_link["href"].split("=")[-1].split("#")[0]
-                            )
-                            filename = self.download_module_file(module_id, temp_dir)
-
-                            if filename:
-                                song.filename = filename
-                                song.modarchive_id = module_id
-                                return song
-                        else:
-                            logger.error("No download links found on the page")
+                    # Get all a tags with title "Download"
+                    download_links = soup.find_all("a", title="Download")
+                    if download_links:
+                        download_link = random.choice(download_links)
+                        module_id: str = (
+                            download_link["href"].split("=")[-1].split("#")[0]
+                        )
+                        return int(module_id)
                     else:
-                        logger.error("No pagination options found")
+                        logger.error("No download links found on the page")
                 else:
-                    logger.error("No pagination tag found")
+                    logger.error("No pagination options found")
             else:
-                logger.error("No pagination found")
+                logger.error("No pagination tag found")
         else:
-            logger.error("Artist is empty")
-
+            logger.error("No pagination found")
         return None
 
     def lookup_modarchive_mod_url(self, song: Song) -> str:
