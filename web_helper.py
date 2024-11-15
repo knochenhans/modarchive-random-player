@@ -192,7 +192,7 @@ class WebHelper:
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, "html.parser")
 
-            result = soup.find("a", string=filename)
+            result = soup.find("a", class_="standard-link", href=True)
 
             if result and isinstance(result, Tag):
                 href = result["href"]
