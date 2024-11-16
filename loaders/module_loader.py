@@ -19,7 +19,7 @@ class ModuleLoader(QObject):
         local_files: List[str],
         web_helper: object,
         temp_dir: str,
-        player_backends: Dict[str, type[PlayerBackend]],
+        player_backends: Dict[str, type[PlayerBackend]]
     ) -> None:
         super().__init__()
         self.current_playing_mode = current_playing_mode

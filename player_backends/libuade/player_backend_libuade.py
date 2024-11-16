@@ -65,6 +65,11 @@ class PlayerBackendLibUADE(PlayerBackend):
         self.song.playerfname = info.playerfname.decode("utf-8")
         self.song.playername = info.playername.decode("utf-8")
         self.song.type = info.formatname.decode("utf-8")
+        self.song.duration = int(info.duration)
+
+        subsongs: uade_subsong_info = info.subsongs
+
+        self.song.subsongs = subsongs.max 
 
         self.song.message = "\n".join(
             instrument["name"] for instrument in self.song.credits["instruments"]

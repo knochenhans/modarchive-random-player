@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from PySide6.QtCore import QThread, Signal
 from typing import Optional
 

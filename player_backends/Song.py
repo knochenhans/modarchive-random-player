@@ -26,6 +26,7 @@ class Song:
     playername: str = ""
     playerfname: str = ""
     sha1: str = ""
+    subsongs: int = 0
     title: str = ""
     tracker: str = ""
     type: str = ""

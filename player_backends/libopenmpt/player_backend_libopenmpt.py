@@ -166,6 +166,9 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
                     case "warnings":
                         self.song.warnings = value
 
+        self.song.subsongs = libopenmpt.openmpt_module_get_num_subsongs(self.mod)
+        self.song.duration = libopenmpt.openmpt_module_get_duration_seconds(self.mod)
+
         self.calculate_checksums()
 
     def free_module(self) -> None:

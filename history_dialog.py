@@ -1,58 +1,39 @@
-from PySide6.QtWidgets import (
-    QDialog,
-    QVBoxLayout,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView,
-)
-from PySide6.QtCore import Qt, Slot, Signal
-
+from PySide6.QtWidgets import QDialog, QVBoxLayout
 from player_backends.Song import Song
+from playlist.playlist import Playlist
+from typing import Optional
+from PySide6.QtCore import Signal
+
+from playlist.playlist_tab import PlaylistTab
 
 
 class HistoryDialog(QDialog):
-    entry_double_clicked = Signal(Song)
+    song_on_tab_double_clicked = Signal(Song)
 
-    def __init__(self, history: list[Song], parent=None):
+    def __init__(self, playlist: Optional[Playlist], parent=None) -> None:
         super().__init__(parent)
+
         self.setWindowTitle("History")
         self.setGeometry(100, 100, 600, 400)
 
-        layout = QVBoxLayout(self)
-        self.table = QTableWidget(self)
-        self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["Title", "Filename", "Backend"])
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setRowCount(len(history))
-        self.table.itemDoubleClicked.connect(self._on_item_double_clicked)
-        for row, song in enumerate(history):
-            self._add_table_item(row, 0, song.title)
-            self._add_table_item(row, 1, song.filename)
-            self._add_table_item(row, 2, song.backend_name)
+        self.tab_widget = PlaylistTab(self)
+        self.tab_widget.song_double_clicked.connect(self.on_song_double_clicked)
 
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.addWidget(self.tab_widget)
 
-        layout.addWidget(self.table)
-        self.setLayout(layout)
+        self.setLayout(self.main_layout)
 
-    def _add_table_item(self, row, column, text):
-        item = QTableWidgetItem(text)
-        item.setFlags(Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled)
-        self.table.setItem(row, column, item)
+        self.tab_widget.add_tab("History")
 
-    @Slot()
-    def on_new_entry(self, song: Song):
-        row = self.table.rowCount()
-        self.table.setRowCount(row + 1)
-        self._add_table_item(row, 0, song.title)
-        self._add_table_item(row, 1, song.filename)
-        self._add_table_item(row, 2, song.backend_name)
-        self.table.scrollToBottom()
-        self.table.item(row, 0).setData(Qt.ItemDataRole.UserRole, song)
+        if playlist:
+            for song in playlist.songs:
+                self.add_song(song)
 
-    @Slot()
-    def _on_item_double_clicked(self, item):
-        row = item.row()
-        song = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-        self.entry_double_clicked.emit(song)
+        self.show()
+
+    def on_song_double_clicked(self, song: Song) -> None:
+        self.song_on_tab_double_clicked.emit(song)
+
+    def add_song(self, song: Song) -> None:
+        self.tab_widget.add_song(song)

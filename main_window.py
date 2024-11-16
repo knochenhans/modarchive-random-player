@@ -13,14 +13,13 @@ from current_playing_mode import CurrentPlayingMode
 from history_dialog import HistoryDialog
 from loaders.module_loader import ModuleLoader
 from meta_data_dialog import MetaDataDialog
-from playlists_dialog import PlaylistsDialog
+from playlist.playlists_dialog import PlaylistsDialog
 from loaders.module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
 from player_backends.player_backend import PlayerBackend, Song
 from player_thread import PlayerThread
-from playlist import Playlist
-from playlist_manager import PlaylistManager
+from playlist.playlist_manager import PlaylistManager
 from settings_dialog import SettingsDialog
 from settings_manager import SettingsManager
 from ui_manager import UIManager
@@ -55,7 +54,7 @@ class MainWindow(QMainWindow):
 
         # self.playlist: Playlist = Playlist()
         self.playlist_manager = PlaylistManager()
-        self.history: list[Song] = []
+        self.history_playlist = self.playlist_manager.add_playlist("History")
         self.queue: list[Song] = []
 
         self.local_files: list[str] = []
@@ -79,7 +78,7 @@ class MainWindow(QMainWindow):
             self.player_backends,
         )
 
-        # test_playlist = self.playlist_manager.add_playlist("Default")
+        test_playlist = self.playlist_manager.add_playlist("Default")
 
         song1 = Song()
         song1.modarchive_id = 79666
@@ -318,7 +317,6 @@ class MainWindow(QMainWindow):
 
             if song:
                 self.play_module(song)
-                self.history.append(song)
                 self.song_added_to_history.emit(song)
 
             # Buffer the next module
@@ -327,9 +325,9 @@ class MainWindow(QMainWindow):
             logger.debug("No more modules in playlist")
 
     def open_history_dialog(self) -> None:
-        history_dialog = HistoryDialog(self.history, self)
-        self.song_added_to_history.connect(history_dialog.on_new_entry)
-        history_dialog.entry_double_clicked.connect(self.play_module)
+        history_dialog = HistoryDialog(self.history_playlist, self)
+        self.song_added_to_history.connect(history_dialog.add_song)
+        history_dialog.song_on_tab_double_clicked.connect(lambda song: self.play_module(song, True))
         history_dialog.show()
 
     def open_playlists_dialog(self) -> None:
@@ -342,13 +340,16 @@ class MainWindow(QMainWindow):
             meta_data_dialog = MetaDataDialog(self.current_song, self)
             meta_data_dialog.show()
 
-    def play_module(self, song: Optional[Song]) -> None:
+    def play_module(self, song: Optional[Song], no_history: bool=False) -> None:
         if not song:
             song = self.get_random_module()
 
         if song:
             if song.is_ready:
                 self.current_song = song
+
+                if not no_history:
+                    self.history_playlist.add_song(song)
 
                 self.stop()
 
