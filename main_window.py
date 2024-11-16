@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
         self.module_loader_threads: list[ModuleLoaderThread] = []
 
         self.current_song: Optional[Song] = None
+        self.song_waiting_for_playback: Optional[Song] = None
         self.current_module_is_favorite: bool = False
         self.current_playing_mode: CurrentPlayingMode = CurrentPlayingMode.RANDOM
         self.current_playing_mode_changed = False
@@ -347,6 +348,8 @@ class MainWindow(QMainWindow):
 
         if song:
             if song.is_ready:
+                self.current_song = song
+
                 self.stop()
 
                 logger.debug("Playing module")
@@ -407,9 +410,8 @@ class MainWindow(QMainWindow):
                     raise ValueError("No player backend loaded")
             else:
                 logger.debug("Module not ready, waiting for module to load")
-                self.current_song = song
+                self.song_waiting_for_playback = song
                 self.load_module(song)
-                self.playback_pending = True
 
     def load_module(self, song: Song) -> None:
         self.module_loader.load_module(song)

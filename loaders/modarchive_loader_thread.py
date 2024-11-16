@@ -24,11 +24,10 @@ class ModArchiveLoaderThread(ModuleLoaderThread):
                     )
 
                     if filename:
-                        song: Song = Song()
-                        song.filename = filename
-                        song.is_ready = True
-                        song.modarchive_id = self.song.modarchive_id
-                        return song
+                        self.song.filename = filename
+                        self.song.is_ready = True
+                        self.song.modarchive_id = self.song.modarchive_id
+                        return self.song
                 else:
                     raise ValueError("Song ID not set")
             else:
