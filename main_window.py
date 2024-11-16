@@ -11,15 +11,17 @@ from PySide6.QtWidgets import QMainWindow, QMenu, QSystemTrayIcon, QFileDialog
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
 from current_playing_mode import CurrentPlayingMode
 from history_dialog import HistoryDialog
-from local_loader_thread import LocalLoaderThread
+from loaders.local_loader_thread import LocalLoaderThread
 from meta_data_dialog import MetaDataDialog
-from modarchive_loader_thread import ModArchiveLoaderThread
-from module_loader_thread import ModuleLoaderThread
+from playlists_dialog import PlaylistsDialog
+from loaders.modarchive_loader_thread import ModArchiveLoaderThread
+from loaders.module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
 from player_backends.player_backend import PlayerBackend, Song
 from player_thread import PlayerThread
 from playlist import Playlist
+from playlist_manager import PlaylistManager
 from settings_dialog import SettingsDialog
 from settings_manager import SettingsManager
 from ui_manager import UIManager
@@ -51,7 +53,8 @@ class MainWindow(QMainWindow):
         self.current_playing_mode_changed = False
         self.playback_pending = False
 
-        self.playlist: Playlist = Playlist()
+        # self.playlist: Playlist = Playlist()
+        self.playlist_manager = PlaylistManager()
         self.history: list[Song] = []
         self.queue: list[Song] = []
 
@@ -67,6 +70,13 @@ class MainWindow(QMainWindow):
         self.ui_manager.load_settings()
 
         self.temp_dir = tempfile.mkdtemp()
+
+        test_playlist = self.playlist_manager.add_playlist("Default")
+
+        song1 = Song()
+        song1.modarchive_id = 79666
+
+        test_playlist.add_song(song1)
 
     def add_favorite_button_clicked(self) -> None:
         if self.current_song:
@@ -163,7 +173,6 @@ class MainWindow(QMainWindow):
         id: int | None = None
         song: Song | None = None
 
-
         if self.current_playing_mode == CurrentPlayingMode.LOCAL:
             pass
         else:
@@ -236,12 +245,15 @@ class MainWindow(QMainWindow):
 
     def queue_next_module(self) -> None:
         # Check if the playlist has any modules left
-        next_song = self.playlist.next_song()
+        current_playlist = self.playlist_manager.current_playlist
+        if current_playlist:
+            next_song = current_playlist.next_song()
 
-        if next_song:
-            self.queue.append(next_song)
-        else:
-            self.queue_random_module()
+            if next_song:
+                self.queue.append(next_song)
+                return
+
+        self.queue_random_module()
 
     def queue_random_module(self) -> None:
         if self.current_playing_mode != CurrentPlayingMode.LOCAL:
@@ -284,8 +296,9 @@ class MainWindow(QMainWindow):
     #     )
 
     def play_next_in_playlist(self) -> None:
-        if self.playlist:
-            song = self.playlist.next_song()
+        current_playlist = self.playlist_manager.current_playlist
+        if current_playlist:
+            song = current_playlist.next_song()
 
             if song:
                 self.play_module(song)
@@ -302,6 +315,11 @@ class MainWindow(QMainWindow):
         self.song_added_to_history.connect(history_dialog.on_new_entry)
         history_dialog.entry_double_clicked.connect(self.play_module)
         history_dialog.show()
+
+    def open_playlists_dialog(self) -> None:
+        playlists_dialog = PlaylistsDialog(self.playlist_manager, self)
+        # playlists_dialog.entry_double_clicked.connect(self.play_module)
+        playlists_dialog.show()
 
     def open_meta_data_dialog(self) -> None:
         if self.current_song:

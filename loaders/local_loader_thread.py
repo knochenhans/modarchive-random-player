@@ -4,7 +4,7 @@ from typing import Optional
 from loguru import logger
 
 from player_backends.Song import Song
-from module_loader_thread import ModuleLoaderThread
+from loaders.module_loader_thread import ModuleLoaderThread
 
 
 class LocalLoaderThread(ModuleLoaderThread):

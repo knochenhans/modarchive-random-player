@@ -9,6 +9,7 @@ class Song:
     modarchive_id: int = 0
     is_ready: bool = False
     artist: str = ""
+    duration: int = 0
     container: str = ""
     container_long: str = ""
     date: str = ""

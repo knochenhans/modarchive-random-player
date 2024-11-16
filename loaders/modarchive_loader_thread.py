@@ -3,7 +3,7 @@ from typing import Optional
 
 from player_backends.Song import Song
 from web_helper import WebHelper
-from module_loader_thread import ModuleLoaderThread
+from loaders.module_loader_thread import ModuleLoaderThread
 
 
 class ModArchiveLoaderThread(ModuleLoaderThread):

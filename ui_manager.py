@@ -223,6 +223,11 @@ class UIManager:
         self.meta_data_button.clicked.connect(self.main_window.open_meta_data_dialog)
         vbox_layout.addWidget(self.meta_data_button)
 
+        # Add a playlists button
+        self.playlists_button = QPushButton("Playlists")
+        self.playlists_button.clicked.connect(self.main_window.open_playlists_dialog)
+        vbox_layout.addWidget(self.playlists_button)
+
         container: QWidget = QWidget()
         container.setLayout(vbox_layout)
         self.main_window.setCentralWidget(container)
