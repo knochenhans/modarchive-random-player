@@ -334,7 +334,7 @@ class MainWindow(QMainWindow):
 
     def open_playlists_dialog(self) -> None:
         playlists_dialog = PlaylistsDialog(self.playlist_manager, self)
-        # playlists_dialog.entry_double_clicked.connect(self.play_module)
+        playlists_dialog.song_on_tab_double_clicked.connect(self.play_module)
         playlists_dialog.show()
 
     def open_meta_data_dialog(self) -> None:
