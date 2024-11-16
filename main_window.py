@@ -78,20 +78,7 @@ class MainWindow(QMainWindow):
             self.player_backends,
         )
 
-        test_playlist = self.playlist_manager.add_playlist("Default")
-
-        song1 = Song()
-        song1.modarchive_id = 79666
-
-        test_playlist.add_song(song1)
-
-        song2 = Song()
-        song2.modarchive_id = 66079
-
-        test_playlist.add_song(song2)
-
-        self.load_module(song1)
-        self.load_module(song2)
+        self.playlist_manager.add_playlist("Default")
 
     def add_favorite_button_clicked(self) -> None:
         if self.current_song:
@@ -317,7 +304,6 @@ class MainWindow(QMainWindow):
 
             if song:
                 self.play_module(song)
-                self.song_added_to_history.emit(song)
 
             # Buffer the next module
             # self.load_module()
@@ -327,7 +313,9 @@ class MainWindow(QMainWindow):
     def open_history_dialog(self) -> None:
         history_dialog = HistoryDialog(self.history_playlist, self)
         self.song_added_to_history.connect(history_dialog.add_song)
-        history_dialog.song_on_tab_double_clicked.connect(lambda song: self.play_module(song, True))
+        history_dialog.song_on_tab_double_clicked.connect(
+            lambda song: self.play_module(song, True)
+        )
         history_dialog.show()
 
     def open_playlists_dialog(self) -> None:
@@ -340,7 +328,7 @@ class MainWindow(QMainWindow):
             meta_data_dialog = MetaDataDialog(self.current_song, self)
             meta_data_dialog.show()
 
-    def play_module(self, song: Optional[Song], no_history: bool=False) -> None:
+    def play_module(self, song: Optional[Song], no_history: bool = False) -> None:
         if not song:
             song = self.get_random_module()
 
@@ -349,7 +337,7 @@ class MainWindow(QMainWindow):
                 self.current_song = song
 
                 if not no_history:
-                    self.history_playlist.add_song(song)
+                    self.add_song_to_history(song)
 
                 self.stop()
 
@@ -413,6 +401,10 @@ class MainWindow(QMainWindow):
                 logger.debug("Module not ready, waiting for module to load")
                 self.song_waiting_for_playback = song
                 self.load_module(song)
+
+    def add_song_to_history(self, song: Song) -> None:
+        self.history_playlist.add_song(song)
+        self.song_added_to_history.emit(song)
 
     def load_module(self, song: Song) -> None:
         self.module_loader.load_module(song)
