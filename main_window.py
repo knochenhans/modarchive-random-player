@@ -45,7 +45,7 @@ class MainWindow(QMainWindow):
         self.player_backend: Optional[PlayerBackend] = None
         self.audio_backend: Optional[AudioBackendPyAudio] = None
         self.player_thread: Optional[PlayerThread] = None
-        self.module_loader_thread: Optional[ModuleLoaderThread] = None
+        self.module_loader_threads: list[ModuleLoaderThread] = []
 
         self.current_song: Optional[Song] = None
         self.current_module_is_favorite: bool = False
@@ -77,6 +77,14 @@ class MainWindow(QMainWindow):
         song1.modarchive_id = 79666
 
         test_playlist.add_song(song1)
+
+        song2 = Song()
+        song2.modarchive_id = 66079
+
+        test_playlist.add_song(song2)
+
+        self.load_module(song1)
+        self.load_module(song2)
 
     def add_favorite_button_clicked(self) -> None:
         if self.current_song:
@@ -400,17 +408,18 @@ class MainWindow(QMainWindow):
         logger.debug("Loading module")
 
         if self.current_playing_mode == CurrentPlayingMode.LOCAL:
-            self.module_loader_thread = LocalLoaderThread()
-            self.module_loader_thread.files = self.local_files
+            module_loader_thread = LocalLoaderThread()
+            module_loader_thread.files = self.local_files
         else:
-            self.module_loader_thread = ModArchiveLoaderThread()
-            self.module_loader_thread.song = song
-            self.module_loader_thread.web_helper = self.web_helper
-            self.module_loader_thread.temp_dir = self.temp_dir
+            module_loader_thread = ModArchiveLoaderThread()
+            module_loader_thread.song = song
+            module_loader_thread.web_helper = self.web_helper
+            module_loader_thread.temp_dir = self.temp_dir
 
-        if self.module_loader_thread:
-            self.module_loader_thread.module_loaded.connect(self.on_module_loaded)
-            self.module_loader_thread.start()
+        self.module_loader_threads.append(module_loader_thread)
+
+        module_loader_thread.module_loaded.connect(self.on_module_loaded)
+        module_loader_thread.start()
 
     @Slot()
     def on_module_loaded(self, song: Song) -> None:
