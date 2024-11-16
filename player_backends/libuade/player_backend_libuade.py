@@ -19,7 +19,7 @@ from player_backends.libuade.ctypes_classes import (
 from player_backends.libuade.ctypes_functions import libuade
 from loguru import logger
 
-from player_backends.player_backend import PlayerBackend, Song
+from player_backends.player_backend import PlayerBackend
 
 
 class PlayerBackendLibUADE(PlayerBackend):
@@ -52,6 +52,35 @@ class PlayerBackendLibUADE(PlayerBackend):
 
         return True
 
+    def prepare_playing(self, subsong_nr: int = -1) -> None:
+        self.state_ptr = libuade.uade_new_state(None)
+
+        if not self.state_ptr:
+            raise Exception("uade_state is NULL")
+
+        size = ctypes.c_size_t()
+
+        ret = libuade.uade_read_file(ctypes.byref(size), str.encode(self.song.filename))
+
+        if not ret:
+            raise ValueError(f"Can not read file {self.song.filename}")
+
+        match libuade.uade_play(str.encode(self.song.filename), subsong_nr, self.state_ptr):
+            case -1:
+                # Fatal error
+                libuade.uade_cleanup_state(self.state_ptr)
+                raise RuntimeError
+            # case 0:
+            #     # Not playable
+            #     raise ValueError
+            # case 1:
+            #     self.stream = self.pyaudio.open(
+            #         format=self.pyaudio.get_format_from_width(2),
+            #         channels=2,
+            #         rate=samplerate,
+            #         output=True,
+            #     )
+
     def retrieve_song_info(self) -> None:
         info = libuade.uade_get_song_info(self.state_ptr).contents
 
@@ -69,7 +98,7 @@ class PlayerBackendLibUADE(PlayerBackend):
 
         subsongs: uade_subsong_info = info.subsongs
 
-        self.song.subsongs = subsongs.max 
+        self.song.subsongs = subsongs.max
 
         self.song.message = "\n".join(
             instrument["name"] for instrument in self.song.credits["instruments"]

@@ -15,6 +15,10 @@ class PlayerBackend(ABC):
         pass
 
     @abstractmethod
+    def prepare_playing(self, subsong_nr: int = -1) -> None:
+        pass
+
+    @abstractmethod
     def retrieve_song_info(self) -> None:
         pass
 

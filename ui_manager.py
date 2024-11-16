@@ -56,6 +56,11 @@ class UIManager:
         self.stop_button.clicked.connect(self.main_window.on_stop_pressed)
         self.stop_button.setToolTip("Stop")
 
+        self.previous_button = QPushButton()
+        self.previous_button.setIcon(self.pixmap_icons["backward"])
+        self.previous_button.clicked.connect(self.main_window.on_previous_pressed)
+        self.previous_button.setToolTip("Previous")
+
         self.next_button = QPushButton()
         self.next_button.setIcon(self.pixmap_icons["forward"])
         self.next_button.clicked.connect(self.main_window.on_skip_pressed)
@@ -148,16 +153,19 @@ class UIManager:
         self.favorite_radio_button = QRadioButton("Favorites")
         self.artist_radio_button = QRadioButton("Artist")
         self.local_folder_radio_button = QRadioButton("Local Folder")
+        self.playlist_radio_button = QRadioButton("Playlist")
 
         self.random_radio_button.toggled.connect(self.on_radio_button_toggled)
         self.favorite_radio_button.toggled.connect(self.on_radio_button_toggled)
         self.artist_radio_button.toggled.connect(self.on_radio_button_toggled)
         self.local_folder_radio_button.toggled.connect(self.on_radio_button_toggled)
+        self.playlist_radio_button.toggled.connect(self.on_radio_button_toggled)
 
         self.source_radio_group.addButton(self.random_radio_button)
         self.source_radio_group.addButton(self.favorite_radio_button)
         self.source_radio_group.addButton(self.artist_radio_button)
         self.source_radio_group.addButton(self.local_folder_radio_button)
+        self.source_radio_group.addButton(self.playlist_radio_button)
 
         self.artist_input = QLineEdit()
         self.artist_input.setPlaceholderText("Artist")
@@ -194,6 +202,7 @@ class UIManager:
         radio_layout.addWidget(self.favorite_radio_button)
         radio_layout.addLayout(artist_layout)
         radio_layout.addLayout(local_layout)
+        radio_layout.addWidget(self.playlist_radio_button)
 
         # Create a group box for the radio buttons
         self.source_group_box = QGroupBox("Source")
@@ -208,25 +217,47 @@ class UIManager:
         # Add the buttons horizontal layout to the vertical layout
         vbox_layout.addLayout(buttons_hbox_layout)
 
+        # Create a horizontal layout for the additional buttons
+        additional_buttons_layout = QHBoxLayout()
+
         # Add a settings button
         self.settings_button = QPushButton("Settings")
         self.settings_button.clicked.connect(self.main_window.open_settings_dialog)
-        vbox_layout.addWidget(self.settings_button)
+        self.settings_button.setToolTip("Settings")
+        self.settings_button.setIcon(
+            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
+        )
+        additional_buttons_layout.addWidget(self.settings_button)
 
         # Add a history button
         self.history_button = QPushButton("History")
         self.history_button.clicked.connect(self.main_window.open_history_dialog)
-        vbox_layout.addWidget(self.history_button)
+        self.history_button.setToolTip("History")
+        self.history_button.setIcon(
+            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView)
+        )
+        additional_buttons_layout.addWidget(self.history_button)
 
         # Add a meta data button
         self.meta_data_button = QPushButton("Meta Data")
         self.meta_data_button.clicked.connect(self.main_window.open_meta_data_dialog)
-        vbox_layout.addWidget(self.meta_data_button)
+        self.meta_data_button.setToolTip("Meta Data")
+        self.meta_data_button.setIcon(
+            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView)
+        )
+        additional_buttons_layout.addWidget(self.meta_data_button)
 
         # Add a playlists button
         self.playlists_button = QPushButton("Playlists")
         self.playlists_button.clicked.connect(self.main_window.open_playlists_dialog)
-        vbox_layout.addWidget(self.playlists_button)
+        self.playlists_button.setToolTip("Playlists")
+        self.playlists_button.setIcon(
+            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView)
+        )
+        additional_buttons_layout.addWidget(self.playlists_button)
+
+        # Add the additional buttons layout to the vertical layout
+        vbox_layout.addLayout(additional_buttons_layout)
 
         container: QWidget = QWidget()
         container.setLayout(vbox_layout)
@@ -313,6 +344,9 @@ class UIManager:
         self.pixmap_icons["forward"] = self.main_window.style().standardIcon(
             QStyle.StandardPixmap.SP_MediaSkipForward
         )
+        self.pixmap_icons["backward"] = self.main_window.style().standardIcon(
+            QStyle.StandardPixmap.SP_MediaSkipBackward
+        )
 
     def update_loading_ui(self) -> None:
         self.title_label.setText("Loading...")
@@ -347,6 +381,8 @@ class UIManager:
             return CurrentPlayingMode.ARTIST
         elif self.local_folder_radio_button.isChecked():
             return CurrentPlayingMode.LOCAL
+        elif self.playlist_radio_button.isChecked():
+            return CurrentPlayingMode.PLAYLIST
         else:
             return CurrentPlayingMode.RANDOM
 
@@ -363,6 +399,9 @@ class UIManager:
             case CurrentPlayingMode.LOCAL:
                 self.local_folder_radio_button.setChecked(True)
                 self.main_window.current_playing_mode = CurrentPlayingMode.LOCAL
+            case CurrentPlayingMode.PLAYLIST:
+                self.playlist_radio_button.setChecked(True)
+                self.main_window.current_playing_mode = CurrentPlayingMode.PLAYLIST
             case _:
                 self.random_radio_button.setChecked(True)
 

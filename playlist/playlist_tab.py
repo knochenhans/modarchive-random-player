@@ -1,5 +1,7 @@
 from datetime import timedelta
 import ntpath
+from loaders.local_loader import LocalLoader
+from loaders.module_loader import ModuleLoader
 from player_backends.Song import Song
 from playlist.playlist_item import PlaylistItem
 from playlist.playlist_model import PlaylistModel

@@ -6,3 +6,4 @@ class CurrentPlayingMode(Enum):
     FAVORITE = 1
     ARTIST = 2
     LOCAL = 3
+    PLAYLIST = 4

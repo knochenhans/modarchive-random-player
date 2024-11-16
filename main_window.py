@@ -142,6 +142,10 @@ class MainWindow(QMainWindow):
     def on_skip_pressed(self) -> None:
         self.play_next()
 
+    @Slot()
+    def on_previous_pressed(self) -> None:
+        self.play_previous()
+
     def play_next(self) -> None:
         self.stop()
 
@@ -150,26 +154,20 @@ class MainWindow(QMainWindow):
         if len(self.queue) > 0:
             song = self.queue.pop(0)
         else:
-            if self.current_playing_mode != CurrentPlayingMode.LOCAL:
+            if self.current_playing_mode == CurrentPlayingMode.PLAYLIST:
+                self.play_next_in_playlist()
+            elif self.current_playing_mode != CurrentPlayingMode.LOCAL:
                 song = self.get_random_module()
 
         if song:
             self.play_module(song)
 
-        # if self.current_playing_mode_changed:
-        #     self.update_playing_mode()
-        #     self.current_playing_mode_changed = False
+    def play_previous(self) -> None:
+        self.stop()
 
-        # if len(self.playlist) == 0:
-        #     if self.module_loader_thread and self.module_loader_thread.isRunning():
-        #         self.module_loader_thread.quit()
-        #         self.module_loader_thread.wait()
-
-        # if len(self.playlist) > 0:
-        #     self.play_next_in_playlist()
-        # else:
-        #     # self.ui_manager.update_loading_ui()
-        #     self.load_module()
+        if len(self.history_playlist.songs) > 0:
+            song = self.history_playlist.previous_song()
+            self.play_module(song)
 
     def get_random_module(self) -> Optional[Song]:
         id: int | None = None
@@ -319,7 +317,7 @@ class MainWindow(QMainWindow):
         history_dialog.show()
 
     def open_playlists_dialog(self) -> None:
-        playlists_dialog = PlaylistsDialog(self.playlist_manager, self)
+        playlists_dialog = PlaylistsDialog(self.playlist_manager, self.player_backends, self)
         playlists_dialog.song_on_tab_double_clicked.connect(self.play_module)
         playlists_dialog.show()
 
@@ -480,15 +478,15 @@ class MainWindow(QMainWindow):
             self.settings_manager.set_local_folder(folder_path)
 
     def set_local_folder(self, local_folder: str) -> None:
-        self.local_files = self.get_files_recursive(local_folder)
+        self.local_files = self.get_files_recursively(local_folder)
 
-    def get_files_recursive(self, folder_path: str) -> list[str]:
+    def get_files_recursively(self, folder_path: str) -> list[str]:
         file_list = []
         for root, dirs, files in os.walk(folder_path):
             dirs.sort()
             files.sort()
             for dir in dirs:
-                file_list.extend(self.get_files_recursive(os.path.join(root, dir)))
+                file_list.extend(self.get_files_recursively(os.path.join(root, dir)))
             for file in files:
                 file_list.append(os.path.join(root, file))
         return file_list

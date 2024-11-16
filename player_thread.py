@@ -32,6 +32,8 @@ class PlayerThread(QThread):
 
         count: int = 0
 
+        self.player_backend.prepare_playing()
+
         while not self.stop_flag:
             if self.pause_flag:
                 self.msleep(100)  # Sleep for a short time to avoid busy-waiting

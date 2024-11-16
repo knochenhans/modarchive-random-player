@@ -98,6 +98,10 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             return False
         
         return True
+    
+    def prepare_playing(self, subsong_nr: int = -1) -> None:
+        if subsong_nr > -1:
+            libopenmpt.openmpt_module_select_subsong(self.mod, subsong_nr)
 
     def get_module_length(self) -> float:
         return libopenmpt.openmpt_module_get_duration_seconds(self.mod)
