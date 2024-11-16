@@ -11,10 +11,9 @@ from PySide6.QtWidgets import QMainWindow, QMenu, QSystemTrayIcon, QFileDialog
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
 from current_playing_mode import CurrentPlayingMode
 from history_dialog import HistoryDialog
-from loaders.local_loader_thread import LocalLoaderThread
+from loaders.module_loader import ModuleLoader
 from meta_data_dialog import MetaDataDialog
 from playlists_dialog import PlaylistsDialog
-from loaders.modarchive_loader_thread import ModArchiveLoaderThread
 from loaders.module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
@@ -71,7 +70,15 @@ class MainWindow(QMainWindow):
 
         self.temp_dir = tempfile.mkdtemp()
 
-        test_playlist = self.playlist_manager.add_playlist("Default")
+        self.module_loader = ModuleLoader(
+            self.current_playing_mode,
+            self.local_files,
+            WebHelper(),
+            self.temp_dir,
+            self.player_backends,
+        )
+
+        # test_playlist = self.playlist_manager.add_playlist("Default")
 
         song1 = Song()
         song1.modarchive_id = 79666
@@ -405,37 +412,16 @@ class MainWindow(QMainWindow):
                 self.playback_pending = True
 
     def load_module(self, song: Song) -> None:
-        logger.debug("Loading module")
-
-        if self.current_playing_mode == CurrentPlayingMode.LOCAL:
-            module_loader_thread = LocalLoaderThread()
-            module_loader_thread.files = self.local_files
-        else:
-            module_loader_thread = ModArchiveLoaderThread()
-            module_loader_thread.song = song
-            module_loader_thread.web_helper = self.web_helper
-            module_loader_thread.temp_dir = self.temp_dir
-
-        self.module_loader_threads.append(module_loader_thread)
-
-        module_loader_thread.module_loaded.connect(self.on_module_loaded)
-        module_loader_thread.start()
+        self.module_loader.load_module(song)
+        self.module_loader.module_loaded.connect(self.on_module_loaded)
 
     @Slot()
     def on_module_loaded(self, song: Song) -> None:
         if song:
-            updated_song = self.update_song_info(song)
-
-            if updated_song:
-                song = updated_song
-                self.current_song = song
-        else:
-            logger.error("Failed to load module")
-
-        # Check if we have been waiting for the module to load (when pressing play after starting the application)
-        if self.playback_pending and self.current_song == song:
-            self.playback_pending = False
-            self.play_module(song)
+            # Check if we have been waiting for the module to load (when pressing play after starting the application)
+            if self.song_waiting_for_playback == song:
+                self.play_module(song)
+                self.song_waiting_for_playback = None
 
     def check_favorite(self, member_id: int) -> bool:
         # Check if the module is the current members favorite
