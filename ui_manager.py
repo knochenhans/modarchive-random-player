@@ -18,11 +18,12 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QGroupBox,
     QCheckBox,
+    QComboBox,
 )
 import darkdetect
 import pyqtspinner
 
-from current_playing_mode import CurrentPlayingMode
+from playing_modes import ModArchiveSource, PlayingMode, PlayingSource, LocalSource
 
 
 class UIManager:
@@ -146,70 +147,89 @@ class UIManager:
         vbox_layout.addLayout(slider_layout)
         vbox_layout.addWidget(self.message_scroll_area)
 
-        # Add a source radio buttons
-        self.source_radio_group = QButtonGroup()
-        self.random_radio_button = QRadioButton("Random")
-        self.random_radio_button.setChecked(True)
-        self.favorite_radio_button = QRadioButton("Favorites")
-        self.artist_radio_button = QRadioButton("Artist")
-        self.local_folder_radio_button = QRadioButton("Local Folder")
-        self.playlist_radio_button = QRadioButton("Playlist")
-
-        self.random_radio_button.toggled.connect(self.on_radio_button_toggled)
-        self.favorite_radio_button.toggled.connect(self.on_radio_button_toggled)
-        self.artist_radio_button.toggled.connect(self.on_radio_button_toggled)
-        self.local_folder_radio_button.toggled.connect(self.on_radio_button_toggled)
-        self.playlist_radio_button.toggled.connect(self.on_radio_button_toggled)
-
-        self.source_radio_group.addButton(self.random_radio_button)
-        self.source_radio_group.addButton(self.favorite_radio_button)
-        self.source_radio_group.addButton(self.artist_radio_button)
-        self.source_radio_group.addButton(self.local_folder_radio_button)
-        self.source_radio_group.addButton(self.playlist_radio_button)
+        self.artist_label = QLabel("Artist")
 
         self.artist_input = QLineEdit()
         self.artist_input.setPlaceholderText("Artist")
         self.artist_input.textChanged.connect(self.save_artist_input)
 
-        self.local_select_folder_button = QPushButton()
-        self.local_select_folder_button.setIcon(
-            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon)
-        )
-        self.local_select_folder_button.setToolTip("Select Folder")
-        self.local_select_folder_button.clicked.connect(
-            self.main_window.on_open_local_folder_dialog
-        )
-
-        self.local_recursively_checkbox = QCheckBox("Recursively")
-        self.local_recursively_checkbox.setChecked(True)
-
-        self.local_random_checkbox = QCheckBox("Random")
-
         # Create a horizontal layout for the artist radio button and input field
         artist_layout = QHBoxLayout()
-        artist_layout.addWidget(self.artist_radio_button)
+        artist_layout.addWidget(self.artist_label)
         artist_layout.addWidget(self.artist_input)
 
-        local_layout = QHBoxLayout()
-        local_layout.addWidget(self.local_folder_radio_button)
-        local_layout.addWidget(self.local_select_folder_button)
-        local_layout.addWidget(self.local_recursively_checkbox)
-        local_layout.addWidget(self.local_random_checkbox)
-
         # Create a vertical layout for the radio buttons
-        radio_layout = QVBoxLayout()
-        radio_layout.addWidget(self.random_radio_button)
-        radio_layout.addWidget(self.favorite_radio_button)
-        radio_layout.addLayout(artist_layout)
-        radio_layout.addLayout(local_layout)
-        radio_layout.addWidget(self.playlist_radio_button)
+        modarchive_layout = QVBoxLayout()
+        modarchive_layout.addLayout(artist_layout)
 
         # Create a group box for the radio buttons
-        self.source_group_box = QGroupBox("Source")
-        self.source_group_box.setLayout(radio_layout)
+        self.modarchive_source_group_box = QGroupBox("ModArchive Settings")
+        self.modarchive_source_group_box.setLayout(modarchive_layout)
 
         # Add the group box to the vertical layout
-        vbox_layout.addWidget(self.source_group_box)
+        vbox_layout.addWidget(self.modarchive_source_group_box)
+
+        ### Playing Mode and Source
+
+        self.playing_mode_label = QLabel("Playing Mode")
+        self.playing_mode_combo_box = QComboBox()
+        self.playing_mode_combo_box.addItem("Linear")
+        self.playing_mode_combo_box.addItem("Random")
+        self.playing_mode_combo_box.currentIndexChanged.connect(
+            lambda index: self.main_window.on_playing_mode_changed(PlayingMode(index))
+        )
+
+        self.playing_source_label = QLabel("Playing Source")
+        self.playing_source_combo_box = QComboBox()
+        self.playing_source_combo_box.addItem("Local")
+        self.playing_source_combo_box.addItem("ModArchive")
+        self.playing_source_combo_box.currentIndexChanged.connect(
+            lambda index: self.main_window.on_playing_source_changed(
+                PlayingSource(index)
+            )
+        )
+
+        self.modarchive_source_label = QLabel("ModArchive Source")
+        self.modarchive_source_combo_box = QComboBox()
+        self.modarchive_source_combo_box.addItem("All")
+        self.modarchive_source_combo_box.addItem("Favorites")
+        self.modarchive_source_combo_box.addItem("Artist")
+        self.modarchive_source_combo_box.currentIndexChanged.connect(
+            lambda index: self.main_window.on_modarchive_source_changed(
+                ModArchiveSource(index)
+            )
+        )
+
+        self.local_source_label = QLabel("Local Source")
+        self.local_source_combo_box = QComboBox()
+        self.local_source_combo_box.addItem("Playlist")
+        self.local_source_combo_box.addItem("Folder")
+        self.local_source_combo_box.currentIndexChanged.connect(
+            lambda index: self.main_window.on_local_source_changed(LocalSource(index))
+        )
+
+        # Preset default values
+        self.set_playing_mode(PlayingMode.RANDOM)
+        self.set_playing_source(PlayingSource.MODARCHIVE)
+        self.set_modarchive_source(ModArchiveSource.ALL)
+        self.set_local_source(LocalSource.PLAYLIST)
+
+        # Create a group box for the playing mode and source
+        self.playing_group_box = QGroupBox("Playing Settings")
+        playing_layout = QVBoxLayout()
+        playing_layout.addWidget(self.playing_mode_label)
+        playing_layout.addWidget(self.playing_mode_combo_box)
+        playing_layout.addWidget(self.playing_source_label)
+        playing_layout.addWidget(self.playing_source_combo_box)
+        playing_layout.addWidget(self.modarchive_source_label)
+        playing_layout.addWidget(self.modarchive_source_combo_box)
+
+        self.playing_group_box.setLayout(playing_layout)
+
+        # Add the group box to the vertical layout
+        vbox_layout.addWidget(self.playing_group_box)
+
+        ### Addition Buttons
 
         # Create a horizontal layout for the buttons
         buttons_hbox_layout: QHBoxLayout = QHBoxLayout()
@@ -225,7 +245,9 @@ class UIManager:
         self.settings_button.clicked.connect(self.main_window.open_settings_dialog)
         self.settings_button.setToolTip("Settings")
         self.settings_button.setIcon(
-            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)
+            self.main_window.style().standardIcon(
+                QStyle.StandardPixmap.SP_FileDialogListView
+            )
         )
         additional_buttons_layout.addWidget(self.settings_button)
 
@@ -234,7 +256,9 @@ class UIManager:
         self.history_button.clicked.connect(self.main_window.open_history_dialog)
         self.history_button.setToolTip("History")
         self.history_button.setIcon(
-            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView)
+            self.main_window.style().standardIcon(
+                QStyle.StandardPixmap.SP_FileDialogContentsView
+            )
         )
         additional_buttons_layout.addWidget(self.history_button)
 
@@ -243,7 +267,9 @@ class UIManager:
         self.meta_data_button.clicked.connect(self.main_window.open_meta_data_dialog)
         self.meta_data_button.setToolTip("Meta Data")
         self.meta_data_button.setIcon(
-            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView)
+            self.main_window.style().standardIcon(
+                QStyle.StandardPixmap.SP_FileDialogInfoView
+            )
         )
         additional_buttons_layout.addWidget(self.meta_data_button)
 
@@ -252,7 +278,9 @@ class UIManager:
         self.playlists_button.clicked.connect(self.main_window.open_playlists_dialog)
         self.playlists_button.setToolTip("Playlists")
         self.playlists_button.setIcon(
-            self.main_window.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView)
+            self.main_window.style().standardIcon(
+                QStyle.StandardPixmap.SP_FileDialogDetailedView
+            )
         )
         additional_buttons_layout.addWidget(self.playlists_button)
 
@@ -362,48 +390,11 @@ class UIManager:
     def update_player_backend_label(self, text: str) -> None:
         self.player_backend_label.setText(text)
 
-    def on_radio_button_toggled(self) -> None:
-        current_mode = self.get_current_playing_mode()
-        self.main_window.on_playing_mode_changed(current_mode)
-
     def set_play_button_icon(self, icon_name: str) -> None:
         self.play_button.setIcon(self.pixmap_icons[icon_name])
 
     def set_stop_button_icon(self, icon_name: str) -> None:
         self.stop_button.setIcon(self.pixmap_icons[icon_name])
-
-    def get_current_playing_mode(self) -> CurrentPlayingMode:
-        if self.random_radio_button.isChecked():
-            return CurrentPlayingMode.RANDOM
-        elif self.favorite_radio_button.isChecked():
-            return CurrentPlayingMode.FAVORITE
-        elif self.artist_radio_button.isChecked():
-            return CurrentPlayingMode.ARTIST
-        elif self.local_folder_radio_button.isChecked():
-            return CurrentPlayingMode.LOCAL
-        elif self.playlist_radio_button.isChecked():
-            return CurrentPlayingMode.PLAYLIST
-        else:
-            return CurrentPlayingMode.RANDOM
-
-    def set_current_playing_mode(
-        self, current_playing_mode: CurrentPlayingMode
-    ) -> None:
-        match current_playing_mode:
-            case CurrentPlayingMode.FAVORITE:
-                self.favorite_radio_button.setChecked(True)
-                self.main_window.current_playing_mode = CurrentPlayingMode.FAVORITE
-            case CurrentPlayingMode.ARTIST:
-                self.artist_radio_button.setChecked(True)
-                self.main_window.current_playing_mode = CurrentPlayingMode.ARTIST
-            case CurrentPlayingMode.LOCAL:
-                self.local_folder_radio_button.setChecked(True)
-                self.main_window.current_playing_mode = CurrentPlayingMode.LOCAL
-            case CurrentPlayingMode.PLAYLIST:
-                self.playlist_radio_button.setChecked(True)
-                self.main_window.current_playing_mode = CurrentPlayingMode.PLAYLIST
-            case _:
-                self.random_radio_button.setChecked(True)
 
     def update_progress(self, position: int, length: int) -> None:
         if length != self.slider_last_length:
@@ -476,20 +467,24 @@ class UIManager:
         if artist:
             self.artist_input.setText(artist)
 
-        self.set_current_playing_mode(
-            self.main_window.settings_manager.get_current_playing_mode()
+        self.set_playing_mode(self.main_window.settings_manager.get_playing_mode())
+
+        self.set_playing_source(self.main_window.settings_manager.get_playing_source())
+
+        self.set_modarchive_source(
+            self.main_window.settings_manager.get_modarchive_source()
         )
 
-        local_folder: str = self.main_window.settings_manager.get_local_folder()
-        if local_folder:
-            self.main_window.set_local_folder(local_folder)
-            self.local_select_folder_button.setToolTip(local_folder)
+        # local_folder: str = self.main_window.settings_manager.get_local_folder()
+        # if local_folder:
+        #     self.main_window.set_local_folder(local_folder)
+        #     self.local_select_folder_button.setToolTip(local_folder)
 
     def update_source_input(self) -> None:
         # Enable/disable favorite functions based on member id
         member_id_set: bool = self.main_window.settings_manager.get_member_id() != ""
 
-        self.favorite_radio_button.setEnabled(member_id_set)
+        # self.favorite_radio_button.setEnabled(member_id_set)
 
     def save_artist_input(self) -> None:
         self.main_window.settings_manager.set_artist(self.artist_input.text())
@@ -512,23 +507,73 @@ class UIManager:
         self.stop_button.setEnabled(True)
         self.progress_slider.setEnabled(True)
 
-    def get_playing_mode(self) -> CurrentPlayingMode:
-        if self.random_radio_button.isChecked():
-            return CurrentPlayingMode.RANDOM
-        elif self.favorite_radio_button.isChecked():
-            return CurrentPlayingMode.FAVORITE
-        elif self.artist_radio_button.isChecked():
-            return CurrentPlayingMode.ARTIST
+    def get_playing_mode(self) -> PlayingMode:
+        if self.playing_mode_combo_box.currentText() == "Linear":
+            return PlayingMode.LINEAR
+        elif self.playing_mode_combo_box.currentText() == "Random":
+            return PlayingMode.RANDOM
         else:
-            return CurrentPlayingMode.RANDOM
+            return PlayingMode.RANDOM
 
-    def set_playing_mode(self, mode: CurrentPlayingMode) -> None:
-        if mode == CurrentPlayingMode.RANDOM:
-            self.random_radio_button.setChecked(True)
-        elif mode == CurrentPlayingMode.FAVORITE:
-            self.favorite_radio_button.setChecked(True)
-        elif mode == CurrentPlayingMode.ARTIST:
-            self.artist_radio_button.setChecked(True)
+    def set_playing_mode(self, mode: PlayingMode) -> None:
+        if mode == PlayingMode.LINEAR:
+            self.playing_mode_combo_box.setCurrentIndex(0)
+        elif mode == PlayingMode.RANDOM:
+            self.playing_mode_combo_box.setCurrentIndex(1)
+
+        self.main_window.settings_manager.set_playing_mode(mode)
+
+    def get_playing_source(self) -> PlayingSource:
+        if self.playing_source_combo_box.currentText() == "Local":
+            return PlayingSource.LOCAL
+        elif self.playing_source_combo_box.currentText() == "ModArchive":
+            return PlayingSource.MODARCHIVE
+        else:
+            return PlayingSource.MODARCHIVE
+
+    def set_playing_source(self, source: PlayingSource) -> None:
+        if source == PlayingSource.LOCAL:
+            self.playing_source_combo_box.setCurrentIndex(0)
+        elif source == PlayingSource.MODARCHIVE:
+            self.playing_source_combo_box.setCurrentIndex(1)
+
+        self.main_window.settings_manager.set_playing_source(source)
+
+    def get_modarchive_source(self) -> ModArchiveSource:
+        if self.modarchive_source_combo_box.currentText() == "All":
+            return ModArchiveSource.ALL
+        elif self.modarchive_source_combo_box.currentText() == "Favorites":
+            return ModArchiveSource.FAVORITES
+        elif self.modarchive_source_combo_box.currentText() == "Artist":
+            return ModArchiveSource.ARTIST
+        else:
+            return ModArchiveSource.ALL
+
+    def set_modarchive_source(self, source: ModArchiveSource) -> None:
+        if source == ModArchiveSource.ALL:
+            self.modarchive_source_combo_box.setCurrentIndex(0)
+        elif source == ModArchiveSource.FAVORITES:
+            self.modarchive_source_combo_box.setCurrentIndex(1)
+        elif source == ModArchiveSource.ARTIST:
+            self.modarchive_source_combo_box.setCurrentIndex(2)
+
+        self.main_window.settings_manager.set_modarchive_source(source)
+
+    def get_local_source(self) -> LocalSource:
+        if self.local_source_combo_box.currentText() == "Playlist":
+            return LocalSource.PLAYLIST
+        elif self.local_source_combo_box.currentText() == "Folder":
+            return LocalSource.FOLDER
+        else:
+            return LocalSource.PLAYLIST
+        
+    def set_local_source(self, source: LocalSource) -> None:
+        if source == LocalSource.PLAYLIST:
+            self.local_source_combo_box.setCurrentIndex(0)
+        elif source == LocalSource.FOLDER:
+            self.local_source_combo_box.setCurrentIndex(1)
+
+        self.main_window.settings_manager.set_local_source(source)
 
     def load_fonts_from_dir(self, directory: str) -> set[str]:
         families = set()

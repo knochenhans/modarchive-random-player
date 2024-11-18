@@ -5,7 +5,6 @@ from PySide6.QtCore import QObject, Slot, Signal
 from loaders.abstract_loader import AbstractLoader
 from loaders.local_loader_thread import LocalLoaderThread
 from player_backends.player_backend import PlayerBackend
-from web_helper import WebHelper
 from player_backends.Song import Song
 
 

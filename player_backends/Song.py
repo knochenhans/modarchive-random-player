@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass, field
 from player_backends.libuade.songinfo import Credits
+import json
 
 
 @dataclass
@@ -45,3 +46,12 @@ class Song:
             instruments=[],
         )
     )
+
+    def to_json(self) -> str:
+        return json.dumps(self, default=lambda o: o.__dict__, indent=4)
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "Song":
+        data = json.loads(json_str)
+        data["credits"] = Credits(**data["credits"])
+        return cls(**data)

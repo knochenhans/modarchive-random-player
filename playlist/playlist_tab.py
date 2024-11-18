@@ -1,12 +1,11 @@
 from datetime import timedelta
 import ntpath
-from loaders.local_loader import LocalLoader
-from loaders.module_loader import ModuleLoader
 from player_backends.Song import Song
 from playlist.playlist_item import PlaylistItem
 from playlist.playlist_model import PlaylistModel
 from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtWidgets import QTabWidget, QToolButton
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QTabWidget, QToolButton, QStyle
 
 from playlist.playlist_tab_bar import PlaylistTabBar
 from playlist.playlist_tab_bar_edit import PlaylistTabBarEdit
@@ -30,6 +29,12 @@ class PlaylistTab(QTabWidget):
         self.add_tab_button.clicked.connect(self.on_add_tab_button_clicked)
 
         self.setCornerWidget(self.add_tab_button, Qt.Corner.TopRightCorner)
+        self.current_song_index = 0
+
+        self.icons = {}
+        self.icons["play"] = self.style().standardIcon(
+            QStyle.StandardPixmap.SP_MediaPlay
+        )
 
     @Slot()
     def on_add_tab_button_clicked(self) -> None:
@@ -103,6 +108,42 @@ class PlaylistTab(QTabWidget):
             model = tab.model()
             if isinstance(model, PlaylistModel):
                 model.removeRow(row)
+
+    def move_song(self, song: Song, index: int, tab=None) -> None:
+        if not tab:
+            tab = self.get_current_tab()
+
+        if isinstance(tab, PlaylistTreeView):
+            model = tab.model()
+            if isinstance(model, PlaylistModel):
+                for row in range(model.rowCount()):
+                    item = model.item(row, 0)
+                    current_song = Song(item.data(Qt.ItemDataRole.UserRole))
+                    if current_song.uid == song.uid:
+                        model.removeRow(row)
+                        break
+
+                self.add_song(song, tab)
+
+    def set_current_song_index(self, index: int) -> None:
+        self.set_play_status(self.current_song_index, False)
+        self.set_play_status(index, True)
+        self.current_song_index = index
+
+    def set_play_status(self, row: int, enable: bool) -> None:
+        current_tab = self.get_current_tab()
+
+        if isinstance(current_tab, PlaylistTreeView):
+            model = current_tab.model()
+
+            if isinstance(model, PlaylistModel):
+                if current_tab:
+                    col = model.itemFromIndex(current_tab.model().index(row, 0))
+
+                    if enable:
+                        col.setData(self.icons["play"], Qt.ItemDataRole.DecorationRole)
+                    else:
+                        col.setData(QIcon(), Qt.ItemDataRole.DecorationRole)
 
     def get_current_tab(self):
         return self.widget(self.currentIndex())
