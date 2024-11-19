@@ -349,8 +349,8 @@ class MainWindow(QMainWindow):
             if song.is_ready:
                 self.current_song = song
 
-                # if not no_history:
-                #     self.add_song_to_history(song)
+                if not no_history:
+                    self.add_song_to_history(song)
 
                 self.stop()
 
@@ -413,9 +413,9 @@ class MainWindow(QMainWindow):
         else:
             logger.error("No module to play")
 
-    # def add_song_to_history(self, song: Song) -> None:
-    #     self.history_playlist.add_song(song)
-    #     self.song_added_to_history.emit(song)
+    def add_song_to_history(self, song: Song) -> None:
+        self.history_playlist.add_song(song)
+        self.song_added_to_history.emit(song)
 
     def load_module(self, song: Song) -> None:
         self.module_loader.load_module(song)
