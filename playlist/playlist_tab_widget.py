@@ -14,9 +14,8 @@ from tree_view_columns import tree_view_columns_dict
 
 
 class PlaylistTabWidget(QTabWidget):
-    song_double_clicked = Signal(Song, int)
+    song_double_clicked = Signal(Song, int, Playlist)
     new_tab_added = Signal(str)
-    # tab_renamed = Signal(str)
 
     def __init__(
         self, parent, playlist_manager: PlaylistManager, add_tab_button: bool = True
@@ -46,7 +45,7 @@ class PlaylistTabWidget(QTabWidget):
     def on_add_tab_button_clicked(self) -> None:
         self.add_tab()
         
-        # Focus on the new tab
+        # Focus the new tab
         self.setCurrentIndex(self.count() - 1)
 
     def get_current_tab(self) -> PlaylistTreeView:
@@ -78,8 +77,8 @@ class PlaylistTabWidget(QTabWidget):
             tab.set_name(text)
 
     @Slot()
-    def on_song_double_clicked(self, song: Song, row: int) -> None:
-        self.song_double_clicked.emit(song, row)
+    def on_song_double_clicked(self, song: Song, row: int, playlist: Playlist) -> None:
+        self.song_double_clicked.emit(song, row, playlist)
 
     def add_tab(self, playlist: Optional[Playlist] = None) -> PlaylistTreeView:
         if not playlist:

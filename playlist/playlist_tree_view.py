@@ -27,16 +27,17 @@ from tree_view_columns import tree_view_columns_dict
 
 
 class PlaylistTreeView(QTreeView):
-    item_double_clicked = Signal(Song, int)
+    item_double_clicked = Signal(Song, int, Playlist)
 
     def __init__(self, playlist: Playlist, parent: Optional[QWidget] = None) -> None:
         super(PlaylistTreeView, self).__init__(parent)
         self.dropIndicatorRect: QRect = QRect()
 
         self.playlist = playlist
+        self.playlist.current_song_changed.connect(self.set_current_song)
 
         # Currently playing row for this tab
-        self.current_row: int = 0
+        self.previous_row: int = 0
 
         self.setDragDropMode(self.DragDropMode.InternalMove)
         self.setSelectionMode(self.SelectionMode.ExtendedSelection)
@@ -65,7 +66,7 @@ class PlaylistTreeView(QTreeView):
         model = self.model()
         if isinstance(model, PlaylistModel):
             song: Song = model.item(row, 0).data(Qt.ItemDataRole.UserRole)
-        self.item_double_clicked.emit(song, row)
+        self.item_double_clicked.emit(song, row, self.playlist)
 
     def paintEvent(self, event: QEvent) -> None:
         painter: QPainter = QPainter(self.viewport())
@@ -174,9 +175,17 @@ class PlaylistTreeView(QTreeView):
             col.setData(QIcon(), Qt.ItemDataRole.DecorationRole)
 
     def set_current_row(self, row: int) -> None:
-        self.set_play_status(self.current_row, False)
+        self.set_play_status(self.previous_row, False)
         self.set_play_status(row, True)
-        self.current_row = row
+        self.previous_row = row
+
+    def set_current_song(self, song: Song, index: int) -> None:
+        for row in range(self.playlist_model.rowCount()):
+            item = self.playlist_model.item(row, 0)
+            current_song: Song = item.data(Qt.ItemDataRole.UserRole)
+            if current_song.uid == song.uid:
+                self.set_current_row(row)
+                break
 
     def get_songs_from(self, starting_from: int = 0) -> list[Song]:
         songs = []

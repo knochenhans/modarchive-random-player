@@ -71,6 +71,12 @@ class PlaylistManager(QObject):
 
     def get_current_playlist(self) -> Optional[Playlist]:
         return self.current_playlist
+    
+    def set_current_playlist(self, playlist: Playlist) -> None:
+        self.current_playlist = playlist
+
+    # def set_current_song(self, song: Song) -> None:
+    #     self.current_playlist.set_current_song(song)
 
     def on_song_added_to_playlist(self, playlist: Playlist, song: Song) -> None:
         self.song_added_to_playlist.emit(playlist, song)
@@ -83,10 +89,10 @@ class PlaylistManager(QObject):
     ) -> None:
         self.song_moved_on_playlist.emit(playlist, song, index)
 
-    def on_current_song_on_playlist_changed(
-        self, playlist: Playlist, song: Song, index: int
-    ) -> None:
-        self.current_song_on_playlist_changed.emit(playlist, song, index)
+    # def on_current_song_on_playlist_changed(
+    #     self, playlist: Playlist, song: Song, index: int
+    # ) -> None:
+    #     self.current_song_on_playlist_changed.emit(playlist, song, index)
 
     def save_playlist(self):
         for playlist in self.playlists:

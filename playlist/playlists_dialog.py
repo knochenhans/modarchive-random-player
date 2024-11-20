@@ -22,7 +22,7 @@ from loguru import logger
 
 
 class PlaylistsDialog(QDialog):
-    song_on_tab_double_clicked = Signal(list)
+    song_on_tab_double_clicked = Signal(list, Playlist)
 
     def __init__(
         self,
@@ -78,10 +78,10 @@ class PlaylistsDialog(QDialog):
     def add_playlist(self, playlist: Optional[Playlist]) -> None:
         self.playlist_tab_widget.add_tab(playlist)
 
-    def on_song_double_clicked(self, song: Song, row: int) -> None:
+    def on_song_double_clicked(self, song: Song, row: int, playlist: Playlist) -> None:
         # Play all songs on the current playlist starting from the selected song
         songs = self.playlist_tab_widget.get_songs_from(row)
-        self.song_on_tab_double_clicked.emit(songs)
+        self.song_on_tab_double_clicked.emit(songs, playlist)
 
     def create_menu_bar(self):
         menu_bar = QMenuBar(self)

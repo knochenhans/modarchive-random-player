@@ -14,6 +14,7 @@ from playing_modes import LocalSource, PlayingMode, PlayingSource, ModArchiveSou
 from history_dialog import HistoryDialog
 from loaders.module_loader import ModuleLoader
 from meta_data_dialog import MetaDataDialog
+from playlist.playlist import Playlist
 from playlist.playlists_dialog import PlaylistsDialog
 from loaders.module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
@@ -295,28 +296,6 @@ class MainWindow(QMainWindow):
             self.ui_manager.set_modarchive_source(ModArchiveSource.ALL)
         return
 
-    # def queue_next_module(self) -> None:
-    #     # Check if the playlist has any modules left
-    #     current_playlist = self.playlist_manager.current_playlist
-    #     if current_playlist:
-    #         next_song = current_playlist.next_song()
-
-    #         if next_song:
-    #             self.queue.append(next_song)
-    #             return
-
-    #     self.queue_random_module()
-
-    # def queue_random_module(self) -> None:
-    #     if self.current_playing_mode != CurrentPlayingMode.LOCAL:
-    #         random_module = self.get_random_module()
-
-    #         if random_module:
-    #             self.queue.append(random_module)
-
-    #             if not self.current_song:
-    #                 self.current_song = random_module
-
     def update_playing_mode(self) -> None:
         # Clear the playlist and load a new module
         logger.debug(
@@ -342,7 +321,6 @@ class MainWindow(QMainWindow):
             self.queue_check_timer.start(10000)
 
     def set_playing_mode(self, new_playing_mode) -> None:
-        # self.current_playing_mode_changed = True
         if new_playing_mode != self.playing_mode:
             self.playing_mode = new_playing_mode
             self.update_playing_mode()
@@ -461,8 +439,14 @@ class MainWindow(QMainWindow):
                         self.current_module_is_favorite = self.check_favorite(
                             self.settings_manager.get_member_id()
                         )
-                    else:
+                    elif self.playing_source == PlayingSource.LOCAL:
                         self.ui_manager.show_favorite_button(False)
+
+                        if self.local_source == LocalSource.PLAYLIST:
+                            if self.playlist_manager.current_playlist:
+                                self.playlist_manager.current_playlist.set_current_song(
+                                    self.current_song
+                                )
                 else:
                     raise ValueError("No player backend loaded")
             else:
@@ -471,12 +455,13 @@ class MainWindow(QMainWindow):
         else:
             logger.error("No module to play")
 
-    def play_playlist_modules(self, songs: list[Song]) -> None:
+    def play_playlist_modules(self, songs: list[Song], playlist: Playlist) -> None:
         self.set_playing_mode(PlayingMode.LINEAR)
         self.set_local_source(LocalSource.PLAYLIST)
         self.set_playing_source(PlayingSource.LOCAL)
         if songs:
             self.queue_manager.set_queue(songs)
+            self.playlist_manager.set_current_playlist(playlist)
             self.play_queue()
 
     def load_module(self, song: Song) -> None:
@@ -505,25 +490,6 @@ class MainWindow(QMainWindow):
                 logger.debug("Current module is a member favorite")
 
         return is_favorite
-
-    # def update_song_info(self, song: Song) -> Optional[Song]:
-    #     # Try to load the module by going through the available player backends
-    #     for backend_name, backend_class in self.player_backends.items():
-    #         logger.debug(f"Trying player backend: {backend_name}")
-
-    #         player_backend = backend_class(backend_name)
-    #         if player_backend is not None:
-    #             player_backend.song = song
-    #             if player_backend.check_module():
-    #                 logger.debug(f"Module loaded with player backend: {backend_name}")
-    #                 song.backend_name = backend_name
-    #                 player_backend.song = song
-    #                 player_backend.retrieve_song_info()
-    #                 self.song_info_updated.emit(song)
-    #                 return player_backend.song
-    #         else:
-    #             raise ValueError("No player backend could load the module")
-    #     return None
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape:

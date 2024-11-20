@@ -51,29 +51,27 @@ class Playlist(QObject):
         self.songs.insert(index, song)
         self.song_moved.emit(song, index)
 
-    def next_song(self) -> Optional[Song]:
-        self.current_song_index += 1
-        if self.current_song_index < len(self.songs):
-            self.current_song_changed.emit(
-                self.songs[self.current_song_index], self.current_song_index
-            )
-            return self.songs[self.current_song_index]
-        return None
+    # def next_song(self) -> Optional[Song]:
+    #     self.current_song_index += 1
+    #     if self.current_song_index < len(self.songs):
+    #         self.current_song_changed.emit(
+    #             self.songs[self.current_song_index], self.current_song_index
+    #         )
+    #         return self.songs[self.current_song_index]
+    #     return None
 
-    def previous_song(self) -> Optional[Song]:
-        self.current_song_index -= 1
-        if self.current_song_index > 0:
-            self.current_song_changed.emit(
-                self.songs[self.current_song_index], self.current_song_index
-            )
-            return self.songs[self.current_song_index]
-        return None
+    # def previous_song(self) -> Optional[Song]:
+    #     self.current_song_index -= 1
+    #     if self.current_song_index > 0:
+    #         self.current_song_changed.emit(
+    #             self.songs[self.current_song_index], self.current_song_index
+    #         )
+    #         return self.songs[self.current_song_index]
+    #     return None
 
-    def set_current_song(self, index: int) -> None:
-        self.current_song_index = index
-        self.current_song_changed.emit(
-            self.songs[self.current_song_index], self.current_song_index
-        )
+    def set_current_song(self, song: Song) -> None:
+        self.current_song_index = self.songs.index(song)
+        self.current_song_changed.emit(song, self.current_song_index)
 
     def get_song(self, index: int) -> Song:
         return self.songs[index]

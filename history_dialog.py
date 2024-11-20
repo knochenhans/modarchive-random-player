@@ -32,7 +32,7 @@ class HistoryDialog(QDialog):
 
         self.show()
 
-    def on_song_double_clicked(self, song: Song) -> None:
+    def on_song_double_clicked(self, song: Song, row: int) -> None:
         self.song_on_tab_double_clicked.emit(song)
 
     def add_song(self, song: Song) -> None:
