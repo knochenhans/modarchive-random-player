@@ -27,6 +27,7 @@ class PlaylistManager(QObject):
             if file_name.endswith(".playlist"):
                 self.load_playlist(os.path.join(self.config_dir, file_name))
 
+        # If only history playlist exists, create a default playlist
         if len(self.playlists) == 1:
             self.new_playlist("Default Playlist")
 
@@ -37,7 +38,9 @@ class PlaylistManager(QObject):
                 playlist.to_json(filename)
 
     def add_playlist(self, playlist: Playlist) -> None:
+        tab_index = self.get_new_tab_index()
         self.playlists.append(playlist)
+        playlist.tab_index = tab_index
         playlist.song_added.connect(
             lambda song: self.on_song_added_to_playlist(playlist, song)
         )
@@ -51,8 +54,12 @@ class PlaylistManager(QObject):
 
     def new_playlist(self, name: str = "") -> Playlist:
         playlist = Playlist(name)
+        playlist.tab_index = self.get_new_tab_index()
         self.add_playlist(playlist)
         return playlist
+    
+    def get_new_tab_index(self) -> int:
+        return len(self.playlists)
 
     def delete_playlist(self, index: int) -> None:
         del self.playlists[index]
@@ -98,3 +105,11 @@ class PlaylistManager(QObject):
             if playlist.name == "History":
                 return playlist
         return None
+    
+    def sort(self):
+        self.playlists.sort(key=lambda x: x.tab_index)
+
+    def playlist_moved(self, from_index: int, to_index: int):
+        self.playlists[from_index].tab_index = to_index
+        self.playlists[to_index].tab_index = from_index
+        self.sort()

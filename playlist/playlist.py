@@ -19,18 +19,32 @@ class Playlist(QObject):
         self.name: str = name
         self.songs: List[Song] = songs if songs else []
         self.current_song_index: int = 0
+        self.tab_index: int = 0
+
+    def on_song_added(self, song: Song) -> None:
+        self.songs.append(song)
 
     def add_song(self, song: Song) -> None:
         self.songs.append(song)
         self.song_added.emit(song)
 
+    def on_song_removed(self, song: Song) -> None:
+        self.songs.remove(song)
+
     def remove_song(self, song: Song) -> None:
         self.songs.remove(song)
         self.song_removed.emit(song)
 
+    def on_song_removed_at(self, index: int) -> None:
+        self.songs.pop(index)
+
     def remove_song_at(self, index: int) -> None:
         song = self.songs.pop(index)
         self.song_removed.emit(song)
+
+    def on_song_moved(self, song: Song, index: int) -> None:
+        self.songs.remove(song)
+        self.songs.insert(index, song)
 
     def move_song(self, song: Song, index: int) -> None:
         self.songs.remove(song)
@@ -77,6 +91,7 @@ class Playlist(QObject):
         playlist_data = {
             "uuid": self.uuid,
             "name": self.name,
+            "tab_index": self.tab_index,
             "current_song_index": self.current_song_index,
             "songs": [song.to_json() for song in self.songs],
         }
@@ -91,4 +106,5 @@ class Playlist(QObject):
             playlist = cls(playlist_data["name"], songs)
             playlist.uuid = playlist_data["uuid"]
             playlist.current_song_index = playlist_data["current_song_index"]
+            playlist.tab_index = playlist_data["tab_index"]
             return playlist

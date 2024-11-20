@@ -1,4 +1,4 @@
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import Signal
 
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QMenuBar, QProgressBar
 from PySide6.QtGui import (
@@ -64,9 +64,6 @@ class PlaylistsDialog(QDialog):
 
         for playlist in self.playlist_manager.playlists:
             if playlist.name != "History":
-                #             # playlist.song_added.connect(self.add_song)
-                #             # playlist.song_removed.connect(self.tab_widget.remove_song)
-                #             # playlist.song_moved.connect(self.tab_widget.move_song)
                 self.add_playlist(playlist)
 
         self.show()
@@ -78,10 +75,6 @@ class PlaylistsDialog(QDialog):
         self.total_files_to_load = 0
         self.files_loaded = 0
 
-    # @Slot()
-    # def on_current_playlist_index_changed(self, index: int) -> None:
-    #     self.current_playlist_index = index
-
     def add_playlist(self, playlist: Optional[Playlist]) -> None:
         self.playlist_tab_widget.add_tab(playlist)
 
@@ -89,14 +82,6 @@ class PlaylistsDialog(QDialog):
         # Play all songs on the current playlist starting from the selected song
         songs = self.playlist_tab_widget.get_songs_from(row)
         self.song_on_tab_double_clicked.emit(songs)
-
-    # @Slot()
-    # def on_playlist_renamed(self, text: str) -> None:
-    #     if self.playlist_manager:
-    #         current_playlist = self.playlist_manager.current_playlist
-
-    #         if current_playlist:
-    #             current_playlist.name = text
 
     def create_menu_bar(self):
         menu_bar = QMenuBar(self)
@@ -121,15 +106,6 @@ class PlaylistsDialog(QDialog):
 
         self.main_layout.setMenuBar(menu_bar)
 
-    # def on_new_playlist(self):
-    #     name = "New Playlist"
-    #     self.new_playlist()
-    #     self.playlist_tab_widget.add_tab(name)
-
-    # def new_playlist(self) -> None:
-    #     if self.playlist_manager:
-    #         self.playlist_manager.new_playlist()
-
     def load_file(self, file_path: str):
         song = Song()
         song.filename = file_path
@@ -141,15 +117,19 @@ class PlaylistsDialog(QDialog):
 
         self.module_loaders.append(module_loader)
 
-    def load_folder(self, folder_path: str):
-        logger.debug(f"Loading folder: {folder_path}")
+    def load_files(self, file_list: list[str]):
         self.progress_bar.show()
-        file_list = self.get_files_recursively(folder_path)
+        
         self.total_files_to_load = len(file_list)
         self.progress_bar.setMaximum(self.total_files_to_load)
         for file_path in file_list:
             self.load_file(file_path)
-        logger.debug(f"Loaded {self.total_files_to_load} files")
+        logger.info(f"Loaded {self.total_files_to_load} files")
+
+    def load_folder(self, folder_path: str):
+        logger.info(f"Loading folder: {folder_path}")
+        file_list = self.get_files_recursively(folder_path)
+        self.load_files(file_list)
 
     def on_load_files(self):
         last_folder = self.settings_manager.get_last_folder()
@@ -157,8 +137,7 @@ class PlaylistsDialog(QDialog):
         file_dialog = QFileDialog(self)
         file_paths, _ = file_dialog.getOpenFileNames(self, "Load Files", last_folder)
         if file_paths:
-            for file_path in file_paths:
-                self.load_file(file_path)
+            self.load_files(file_paths)
             self.settings_manager.set_last_folder(os.path.dirname(file_paths[0]))
 
     def load_song(self, song: Song) -> None:

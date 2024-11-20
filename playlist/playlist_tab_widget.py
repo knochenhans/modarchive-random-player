@@ -5,6 +5,7 @@ from playlist.playlist_manager import PlaylistManager
 from playlist.playlist_model import PlaylistModel
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import QTabWidget, QToolButton
+from PySide6.QtGui import QKeyEvent
 
 from playlist.playlist_tab_bar import PlaylistTabBar
 from playlist.playlist_tab_bar_edit import PlaylistTabBarEdit
@@ -15,17 +16,20 @@ from tree_view_columns import tree_view_columns_dict
 class PlaylistTabWidget(QTabWidget):
     song_double_clicked = Signal(Song, int)
     new_tab_added = Signal(str)
-    tab_renamed = Signal(str)
+    # tab_renamed = Signal(str)
 
-    def __init__(self, parent, playlist_manager: PlaylistManager, add_tab_button: bool = True) -> None:
+    def __init__(
+        self, parent, playlist_manager: PlaylistManager, add_tab_button: bool = True
+    ) -> None:
         super().__init__(parent)
 
         self.playlist_manager = playlist_manager
 
-        tab_bar = PlaylistTabBar(parent)
-        self.setTabBar(tab_bar)
+        self.tab_bar = PlaylistTabBar(parent)
+        self.setTabBar(self.tab_bar)
 
         self.tabBarDoubleClicked.connect(self.doubleClicked)
+        self.tab_bar.tabMoved.connect(self.on_tab_moved)
 
         if add_tab_button:
             self.add_tab_button = QToolButton()
@@ -35,8 +39,15 @@ class PlaylistTabWidget(QTabWidget):
             self.setCornerWidget(self.add_tab_button, Qt.Corner.TopRightCorner)
 
     @Slot()
+    def on_tab_moved(self, from_index: int, to_index: int) -> None:
+        self.playlist_manager.playlist_moved(from_index, to_index)
+
+    @Slot()
     def on_add_tab_button_clicked(self) -> None:
         self.add_tab()
+        
+        # Focus on the new tab
+        self.setCurrentIndex(self.count() - 1)
 
     def get_current_tab(self) -> PlaylistTreeView:
         return self.widget(self.currentIndex())  # type: ignore
@@ -61,7 +72,10 @@ class PlaylistTabWidget(QTabWidget):
 
     @Slot()
     def on_tab_renamed(self, text: str) -> None:
-        self.tab_renamed.emit(text)
+        # self.tab_renamed.emit(text)
+        tab = self.get_current_tab()
+        if tab:
+            tab.set_name(text)
 
     @Slot()
     def on_song_double_clicked(self, song: Song, row: int) -> None:
@@ -117,3 +131,11 @@ class PlaylistTabWidget(QTabWidget):
         if tab:
             return tab.get_songs_from(index)
         return []
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_Delete:
+            # Remove the selected song
+            tab = self.get_current_tab()
+            if tab:
+                tab.remove_selected_songs()
+        super().keyPressEvent(event)

@@ -97,6 +97,7 @@ class MainWindow(QMainWindow):
         self.meta_data_dialog = None
 
         self.playlist_manager.load_playlists()
+        self.playlist_manager.sort()
 
         self.set_playing_mode(self.settings_manager.get_playing_mode())
         self.set_playing_source(self.settings_manager.get_playing_source())

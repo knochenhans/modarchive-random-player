@@ -65,6 +65,25 @@ class SettingsDialog(QDialog):
         buffer_size_layout.addWidget(self.buffer_size_input)
         layout.addLayout(buffer_size_layout)
 
+        self.max_duration_label: QLabel = QLabel("Max Duration for Songs (seconds):")
+        self.max_duration_input: QLineEdit = QLineEdit()
+        self.max_duration_input.setPlaceholderText("300")
+        self.max_duration_input.setValidator(QIntValidator())
+
+        # Load the max duration input data from settings
+        max_duration: str = str(self.settings.value("max_duration", "300"))
+        if max_duration:
+            self.max_duration_input.setText(max_duration)
+
+        # Save the max duration input data when it changes
+        self.max_duration_input.textChanged.connect(self.save_max_duration_input)
+
+        max_duration_layout: QHBoxLayout = QHBoxLayout()
+        max_duration_layout.addWidget(self.max_duration_label)
+        max_duration_layout.addWidget(self.max_duration_input)
+        
+        layout.addLayout(max_duration_layout)
+
         button_layout: QHBoxLayout = QHBoxLayout()
         ok_button: QPushButton = QPushButton("OK")
         ok_button.clicked.connect(self.accept)
@@ -88,3 +107,7 @@ class SettingsDialog(QDialog):
     @Slot()
     def save_buffer_size_input(self) -> None:
         self.settings.setValue("buffer_size", self.buffer_size_input.text())
+
+    @Slot()
+    def save_max_duration_input(self) -> None:
+        self.settings.setValue("max_duration", self.max_duration_input.text())

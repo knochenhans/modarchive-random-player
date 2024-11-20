@@ -93,7 +93,7 @@ class PlaylistTreeView(QTreeView):
 
     def load_song(self, song: Song) -> None:
         self.add_song(song)
-        self.playlist.add_song(song)
+        self.playlist.on_song_added(song)
 
     def add_song(self, song: Song) -> None:
         tree_cols: list[PlaylistItem] = []
@@ -150,6 +150,7 @@ class PlaylistTreeView(QTreeView):
 
     def remove_song_at(self, row: int) -> None:
         self.playlist_model.removeRow(row)
+        self.playlist.on_song_removed_at(row)
 
     def move_song(self, from_row: int, to_row: int) -> None:
         self.playlist_model.moveRow(
@@ -201,3 +202,19 @@ class PlaylistTreeView(QTreeView):
 
             width = col_info["width"]
             self.setColumnWidth(col_info["order"], width)
+
+    def get_current_item(self) -> Optional[QStandardItem]:
+        index = self.currentIndex()
+        if index.isValid():
+            return self.playlist_model.itemFromIndex(index)
+        return None
+
+    def remove_selected_songs(self) -> None:
+        rows = sorted(set(index.row() for index in self.selectedIndexes()), reverse=True)
+        for row in rows:
+            self.remove_song_at(row)
+
+    def set_name(self, name: str) -> None:
+        self.playlist.name = name
+        # self.playlist_model.setHorizontalHeaderItem(0, QStandardItem(name))
+        # self.playlist_model.setHeaderData(0, Qt.Orientation.Horizontal, name)
