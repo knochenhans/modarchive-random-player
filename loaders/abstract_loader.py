@@ -4,13 +4,11 @@ from player_backends.Song import Song
 from typing import Optional
 from loguru import logger
 
+
 class AbstractLoader(QObject):
     song_loaded = Signal(Song)
 
-    def __init__(
-        self,
-        player_backends: dict[str, type[PlayerBackend]]
-    ) -> None:
+    def __init__(self, player_backends: dict[str, type[PlayerBackend]]) -> None:
         super().__init__()
         self.player_backends = player_backends
 
@@ -18,15 +16,17 @@ class AbstractLoader(QObject):
         pass
 
     @Slot()
-    def on_module_loaded(self, song: Song) -> None:
+    def on_module_loaded(self, song: Optional[Song]) -> None:
         if song:
+            filename = song.filename
             updated_song = self.update_song_info(song)
 
-            if updated_song:
-                song = updated_song
-                self.song_loaded.emit(song)
-        else:
-            logger.error("Failed to load module")
+            song = updated_song
+            if not song:
+                logger.warning(
+                    f'No backend could load the module "{filename}"'
+                )
+        self.song_loaded.emit(song)
 
     def update_song_info(self, song: Song) -> Optional[Song]:
         # Try to load the module by going through the available player backends
@@ -42,6 +42,4 @@ class AbstractLoader(QObject):
                     player_backend.song = song
                     player_backend.retrieve_song_info()
                     return player_backend.song
-            else:
-                raise ValueError("No player backend could load the module")
         return None

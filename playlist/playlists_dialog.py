@@ -27,20 +27,21 @@ class PlaylistsDialog(QDialog):
     def __init__(
         self,
         settings_manager: SettingsManager,
-        playlist_manager: Optional[PlaylistManager],
+        playlist_manager: PlaylistManager,
         backends: dict[str, type[PlayerBackend]],
         parent=None,
     ) -> None:
         super().__init__(parent)
 
         self.settings_manager = settings_manager
+        self.playlist_manager = playlist_manager
         self.backends = backends
         self.module_loaders = []
 
         self.setWindowTitle("Playlists")
         self.setGeometry(100, 100, 600, 400)
 
-        self.playlist_tab_widget = PlaylistTabWidget(self)
+        self.playlist_tab_widget = PlaylistTabWidget(self, self.playlist_manager)
         self.playlist_tab_widget.song_double_clicked.connect(
             self.on_song_double_clicked
         )
@@ -61,13 +62,12 @@ class PlaylistsDialog(QDialog):
 
         self.playlist_manager = playlist_manager
 
-        if self.playlist_manager:
-            for playlist in self.playlist_manager.playlists:
-                if playlist.name != "History":
-                    #             # playlist.song_added.connect(self.add_song)
-                    #             # playlist.song_removed.connect(self.tab_widget.remove_song)
-                    #             # playlist.song_moved.connect(self.tab_widget.move_song)
-                    self.add_playlist(playlist)
+        for playlist in self.playlist_manager.playlists:
+            if playlist.name != "History":
+                #             # playlist.song_added.connect(self.add_song)
+                #             # playlist.song_removed.connect(self.tab_widget.remove_song)
+                #             # playlist.song_moved.connect(self.tab_widget.move_song)
+                self.add_playlist(playlist)
 
         self.show()
         self.progress_bar = QProgressBar(self)
@@ -137,7 +137,7 @@ class PlaylistsDialog(QDialog):
         module_loader = LocalLoader(self.backends)
         module_loader.files = [file_path]
         module_loader.load_module(song)
-        module_loader.song_loaded.connect(self.add_song)
+        module_loader.song_loaded.connect(self.load_song)
 
         self.module_loaders.append(module_loader)
 
@@ -161,18 +161,22 @@ class PlaylistsDialog(QDialog):
                 self.load_file(file_path)
             self.settings_manager.set_last_folder(os.path.dirname(file_paths[0]))
 
+    def load_song(self, song: Song) -> None:
+        if song:
+            self.playlist_tab_widget.load_song(song)
+
+        self.files_loaded += 1
+
+        if self.files_loaded < self.total_files_to_load:
+            self.progress_bar.setValue(self.files_loaded)
+        else:
+            self.progress_bar.hide()
+            self.total_files_to_load = 0
+            self.files_loaded = 0
+        self.update()
+
     def add_song(self, song: Song) -> None:
         self.playlist_tab_widget.add_song(song)
-        # if self.playlist_manager:
-        #     if self.playlist_manager.current_playlist:
-        #         self.playlist_manager.current_playlist.add_song(song)
-
-        #         if self.files_loaded < self.total_files_to_load:
-        #             self.files_loaded += 1
-        #             self.progress_bar.setValue(self.files_loaded)
-        #         else:
-        #             self.progress_bar.hide()
-        #         self.update()
 
     def on_load_folder(self):
         last_folder = self.settings_manager.get_last_folder()

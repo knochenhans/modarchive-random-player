@@ -16,4 +16,5 @@ tree_view_columns_dict: dict[str, TreeViewColumn] = {
     "path": {"name": "Path", "width": 200, "order": 5},
     "subsong": {"name": "Subsong", "width": 50, "order": 6},
     "artist": {"name": "Artist", "width": 150, "order": 7},
+    "player": {"name": "Player", "width": 100, "order": 8},
 }

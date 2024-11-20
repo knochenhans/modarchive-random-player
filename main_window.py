@@ -370,7 +370,9 @@ class MainWindow(QMainWindow):
             self.history_dialog.close()
             self.history_dialog = None
         else:
-            self.history_dialog = HistoryDialog(self.history_playlist, self)
+            self.history_dialog = HistoryDialog(
+                self.playlist_manager, self.history_playlist, self
+            )
             self.history_playlist.song_added.connect(self.history_dialog.add_song)
             # self.song_info_updated.connect(history_dialog.update_song_info)
             self.history_dialog.song_on_tab_double_clicked.connect(self.play_module)

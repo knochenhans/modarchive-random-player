@@ -92,3 +92,9 @@ class PlaylistManager(QObject):
         playlist = Playlist.from_json(filename)
 
         self.add_playlist(playlist)
+
+    def get_history_playlist(self) -> Optional[Playlist]:
+        for playlist in self.playlists:
+            if playlist.name == "History":
+                return playlist
+        return None

@@ -1,6 +1,7 @@
 from typing import Optional
 from player_backends.Song import Song
 from playlist.playlist import Playlist
+from playlist.playlist_manager import PlaylistManager
 from playlist.playlist_model import PlaylistModel
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import QTabWidget, QToolButton
@@ -16,8 +17,10 @@ class PlaylistTabWidget(QTabWidget):
     new_tab_added = Signal(str)
     tab_renamed = Signal(str)
 
-    def __init__(self, parent, add_tab_button: bool = True) -> None:
+    def __init__(self, parent, playlist_manager: PlaylistManager, add_tab_button: bool = True) -> None:
         super().__init__(parent)
+
+        self.playlist_manager = playlist_manager
 
         tab_bar = PlaylistTabBar(parent)
         self.setTabBar(tab_bar)
@@ -64,9 +67,10 @@ class PlaylistTabWidget(QTabWidget):
     def on_song_double_clicked(self, song: Song, row: int) -> None:
         self.song_double_clicked.emit(song, row)
 
-    def add_tab(self, playlist: Optional[Playlist]) -> PlaylistTreeView:
+    def add_tab(self, playlist: Optional[Playlist] = None) -> PlaylistTreeView:
         if not playlist:
             playlist = Playlist("New Playlist")
+            self.playlist_manager.add_playlist(playlist)
 
         tree = PlaylistTreeView(playlist, self)
         model = PlaylistModel(0, 3)
@@ -93,10 +97,20 @@ class PlaylistTabWidget(QTabWidget):
         if tab:
             tab.add_song(song)
 
+    def load_song(self, song: Song) -> None:
+        tab = self.get_current_tab()
+        if tab:
+            tab.load_song(song)
+
     def remove_song_at(self, index: int) -> None:
         tab = self.get_current_tab()
         if tab:
             tab.remove_song_at(index)
+
+    def update_song_info(self, index: int, song: Song) -> None:
+        tab = self.get_current_tab()
+        if tab:
+            tab.update_song_info(index, song)
 
     def get_songs_from(self, index: int) -> list[Song]:
         tab = self.get_current_tab()

@@ -91,6 +91,10 @@ class PlaylistTreeView(QTreeView):
                 painter.setPen(pen)
                 painter.drawRect(rect)
 
+    def load_song(self, song: Song) -> None:
+        self.add_song(song)
+        self.playlist.add_song(song)
+
     def add_song(self, song: Song) -> None:
         tree_cols: list[PlaylistItem] = []
 
@@ -102,20 +106,23 @@ class PlaylistTreeView(QTreeView):
         for col_name, col_info in sorted_items:
             item = PlaylistItem()
 
-            if col_name == "playing":
-                item.setText("")
-            elif col_name == "filename":
-                item.setText(ntpath.basename(song.filename))
-            elif col_name == "title":
-                item.setText(song.title)
-            elif col_name == "duration":
-                item.setText(str(duration).split(".")[0])
-            elif col_name == "backend":
-                item.setText(song.backend_name)
-            elif col_name == "path":
-                item.setText(song.filename)
-            elif col_name == "artist":
-                item.setText(song.artist)
+            match col_name:
+                case "playing":
+                    item.setText("")
+                case "filename":
+                    item.setText(ntpath.basename(song.filename))
+                case "title":
+                    item.setText(song.title)
+                case "duration":
+                    item.setText(str(duration).split(".")[0])
+                case "backend":
+                    item.setText(song.backend_name)
+                case "path":
+                    item.setText(song.filename)
+                case "artist":
+                    item.setText(song.artist)
+                case "player":
+                    item.setText(song.playername)
 
             if col_info["order"] == 0:
                 item.setData(song, Qt.ItemDataRole.UserRole)
@@ -141,7 +148,7 @@ class PlaylistTreeView(QTreeView):
                 self.add_song(song)
                 break
 
-    def remove_song_at(self, row: int, tab=None) -> None:
+    def remove_song_at(self, row: int) -> None:
         self.playlist_model.removeRow(row)
 
     def move_song(self, from_row: int, to_row: int) -> None:
@@ -152,12 +159,10 @@ class PlaylistTreeView(QTreeView):
             to_row,
         )
 
-    def update_song_info(self, song: Song, tab=None) -> None:
-        for row in range(self.playlist_model.rowCount()):
-            item = self.playlist_model.item(row, 0)
-
-            if item.data(Qt.ItemDataRole.UserRole).uid == song.uid:
-                item.setData(song, Qt.ItemDataRole.UserRole)
+    def update_song_info(self, index: int, song: Song) -> None:
+        item = self.playlist_model.item(index, 0)
+        if item:
+            item.setData(song, Qt.ItemDataRole.UserRole)
 
     def set_play_status(self, row: int, enable: bool) -> None:
         col = self.playlist_model.itemFromIndex(self.model().index(row, 0))
