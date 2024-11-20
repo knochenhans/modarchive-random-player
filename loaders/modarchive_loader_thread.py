@@ -5,6 +5,8 @@ from player_backends.Song import Song
 from web_helper import WebHelper
 from loaders.module_loader_thread import ModuleLoaderThread
 
+from loguru import logger
+
 
 class ModArchiveLoaderThread(ModuleLoaderThread):
     module_loaded = Signal(Song)
@@ -33,3 +35,7 @@ class ModArchiveLoaderThread(ModuleLoaderThread):
             else:
                 raise ValueError("Temporary directory not set")
         return None
+
+    def terminate(self) -> None:
+        logger.debug("Terminating ModArchiveLoaderThread")
+        return super().terminate()

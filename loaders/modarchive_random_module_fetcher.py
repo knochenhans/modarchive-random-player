@@ -23,9 +23,9 @@ class ModArchiveRandomModuleFetcherThread(QThread):
         super().__init__()
 
         self.song = song
-        self.current_playing_mode = current_playing_mode
-        self.current_playing_source = current_playing_source
-        self.current_modarchive_source = current_modarchive_source
+        self.playing_mode = current_playing_mode
+        self.playing_source = current_playing_source
+        self.modarchive_source = current_modarchive_source
         self.web_helper = web_helper
         self.artist_name = artist_name
         self.member_id = member_id
@@ -41,9 +41,9 @@ class ModArchiveRandomModuleFetcherThread(QThread):
     def fetch_random_module_id(self) -> None:
         id: int | None = None
 
-        if self.current_playing_mode == PlayingMode.RANDOM:
-            if self.current_playing_source == PlayingSource.MODARCHIVE:
-                match self.current_modarchive_source:
+        if self.playing_mode == PlayingMode.RANDOM:
+            if self.playing_source == PlayingSource.MODARCHIVE:
+                match self.modarchive_source:
                     case ModArchiveSource.ALL:
                         logger.info("Getting random module")
                         id = self.web_helper.get_random_module_id()
@@ -61,3 +61,7 @@ class ModArchiveRandomModuleFetcherThread(QThread):
                             )
             if id:
                 self.song.modarchive_id = id
+
+    def terminate(self) -> None:
+        logger.info("Terminating ModArchiveRandomModuleFetcherThread")
+        return super().terminate()

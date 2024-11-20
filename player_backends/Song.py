@@ -53,5 +53,5 @@ class Song:
     @classmethod
     def from_json(cls, json_str: str) -> "Song":
         data = json.loads(json_str)
-        data["credits"] = Credits(**data["credits"])
+        # data["credits"] = Credits(**data["credits"])
         return cls(**data)

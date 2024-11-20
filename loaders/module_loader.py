@@ -21,7 +21,7 @@ class ModuleLoader(AbstractLoader):
         player_backends: Dict[str, type[PlayerBackend]],
     ) -> None:
         super().__init__(player_backends)
-        self.current_playing_source = current_playing_source
+        self.playing_source = current_playing_source
         self.local_files = local_files
         self.web_helper = web_helper
         self.temp_dir = temp_dir
@@ -31,10 +31,10 @@ class ModuleLoader(AbstractLoader):
     def load_module(self, song: Song) -> None:
         logger.debug("Loading module")
 
-        if self.current_playing_source == PlayingSource.LOCAL:
+        if self.playing_source == PlayingSource.LOCAL:
             module_loader_thread = LocalLoaderThread()
             module_loader_thread.files = self.local_files
-        elif self.current_playing_source == PlayingSource.MODARCHIVE:
+        elif self.playing_source == PlayingSource.MODARCHIVE:
             module_loader_thread = ModArchiveLoaderThread()
             module_loader_thread.song = song
             module_loader_thread.web_helper = WebHelper()

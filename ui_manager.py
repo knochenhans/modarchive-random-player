@@ -42,11 +42,23 @@ class UIManager:
         self.slider_handle_default_style: str = ""
 
     def setup_ui(self) -> None:
+        self.setup_labels()
+        self.setup_buttons()
+        self.setup_slider()
+        self.setup_multiline_label()
+        self.setup_artist_input()
+        self.setup_playing_settings()
+        self.setup_additional_buttons()
+        self.setup_layout()
+        self.setup_tray()
+
+    def setup_labels(self) -> None:
         self.title_label = QLabel("Unknown")
         self.filename_label = QLabel("Unknown")
         self.filename_label.linkActivated.connect(self.main_window.open_module_link)
         self.player_backend_label = QLabel("Unknown")
 
+    def setup_buttons(self) -> None:
         self.play_button = QPushButton()
         self.play_button.setIcon(self.pixmap_icons["play"])
         self.play_button.clicked.connect(self.main_window.on_play_pause_pressed)
@@ -67,6 +79,19 @@ class UIManager:
         self.next_button.clicked.connect(self.main_window.on_skip_pressed)
         self.next_button.setToolTip("Next")
 
+        self.add_favorite_button = QPushButton()
+        self.add_favorite_button.setIcon(QIcon(fileName=str(self.icons["star_empty"])))
+        self.add_favorite_button.clicked.connect(
+            self.main_window.add_favorite_button_clicked
+        )
+        self.add_favorite_button.setToolTip("Add to favorites")
+        self.add_favorite_button.setFlat(True)
+        sp_retain = self.add_favorite_button.sizePolicy()
+        sp_retain.setRetainSizeWhenHidden(True)
+        self.add_favorite_button.setSizePolicy(sp_retain)
+        self.show_favorite_button(False)
+
+    def setup_slider(self) -> None:
         self.progress_slider = QSlider()
         self.progress_slider.setOrientation(Qt.Orientation.Horizontal)
         self.progress_slider.setEnabled(False)
@@ -75,108 +100,37 @@ class UIManager:
         self.progress_slider.sliderReleased.connect(self.slider_released)
         self.slider_handle_default_style = self.progress_slider.styleSheet()
 
-        # Create a multiline text label with fixed-width font
+    def setup_multiline_label(self) -> None:
         self.multiline_label = QLabel("No module loaded")
         self.multiline_label.setWordWrap(True)
-
         self.setup_fonts()
 
         self.message_scroll_area = QScrollArea()
         self.message_scroll_area.setWidget(self.multiline_label)
         self.message_scroll_area.setWidgetResizable(True)
-
         self.message_scroll_area.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
         self.message_scroll_area.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        # self.message_scroll_area.setMinimumWidth(
-        #     self.multiline_label.fontMetrics().horizontalAdvance(" " * 24)
-        # )
         self.message_scroll_area.setMinimumHeight(
             self.main_window.fontMetrics().height() * 15
         )
 
-        # Set height of the scroll area to the height of the text
-
-        # default_height = (
-        #     self.multiline_label.fontMetrics().height()
-        #     * self.default_message_line_count
-        #     + 1
-        # )
-
-        # self.message_scroll_area.resize(
-        #     self.message_scroll_area.width(),
-        #     default_height,
-        # )
-
-        # Create a form layout for the labels and their descriptions
-        form_layout = QFormLayout()
-        form_layout.addRow("Title:", self.title_label)
-        form_layout.addRow("Filename:", self.filename_label)
-        form_layout.addRow("Player backend:", self.player_backend_label)
-
-        # Create button for adding/removing song as favorite
-        self.add_favorite_button = QPushButton()
-        self.add_favorite_button.setIcon(QIcon(fileName=str(self.icons["star_empty"])))
-        self.add_favorite_button.clicked.connect(
-            self.main_window.add_favorite_button_clicked
-        )
-        self.add_favorite_button.setToolTip("Add to favorites")
-        self.add_favorite_button.setFlat(True)
-
-        # Create a horizontal layout for the buttons
-        hbox_layout = QHBoxLayout()
-        hbox_layout.addWidget(self.play_button)
-        hbox_layout.addWidget(self.stop_button)
-        hbox_layout.addWidget(self.next_button)
-        hbox_layout.addWidget(self.add_favorite_button)
-
-        # Create a vertical layout and add the form layout and horizontal layout to it
-        vbox_layout = QVBoxLayout()
-        vbox_layout.addLayout(form_layout)
-        vbox_layout.addLayout(hbox_layout)
-
-        # Create a horizontal layout for the slider and time display
-        slider_layout = QHBoxLayout()
-        self.time_display = QLabel("00:00 / 00:00")
-        slider_layout.addWidget(self.progress_slider)
-        slider_layout.addWidget(self.time_display)
-
-        vbox_layout.addLayout(slider_layout)
-        vbox_layout.addWidget(self.message_scroll_area)
-
+    def setup_artist_input(self) -> None:
         self.artist_label = QLabel("Artist")
-
         self.artist_input = QLineEdit()
         self.artist_input.setPlaceholderText("Artist")
         self.artist_input.textChanged.connect(self.save_artist_input)
 
-        # Create a horizontal layout for the artist radio button and input field
-        artist_layout = QHBoxLayout()
-        artist_layout.addWidget(self.artist_label)
-        artist_layout.addWidget(self.artist_input)
-
-        # Create a vertical layout for the radio buttons
-        modarchive_layout = QVBoxLayout()
-        modarchive_layout.addLayout(artist_layout)
-
-        # Create a group box for the radio buttons
-        self.modarchive_source_group_box = QGroupBox("ModArchive Settings")
-        self.modarchive_source_group_box.setLayout(modarchive_layout)
-
-        # Add the group box to the vertical layout
-        vbox_layout.addWidget(self.modarchive_source_group_box)
-
-        ### Playing Mode and Source
-
+    def setup_playing_settings(self) -> None:
         self.playing_mode_label = QLabel("Playing Mode")
         self.playing_mode_combo_box = QComboBox()
         self.playing_mode_combo_box.addItem("Linear")
         self.playing_mode_combo_box.addItem("Random")
         self.playing_mode_combo_box.currentIndexChanged.connect(
-            lambda index: self.main_window.on_playing_mode_changed(PlayingMode(index))
+            lambda index: self.on_playing_mode_changed(PlayingMode(index))
         )
 
         self.playing_source_label = QLabel("Playing Source")
@@ -184,9 +138,7 @@ class UIManager:
         self.playing_source_combo_box.addItem("Local")
         self.playing_source_combo_box.addItem("ModArchive")
         self.playing_source_combo_box.currentIndexChanged.connect(
-            lambda index: self.main_window.on_playing_source_changed(
-                PlayingSource(index)
-            )
+            lambda index: self.on_playing_source_changed(PlayingSource(index))
         )
 
         self.modarchive_source_label = QLabel("ModArchive Source")
@@ -195,9 +147,7 @@ class UIManager:
         self.modarchive_source_combo_box.addItem("Favorites")
         self.modarchive_source_combo_box.addItem("Artist")
         self.modarchive_source_combo_box.currentIndexChanged.connect(
-            lambda index: self.main_window.on_modarchive_source_changed(
-                ModArchiveSource(index)
-            )
+            lambda index: self.on_modarchive_source_changed(ModArchiveSource(index))
         )
 
         self.local_source_label = QLabel("Local Source")
@@ -205,42 +155,10 @@ class UIManager:
         self.local_source_combo_box.addItem("Playlist")
         self.local_source_combo_box.addItem("Folder")
         self.local_source_combo_box.currentIndexChanged.connect(
-            lambda index: self.main_window.on_local_source_changed(LocalSource(index))
+            lambda index: self.on_local_source_changed(LocalSource(index))
         )
 
-        # Preset default values
-        self.set_playing_mode(PlayingMode.RANDOM)
-        self.set_playing_source(PlayingSource.MODARCHIVE)
-        self.set_modarchive_source(ModArchiveSource.ALL)
-        self.set_local_source(LocalSource.PLAYLIST)
-
-        # Create a group box for the playing mode and source
-        self.playing_group_box = QGroupBox("Playing Settings")
-        playing_layout = QVBoxLayout()
-        playing_layout.addWidget(self.playing_mode_label)
-        playing_layout.addWidget(self.playing_mode_combo_box)
-        playing_layout.addWidget(self.playing_source_label)
-        playing_layout.addWidget(self.playing_source_combo_box)
-        playing_layout.addWidget(self.modarchive_source_label)
-        playing_layout.addWidget(self.modarchive_source_combo_box)
-
-        self.playing_group_box.setLayout(playing_layout)
-
-        # Add the group box to the vertical layout
-        vbox_layout.addWidget(self.playing_group_box)
-
-        ### Addition Buttons
-
-        # Create a horizontal layout for the buttons
-        buttons_hbox_layout: QHBoxLayout = QHBoxLayout()
-
-        # Add the buttons horizontal layout to the vertical layout
-        vbox_layout.addLayout(buttons_hbox_layout)
-
-        # Create a horizontal layout for the additional buttons
-        additional_buttons_layout = QHBoxLayout()
-
-        # Add a settings button
+    def setup_additional_buttons(self) -> None:
         self.settings_button = QPushButton("Settings")
         self.settings_button.clicked.connect(self.main_window.open_settings_dialog)
         self.settings_button.setToolTip("Settings")
@@ -249,9 +167,7 @@ class UIManager:
                 QStyle.StandardPixmap.SP_FileDialogListView
             )
         )
-        additional_buttons_layout.addWidget(self.settings_button)
 
-        # Add a history button
         self.history_button = QPushButton("History")
         self.history_button.clicked.connect(self.main_window.open_history_dialog)
         self.history_button.setToolTip("History")
@@ -260,9 +176,7 @@ class UIManager:
                 QStyle.StandardPixmap.SP_FileDialogContentsView
             )
         )
-        additional_buttons_layout.addWidget(self.history_button)
 
-        # Add a meta data button
         self.meta_data_button = QPushButton("Meta Data")
         self.meta_data_button.clicked.connect(self.main_window.open_meta_data_dialog)
         self.meta_data_button.setToolTip("Meta Data")
@@ -271,9 +185,7 @@ class UIManager:
                 QStyle.StandardPixmap.SP_FileDialogInfoView
             )
         )
-        additional_buttons_layout.addWidget(self.meta_data_button)
 
-        # Add a playlists button
         self.playlists_button = QPushButton("Playlists")
         self.playlists_button.clicked.connect(self.main_window.open_playlists_dialog)
         self.playlists_button.setToolTip("Playlists")
@@ -282,16 +194,69 @@ class UIManager:
                 QStyle.StandardPixmap.SP_FileDialogDetailedView
             )
         )
-        additional_buttons_layout.addWidget(self.playlists_button)
 
-        # Add the additional buttons layout to the vertical layout
+    def setup_layout(self) -> None:
+        form_layout = QFormLayout()
+        form_layout.addRow("Title:", self.title_label)
+        form_layout.addRow("Filename:", self.filename_label)
+        form_layout.addRow("Player backend:", self.player_backend_label)
+
+        hbox_layout = QHBoxLayout()
+        hbox_layout.addWidget(self.play_button)
+        hbox_layout.addWidget(self.stop_button)
+        hbox_layout.addWidget(self.next_button)
+        hbox_layout.addWidget(self.add_favorite_button)
+
+        vbox_layout = QVBoxLayout()
+        vbox_layout.addLayout(form_layout)
+        vbox_layout.addLayout(hbox_layout)
+
+        slider_layout = QHBoxLayout()
+        self.time_display = QLabel("00:00 / 00:00")
+        slider_layout.addWidget(self.progress_slider)
+        slider_layout.addWidget(self.time_display)
+
+        vbox_layout.addLayout(slider_layout)
+        vbox_layout.addWidget(self.message_scroll_area)
+
+        artist_layout = QHBoxLayout()
+        artist_layout.addWidget(self.artist_label)
+        artist_layout.addWidget(self.artist_input)
+
+        modarchive_layout = QVBoxLayout()
+        modarchive_layout.addLayout(artist_layout)
+
+        self.modarchive_source_group_box = QGroupBox("ModArchive Settings")
+        self.modarchive_source_group_box.setLayout(modarchive_layout)
+        vbox_layout.addWidget(self.modarchive_source_group_box)
+
+        playing_layout = QVBoxLayout()
+        playing_layout.addWidget(self.playing_mode_label)
+        playing_layout.addWidget(self.playing_mode_combo_box)
+        playing_layout.addWidget(self.playing_source_label)
+        playing_layout.addWidget(self.playing_source_combo_box)
+        playing_layout.addWidget(self.modarchive_source_label)
+        playing_layout.addWidget(self.modarchive_source_combo_box)
+        playing_layout.addWidget(self.local_source_label)
+        playing_layout.addWidget(self.local_source_combo_box)
+
+        self.playing_group_box = QGroupBox("Playing Settings")
+        self.playing_group_box.setLayout(playing_layout)
+        vbox_layout.addWidget(self.playing_group_box)
+
+        buttons_hbox_layout = QHBoxLayout()
+        vbox_layout.addLayout(buttons_hbox_layout)
+
+        additional_buttons_layout = QHBoxLayout()
+        additional_buttons_layout.addWidget(self.settings_button)
+        additional_buttons_layout.addWidget(self.history_button)
+        additional_buttons_layout.addWidget(self.meta_data_button)
+        additional_buttons_layout.addWidget(self.playlists_button)
         vbox_layout.addLayout(additional_buttons_layout)
 
-        container: QWidget = QWidget()
+        container = QWidget()
         container.setLayout(vbox_layout)
         self.main_window.setCentralWidget(container)
-
-        self.setup_tray()
 
     def setup_fonts(self) -> None:
         # Set Topaz font for the multiline label
@@ -437,6 +402,9 @@ class UIManager:
             else QIcon(str(self.icons["star_empty"]))
         )
 
+    def show_favorite_button(self, show: bool) -> None:
+        self.add_favorite_button.setVisible(show)
+
     def set_play_button(self, state: bool) -> None:
         if state:
             self.set_play_button_icon("play")
@@ -460,20 +428,31 @@ class UIManager:
     def get_artist_input(self) -> str:
         return self.artist_input.text()
 
+    def on_playing_mode_changed(self, mode: PlayingMode) -> None:
+        self.main_window.set_playing_mode(mode)
+
+    def on_playing_source_changed(self, source: PlayingSource) -> None:
+        self.main_window.set_playing_source(source)
+
+        if source == PlayingSource.LOCAL:
+            self.modarchive_source_combo_box.setEnabled(False)
+            self.local_source_combo_box.setEnabled(True)
+        else:
+            self.modarchive_source_combo_box.setEnabled(True)
+            self.local_source_combo_box.setEnabled(False)
+
+    def on_modarchive_source_changed(self, source: ModArchiveSource) -> None:
+        self.main_window.set_modarchive_source(source)
+
+    def on_local_source_changed(self, source: LocalSource) -> None:
+        self.main_window.set_local_source(source)
+
     def load_settings(self) -> None:
         self.update_source_input()
 
         artist: str = self.main_window.settings_manager.get_artist()
         if artist:
             self.artist_input.setText(artist)
-
-        self.set_playing_mode(self.main_window.settings_manager.get_playing_mode())
-
-        self.set_playing_source(self.main_window.settings_manager.get_playing_source())
-
-        self.set_modarchive_source(
-            self.main_window.settings_manager.get_modarchive_source()
-        )
 
         # local_folder: str = self.main_window.settings_manager.get_local_folder()
         # if local_folder:
@@ -521,8 +500,6 @@ class UIManager:
         elif mode == PlayingMode.RANDOM:
             self.playing_mode_combo_box.setCurrentIndex(1)
 
-        self.main_window.settings_manager.set_playing_mode(mode)
-
     def get_playing_source(self) -> PlayingSource:
         if self.playing_source_combo_box.currentText() == "Local":
             return PlayingSource.LOCAL
@@ -536,8 +513,6 @@ class UIManager:
             self.playing_source_combo_box.setCurrentIndex(0)
         elif source == PlayingSource.MODARCHIVE:
             self.playing_source_combo_box.setCurrentIndex(1)
-
-        self.main_window.settings_manager.set_playing_source(source)
 
     def get_modarchive_source(self) -> ModArchiveSource:
         if self.modarchive_source_combo_box.currentText() == "All":
@@ -557,8 +532,6 @@ class UIManager:
         elif source == ModArchiveSource.ARTIST:
             self.modarchive_source_combo_box.setCurrentIndex(2)
 
-        self.main_window.settings_manager.set_modarchive_source(source)
-
     def get_local_source(self) -> LocalSource:
         if self.local_source_combo_box.currentText() == "Playlist":
             return LocalSource.PLAYLIST
@@ -566,14 +539,12 @@ class UIManager:
             return LocalSource.FOLDER
         else:
             return LocalSource.PLAYLIST
-        
+
     def set_local_source(self, source: LocalSource) -> None:
         if source == LocalSource.PLAYLIST:
             self.local_source_combo_box.setCurrentIndex(0)
         elif source == LocalSource.FOLDER:
             self.local_source_combo_box.setCurrentIndex(1)
-
-        self.main_window.settings_manager.set_local_source(source)
 
     def load_fonts_from_dir(self, directory: str) -> set[str]:
         families = set()

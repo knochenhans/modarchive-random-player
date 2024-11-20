@@ -31,7 +31,7 @@ from PySide6.QtCore import QTimer
 
 
 class MainWindow(QMainWindow):
-    song_added_to_history = Signal(Song)
+    # song_info_updated = Signal(Song)
 
     def __init__(self) -> None:
         super().__init__()
@@ -47,28 +47,29 @@ class MainWindow(QMainWindow):
         self.audio_backend: Optional[AudioBackendPyAudio] = None
         self.player_thread: Optional[PlayerThread] = None
         self.module_loader_threads: list[ModuleLoaderThread] = []
-        self.random_module_fetcher_threads: list[ModArchiveRandomModuleFetcherThread] = []
+        self.random_module_fetcher_threads: list[
+            ModArchiveRandomModuleFetcherThread
+        ] = []
 
         self.current_song: Optional[Song] = None
         self.song_waiting_for_playback: Optional[Song] = None
         self.current_module_is_favorite: bool = False
 
-        self.current_playing_mode: PlayingMode = PlayingMode.RANDOM
-        self.current_playing_source: PlayingSource = PlayingSource.MODARCHIVE
-        self.current_modarchive_source: ModArchiveSource = ModArchiveSource.ALL
-        self.current_local_source: LocalSource = LocalSource.PLAYLIST
+        self.playing_mode: PlayingMode = PlayingMode.RANDOM
+        self.playing_source: PlayingSource = PlayingSource.MODARCHIVE
+        self.modarchive_source: ModArchiveSource = ModArchiveSource.ALL
+        self.local_source: LocalSource = LocalSource.PLAYLIST
         # self.current_playing_mode_changed = False
         self.playback_pending = False
-
-        # self.playlist: Playlist = Playlist()
-        self.playlist_manager = PlaylistManager()
-        self.history_playlist = self.playlist_manager.add_playlist("History")
-
-        self.queue_manager = QueueManager()
 
         self.local_files: list[str] = []
 
         self.settings_manager = SettingsManager(self.settings)
+
+        self.playlist_manager = PlaylistManager(self.settings_manager)
+        self.history_playlist = self.playlist_manager.new_playlist("History")
+
+        self.queue_manager = QueueManager(self.history_playlist)
 
         self.web_helper = WebHelper()
         self.ui_manager = UIManager(self)
@@ -80,28 +81,31 @@ class MainWindow(QMainWindow):
         self.temp_dir = tempfile.mkdtemp()
 
         self.module_loader = ModuleLoader(
-            self.current_playing_source,
+            self.playing_source,
             self.local_files,
             WebHelper(),
             self.temp_dir,
             self.player_backends,
         )
 
-        self.playlist_manager.add_playlist("Default")
-
         self.queue_check_timer = QTimer(self)
         self.queue_check_timer.timeout.connect(self.check_queue)
+
         self.history_dialog = None
         self.playlist_dialog = None
         self.settings_dialog = None
         self.meta_data_dialog = None
 
+        self.playlist_manager.load_playlists()
+
+        self.set_playing_mode(self.settings_manager.get_playing_mode())
+        self.set_playing_source(self.settings_manager.get_playing_source())
+        self.set_modarchive_source(self.settings_manager.get_modarchive_source())
+        self.set_local_source(self.settings_manager.get_local_source())
+
     def check_queue(self) -> None:
-        if (
-            self.queue_manager.is_empty()
-            and self.current_playing_mode == PlayingMode.RANDOM
-        ):
-            logger.debug("Random mode is active, checking for empty queue")
+        if self.queue_manager.is_empty() and self.playing_mode == PlayingMode.RANDOM:
+            logger.debug("Random mode is active, queue is empty, preparing next module")
             self.populate_queue()
 
     def add_favorite_button_clicked(self) -> None:
@@ -130,18 +134,20 @@ class MainWindow(QMainWindow):
             self.ui_manager.update_source_input()
 
     def populate_queue(self) -> None:
-        current_playlist = self.playlist_manager.current_playlist
+        if self.playing_source == PlayingSource.MODARCHIVE:
+            if self.playing_mode == PlayingMode.RANDOM:
+                song = Song()
+                self.get_random_module(song)
+                self.queue_manager.add_song(song)
+        elif self.playing_source == PlayingSource.LOCAL:
+            if self.local_source == LocalSource.PLAYLIST:
+                current_playlist = self.playlist_manager.current_playlist
 
-        if current_playlist:
-            songs = current_playlist.songs
+                if current_playlist:
+                    songs = current_playlist.songs
 
-            if len(songs) > 0:
-                self.queue_manager.add_songs(songs)
-                return
-
-        song = Song()
-        self.get_random_module(song)
-        self.queue_manager.add_song(song)
+                    if len(songs) > 0:
+                        self.queue_manager.add_songs(songs)
 
     @Slot()
     def on_play_pause_pressed(self) -> None:
@@ -157,11 +163,12 @@ class MainWindow(QMainWindow):
         if song:
             self.play_module(song)
         else:
-            self.populate_queue()
-            song = self.queue_manager.pop_next_song()
+            if PlayingMode.RANDOM:
+                self.populate_queue()
+                song = self.queue_manager.pop_next_song()
 
-            if song:
-                self.play_module(song)
+                if song:
+                    self.play_module(song)
 
     @Slot()
     def stop(self) -> None:
@@ -209,22 +216,20 @@ class MainWindow(QMainWindow):
     def play_previous(self) -> None:
         self.stop()
 
-        # if len(self.history_playlist.songs) > 0:
-        #     song = self.history_playlist.previous_song()
-        #     self.play_module(song)
-
     def get_random_module(self, song) -> None:
         random_module_fetcher_thread = ModArchiveRandomModuleFetcherThread(
             song,
-            self.current_playing_mode,
-            self.current_playing_source,
-            self.current_modarchive_source,
+            self.playing_mode,
+            self.playing_source,
+            self.modarchive_source,
             self.web_helper,
             self.ui_manager.get_artist_input(),
             self.settings_manager.get_member_id(),
         )
 
-        random_module_fetcher_thread.module_fetched.connect(self.on_random_module_fetched)
+        random_module_fetcher_thread.module_fetched.connect(
+            self.on_random_module_fetched
+        )
         self.random_module_fetcher_threads.append(random_module_fetcher_thread)
         random_module_fetcher_thread.start()
 
@@ -235,9 +240,10 @@ class MainWindow(QMainWindow):
             self.load_module(song)
 
         self.random_module_fetcher_threads = [
-            thread for thread in self.random_module_fetcher_threads if thread.isRunning()
+            thread
+            for thread in self.random_module_fetcher_threads
+            if thread.isRunning()
         ]
-
 
     @Slot()
     def open_module_link(self, link: str) -> None:
@@ -280,12 +286,12 @@ class MainWindow(QMainWindow):
         # self.current_modarchive_source = self.ui_manager.get_modarchive_source()
 
         if (
-            self.current_modarchive_source == ModArchiveSource.ARTIST
+            self.modarchive_source == ModArchiveSource.ARTIST
             and self.ui_manager.get_artist_input() == ""
         ):
-            self.current_modarchive_source = ModArchiveSource.ALL
-            self.ui_manager.set_modarchive_source(ModArchiveSource.ALL)
             logger.error("No artist input, changing ModArchive source to ALL")
+            self.modarchive_source = ModArchiveSource.ALL
+            self.ui_manager.set_modarchive_source(ModArchiveSource.ALL)
         return
 
     # def queue_next_module(self) -> None:
@@ -312,24 +318,52 @@ class MainWindow(QMainWindow):
 
     def update_playing_mode(self) -> None:
         # Clear the playlist and load a new module
-        logger.debug("Playing mode changed, clearing playlist and loading new module")
+        logger.debug(
+            "Playing mode or source changed, clearing queue and terminating loader and fetcher threads"
+        )
+
+        self.queue_manager.clear()
+
+        for thread in self.module_loader_threads:
+            thread.terminate()
+            thread.wait()
+        self.module_loader_threads.clear()
+
+        for thread in self.random_module_fetcher_threads:
+            thread.terminate()
+            thread.wait()
+        self.random_module_fetcher_threads.clear()
 
         self.check_playing_mode()
 
-    def on_playing_mode_changed(self, new_playing_mode) -> None:
+        if self.playing_mode == PlayingMode.RANDOM:
+            self.populate_queue()
+            self.queue_check_timer.start(10000)
+
+    def set_playing_mode(self, new_playing_mode) -> None:
         # self.current_playing_mode_changed = True
-        if new_playing_mode != self.current_playing_mode:
-            self.current_playing_mode = new_playing_mode
+        if new_playing_mode != self.playing_mode:
+            self.playing_mode = new_playing_mode
             self.update_playing_mode()
+        self.ui_manager.set_playing_mode(new_playing_mode)
 
-    def on_playing_source_changed(self, new_playing_source) -> None:
-        self.current_playing_source = new_playing_source
+    def set_playing_source(self, new_playing_source) -> None:
+        self.playing_source = new_playing_source
+        if new_playing_source == PlayingSource.LOCAL:
+            self.module_loader.local_files = self.local_files
+        self.ui_manager.set_playing_source(new_playing_source)
 
-    def on_modarchive_source_changed(self, new_modarchive_source) -> None:
-        self.current_modarchive_source = new_modarchive_source
+    def set_modarchive_source(self, new_modarchive_source) -> None:
+        self.modarchive_source = new_modarchive_source
+        if new_modarchive_source == ModArchiveSource.ARTIST:
+            self.get_random_module(self.current_song)
+        self.ui_manager.set_modarchive_source(new_modarchive_source)
 
-    def on_local_source_changed(self, new_local_source) -> None:
-        self.current_local_source = new_local_source
+    def set_local_source(self, new_local_source) -> None:
+        self.local_source = new_local_source
+        if new_local_source == LocalSource.PLAYLIST:
+            self.module_loader.local_files = self.local_files
+        self.ui_manager.set_local_source(new_local_source)
 
     def open_history_dialog(self) -> None:
         if self.history_dialog:
@@ -339,9 +373,7 @@ class MainWindow(QMainWindow):
             self.history_dialog = HistoryDialog(self.history_playlist, self)
             self.history_playlist.song_added.connect(self.history_dialog.add_song)
             # self.song_info_updated.connect(history_dialog.update_song_info)
-            self.history_dialog.song_on_tab_double_clicked.connect(
-                lambda song: self.play_module(song)
-            )
+            self.history_dialog.song_on_tab_double_clicked.connect(self.play_module)
             self.history_dialog.show()
 
     def open_playlists_dialog(self) -> None:
@@ -352,7 +384,9 @@ class MainWindow(QMainWindow):
             self.playlists_dialog = PlaylistsDialog(
                 self.settings_manager, self.playlist_manager, self.player_backends, self
             )
-            self.playlists_dialog.song_on_tab_double_clicked.connect(self.play_module)
+            self.playlists_dialog.song_on_tab_double_clicked.connect(
+                self.play_playlist_modules
+            )
             self.playlists_dialog.show()
 
     def open_meta_data_dialog(self) -> None:
@@ -364,13 +398,10 @@ class MainWindow(QMainWindow):
                 self.meta_data_dialog = MetaDataDialog(self.current_song, self)
                 self.meta_data_dialog.show()
 
-    def play_module(self, song: Optional[Song], no_history: bool = False) -> None:
+    def play_module(self, song: Optional[Song]) -> None:
         if song:
             if song.is_ready:
                 self.current_song = song
-
-                if not no_history:
-                    self.add_song_to_history(song)
 
                 self.stop()
 
@@ -422,9 +453,13 @@ class MainWindow(QMainWindow):
                     self.ui_manager.show_tray_notification("Now Playing", module_title)
                     logger.debug("Module loaded and playing")
 
-                    self.current_module_is_favorite = self.check_favorite(
-                        self.settings_manager.get_member_id()
-                    )
+                    if self.playing_source == PlayingSource.MODARCHIVE:
+                        self.ui_manager.show_favorite_button(True)
+                        self.current_module_is_favorite = self.check_favorite(
+                            self.settings_manager.get_member_id()
+                        )
+                    else:
+                        self.ui_manager.show_favorite_button(False)
                 else:
                     raise ValueError("No player backend loaded")
             else:
@@ -433,13 +468,17 @@ class MainWindow(QMainWindow):
         else:
             logger.error("No module to play")
 
-    def add_song_to_history(self, song: Song) -> None:
-        self.history_playlist.add_song(song)
-        self.song_added_to_history.emit(song)
+    def play_playlist_modules(self, songs: list[Song]) -> None:
+        self.set_playing_mode(PlayingMode.LINEAR)
+        self.set_local_source(LocalSource.PLAYLIST)
+        self.set_playing_source(PlayingSource.LOCAL)
+        if songs:
+            self.queue_manager.set_queue(songs)
+            self.play_queue()
 
     def load_module(self, song: Song) -> None:
         self.module_loader.load_module(song)
-        self.module_loader.module_loaded.connect(self.on_module_loaded)
+        self.module_loader.song_loaded.connect(self.on_module_loaded)
 
     @Slot()
     def on_module_loaded(self, song: Song) -> None:
@@ -464,23 +503,24 @@ class MainWindow(QMainWindow):
 
         return is_favorite
 
-    def update_song_info(self, song: Song) -> Optional[Song]:
-        # Try to load the module by going through the available player backends
-        for backend_name, backend_class in self.player_backends.items():
-            logger.debug(f"Trying player backend: {backend_name}")
+    # def update_song_info(self, song: Song) -> Optional[Song]:
+    #     # Try to load the module by going through the available player backends
+    #     for backend_name, backend_class in self.player_backends.items():
+    #         logger.debug(f"Trying player backend: {backend_name}")
 
-            player_backend = backend_class(backend_name)
-            if player_backend is not None:
-                player_backend.song = song
-                if player_backend.check_module():
-                    logger.debug(f"Module loaded with player backend: {backend_name}")
-                    song.backend_name = backend_name
-                    player_backend.song = song
-                    player_backend.retrieve_song_info()
-                    return player_backend.song
-            else:
-                raise ValueError("No player backend could load the module")
-        return None
+    #         player_backend = backend_class(backend_name)
+    #         if player_backend is not None:
+    #             player_backend.song = song
+    #             if player_backend.check_module():
+    #                 logger.debug(f"Module loaded with player backend: {backend_name}")
+    #                 song.backend_name = backend_name
+    #                 player_backend.song = song
+    #                 player_backend.retrieve_song_info()
+    #                 self.song_info_updated.emit(song)
+    #                 return player_backend.song
+    #         else:
+    #             raise ValueError("No player backend could load the module")
+    #     return None
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape:
@@ -528,8 +568,8 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         self.stop()
 
-        # Save current playing mode
-        self.settings_manager.set_playing_mode(self.current_playing_mode)
+        self.playlist_manager.save_playlists()
+        self.settings_manager.set_playing_mode(self.playing_mode)
         self.settings_manager.close()
         self.ui_manager.close_ui()
 

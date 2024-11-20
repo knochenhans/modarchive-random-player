@@ -81,3 +81,9 @@ class SettingsManager:
 
     def set_local_folder(self, folder: str) -> None:
         self.settings.setValue("local_folder", folder)
+
+    def set_last_folder(self, folder: str) -> None:
+        self.settings.setValue("last_folder", folder)
+
+    def get_last_folder(self) -> str:
+        return str(self.settings.value("last_folder", ""))

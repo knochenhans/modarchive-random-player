@@ -16,8 +16,8 @@ class PlaylistTabBarEdit(QLineEdit):
     def focusOutEvent(self, event):
         parent = self.parent()
 
-        from playlist.playlist_tab import PlaylistTab
-        if isinstance(parent, PlaylistTab):
+        from playlist.playlist_tab_widget import PlaylistTabWidget
+        if isinstance(parent, PlaylistTabWidget):
             tab_bar = parent.tabBar()
 
             from playlist.playlist_tab_bar import PlaylistTabBar

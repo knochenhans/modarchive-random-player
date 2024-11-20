@@ -2,6 +2,7 @@ from typing import List, Optional
 from uuid import uuid4
 from player_backends.Song import Song
 from PySide6.QtCore import Signal, QObject
+import json
 
 
 class Playlist(QObject):
@@ -27,6 +28,10 @@ class Playlist(QObject):
         self.songs.remove(song)
         self.song_removed.emit(song)
 
+    def remove_song_at(self, index: int) -> None:
+        song = self.songs.pop(index)
+        self.song_removed.emit(song)
+
     def move_song(self, song: Song, index: int) -> None:
         self.songs.remove(song)
         self.songs.insert(index, song)
@@ -35,20 +40,26 @@ class Playlist(QObject):
     def next_song(self) -> Optional[Song]:
         self.current_song_index += 1
         if self.current_song_index < len(self.songs):
-            self.current_song_changed.emit(self.songs[self.current_song_index], self.current_song_index)
+            self.current_song_changed.emit(
+                self.songs[self.current_song_index], self.current_song_index
+            )
             return self.songs[self.current_song_index]
         return None
 
     def previous_song(self) -> Optional[Song]:
         self.current_song_index -= 1
         if self.current_song_index > 0:
-            self.current_song_changed.emit(self.songs[self.current_song_index], self.current_song_index)
+            self.current_song_changed.emit(
+                self.songs[self.current_song_index], self.current_song_index
+            )
             return self.songs[self.current_song_index]
         return None
 
     def set_current_song(self, index: int) -> None:
         self.current_song_index = index
-        self.current_song_changed.emit(self.songs[self.current_song_index], self.current_song_index)
+        self.current_song_changed.emit(
+            self.songs[self.current_song_index], self.current_song_index
+        )
 
     def get_song(self, index: int) -> Song:
         return self.songs[index]
@@ -63,14 +74,21 @@ class Playlist(QObject):
         return f"Playlist: {self.name}\nSongs: {self.songs}"
 
     def to_json(self, filename: str) -> None:
+        playlist_data = {
+            "uuid": self.uuid,
+            "name": self.name,
+            "current_song_index": self.current_song_index,
+            "songs": [song.to_json() for song in self.songs],
+        }
         with open(filename, "w") as f:
-            for song in self.songs:
-                f.write(song.to_json() + "\n")
+            json.dump(playlist_data, f, indent=4)
 
     @classmethod
     def from_json(cls, filename: str) -> "Playlist":
         with open(filename, "r") as f:
-            songs = []
-            for line in f:
-                songs.append(Song.from_json(line))
-            return cls(songs=songs)
+            playlist_data = json.load(f)
+            songs = [Song.from_json(song) for song in playlist_data["songs"]]
+            playlist = cls(playlist_data["name"], songs)
+            playlist.uuid = playlist_data["uuid"]
+            playlist.current_song_index = playlist_data["current_song_index"]
+            return playlist

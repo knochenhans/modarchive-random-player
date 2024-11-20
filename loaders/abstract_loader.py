@@ -5,7 +5,7 @@ from typing import Optional
 from loguru import logger
 
 class AbstractLoader(QObject):
-    module_loaded = Signal(Song)
+    song_loaded = Signal(Song)
 
     def __init__(
         self,
@@ -24,7 +24,7 @@ class AbstractLoader(QObject):
 
             if updated_song:
                 song = updated_song
-                self.module_loaded.emit(song)
+                self.song_loaded.emit(song)
         else:
             logger.error("Failed to load module")
 
