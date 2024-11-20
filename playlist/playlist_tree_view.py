@@ -9,6 +9,7 @@ from PySide6.QtGui import (
     QPen,
     QStandardItem,
     QIcon,
+    QPalette,
 )
 from PySide6.QtWidgets import (
     QTreeView,
@@ -167,17 +168,29 @@ class PlaylistTreeView(QTreeView):
             item.setData(song, Qt.ItemDataRole.UserRole)
 
     def set_play_status(self, row: int, enable: bool) -> None:
-        col = self.playlist_model.itemFromIndex(self.model().index(row, 0))
+        column = self.playlist_model.itemFromIndex(self.model().index(row, 0))
 
-        if enable:
-            col.setData(self.icons["play"], Qt.ItemDataRole.DecorationRole)
-        else:
-            col.setData(QIcon(), Qt.ItemDataRole.DecorationRole)
+        if column:
+            color = column.foreground().color()
+
+            if enable:
+                column.setData(self.icons["play"], Qt.ItemDataRole.DecorationRole)
+                color.setRgb(255 - color.red(), 255 - color.green(), 255 - color.blue())
+            else:
+                column.setData(QIcon(), Qt.ItemDataRole.DecorationRole)
+                
+                default_color = self.palette().color(QPalette.ColorRole.Text)
+                color.setRgb(default_color.red(), default_color.green(), default_color.blue())
+
+            column.setForeground(QBrush(color))
 
     def set_current_row(self, row: int) -> None:
         self.set_play_status(self.previous_row, False)
         self.set_play_status(row, True)
         self.previous_row = row
+
+    def update_current_row(self) -> None:
+        self.set_current_row(self.playlist.current_song_index)
 
     def set_current_song(self, song: Song, index: int) -> None:
         for row in range(self.playlist_model.rowCount()):

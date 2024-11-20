@@ -100,6 +100,8 @@ class PlaylistTabWidget(QTabWidget):
         tree.set_playlist(playlist)
 
         self.addTab(tree, playlist.name)
+        tree.update_current_row()
+
         return tree
 
     def remove_current_tab(self):
