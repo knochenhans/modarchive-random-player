@@ -85,15 +85,15 @@ class PlayerBackendLibUADE(PlayerBackend):
         info = libuade.uade_get_song_info(self.state_ptr).contents
 
         self.song.credits = songinfo.get_credits(self.song.filename)
-        self.song.formatname = info.formatname.decode("utf-8")
-        self.song.extensions = info.detectioninfo.ext.decode("utf-8")
+        self.song.formatname = info.formatname.decode("cp1251")
+        self.song.extensions = info.detectioninfo.ext.decode("cp1251")
         self.song.modulebytes = info.modulebytes
-        self.song.title = info.modulename.decode("utf-8")
+        self.song.title = info.modulename.decode("cp1251")
         # self.song.title = self.song.credits["song_title"]
-        # self.song.md5 = info.modulemd5.decode("utf-8")
-        self.song.playerfname = info.playerfname.decode("utf-8")
-        self.song.playername = info.playername.decode("utf-8")
-        self.song.type = info.formatname.decode("utf-8")
+        # self.song.md5 = info.modulemd5.decode("cp1251")
+        self.song.playerfname = info.playerfname.decode("cp1251")
+        self.song.playername = info.playername.decode("cp1251")
+        self.song.type = info.formatname.decode("cp1251")
         self.song.duration = int(info.duration)
 
         subsongs: uade_subsong_info = info.subsongs

@@ -362,7 +362,7 @@ def process_module(
     buf_ctype = (c_ubyte * modfilelen).from_buffer_copy(buf)
     buf_ptr = cast(buf_ctype, POINTER(c_ubyte))
     libuade.uade_filemagic(
-        buf_ptr, modfilelen, pre, modfilelen, filename.encode("cp1251"), 0
+        buf_ptr, modfilelen, pre, modfilelen, filename.encode("utf-8"), 0
     )
 
     pre_str = pre.value.decode("cp1251")

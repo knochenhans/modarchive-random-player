@@ -96,9 +96,9 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             )
             libopenmpt.openmpt_free_string(error_message)
             return False
-        
+
         return True
-    
+
     def prepare_playing(self, subsong_nr: int = -1) -> None:
         if subsong_nr > -1:
             libopenmpt.openmpt_module_select_subsong(self.mod, subsong_nr)
@@ -133,14 +133,14 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
     def retrieve_song_info(self) -> None:
         keys = (
             libopenmpt.openmpt_module_get_metadata_keys(self.mod)
-            .decode("utf-8")
+            .decode("iso-8859-1", "cp1252")
             .split(";")
         )
         for key in keys:
-            key_c_char_p = ctypes.c_char_p(key.encode("utf-8"))
+            key_c_char_p = ctypes.c_char_p(key.encode("iso-8859-1", "cp1252"))
             value = libopenmpt.openmpt_module_get_metadata(
                 self.mod, key_c_char_p
-            ).decode("utf-8")
+            ).decode("iso-8859-1", "cp1252")
             if value != "":
                 match key:
                     case "type":
