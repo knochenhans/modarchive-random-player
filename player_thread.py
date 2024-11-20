@@ -49,7 +49,9 @@ class PlayerThread(QThread):
 
             # Emit position changed signal
             current_position: float = self.player_backend.get_position_seconds()
-            self.position_changed.emit(int(current_position), int(module_length))
+
+            if not self.stop_flag:
+                self.position_changed.emit(int(current_position), int(module_length))
 
         if count == 0:
             self.song_finished.emit()

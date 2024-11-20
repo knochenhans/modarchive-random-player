@@ -500,8 +500,8 @@ class UIManager:
 
     def set_stopped(self) -> None:
         self.stop_button.setEnabled(False)
+        self.progress_slider.setValue(0)
         self.progress_slider.setEnabled(False)
-        self.update_progress(0, 0)
 
     def set_playing(self) -> None:
         self.stop_button.setEnabled(True)
