@@ -91,7 +91,10 @@ class MainWindow(QMainWindow):
 
         self.queue_check_timer = QTimer(self)
         self.queue_check_timer.timeout.connect(self.check_queue)
-        self.queue_check_timer.start(10000)  # Check every 10 seconds
+        self.history_dialog = None
+        self.playlist_dialog = None
+        self.settings_dialog = None
+        self.meta_data_dialog = None
 
     def check_queue(self) -> None:
         if (
@@ -116,11 +119,15 @@ class MainWindow(QMainWindow):
             self.ui_manager.set_favorite_button_state(self.current_module_is_favorite)
 
     def open_settings_dialog(self) -> None:
-        settings_dialog = SettingsDialog(self.settings, self)
-        settings_dialog.setWindowTitle("Settings")
-        settings_dialog.exec()
+        if self.settings_dialog:
+            self.settings_dialog.close()
+            self.settings_dialog = None
+        else:
+            self.settings_dialog = SettingsDialog(self.settings, self)
+            self.settings_dialog.setWindowTitle("Settings")
+            self.settings_dialog.exec()
 
-        self.ui_manager.update_source_input()
+            self.ui_manager.update_source_input()
 
     def populate_queue(self) -> None:
         current_playlist = self.playlist_manager.current_playlist
@@ -325,24 +332,37 @@ class MainWindow(QMainWindow):
         self.current_local_source = new_local_source
 
     def open_history_dialog(self) -> None:
-        history_dialog = HistoryDialog(self.history_playlist, self)
-        self.song_added_to_history.connect(history_dialog.add_song)
-        history_dialog.song_on_tab_double_clicked.connect(
-            lambda song: self.play_module(song, True)
-        )
-        history_dialog.show()
+        if self.history_dialog:
+            self.history_dialog.close()
+            self.history_dialog = None
+        else:
+            self.history_dialog = HistoryDialog(self.history_playlist, self)
+            self.history_playlist.song_added.connect(self.history_dialog.add_song)
+            # self.song_info_updated.connect(history_dialog.update_song_info)
+            self.history_dialog.song_on_tab_double_clicked.connect(
+                lambda song: self.play_module(song)
+            )
+            self.history_dialog.show()
 
     def open_playlists_dialog(self) -> None:
-        playlists_dialog = PlaylistsDialog(
-            self.settings_manager, self.playlist_manager, self.player_backends, self
-        )
-        playlists_dialog.song_on_tab_double_clicked.connect(self.play_module)
-        playlists_dialog.show()
+        if self.playlist_dialog:
+            self.playlist_dialog.close()
+            self.playlist_dialog = None
+        else:
+            self.playlists_dialog = PlaylistsDialog(
+                self.settings_manager, self.playlist_manager, self.player_backends, self
+            )
+            self.playlists_dialog.song_on_tab_double_clicked.connect(self.play_module)
+            self.playlists_dialog.show()
 
     def open_meta_data_dialog(self) -> None:
-        if self.current_song:
-            meta_data_dialog = MetaDataDialog(self.current_song, self)
-            meta_data_dialog.show()
+        if self.meta_data_dialog:
+            self.meta_data_dialog.close()
+            self.meta_data_dialog = None
+        else:
+            if self.current_song:
+                self.meta_data_dialog = MetaDataDialog(self.current_song, self)
+                self.meta_data_dialog.show()
 
     def play_module(self, song: Optional[Song], no_history: bool = False) -> None:
         if song:
