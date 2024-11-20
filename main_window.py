@@ -350,7 +350,10 @@ class MainWindow(QMainWindow):
             self.history_dialog = None
         else:
             self.history_dialog = HistoryDialog(
-                self.playlist_manager, self.history_playlist, self
+                self.settings_manager,
+                self.playlist_manager,
+                self.history_playlist,
+                self,
             )
             self.history_playlist.song_added.connect(self.history_dialog.add_song)
             # self.song_info_updated.connect(history_dialog.update_song_info)

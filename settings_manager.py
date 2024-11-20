@@ -2,6 +2,7 @@ import os
 from PySide6.QtCore import QSettings
 from platformdirs import user_config_dir
 from playing_modes import LocalSource, ModArchiveSource, PlayingMode, PlayingSource
+from PySide6.QtCore import QRect
 
 
 class SettingsManager:
@@ -87,3 +88,21 @@ class SettingsManager:
 
     def get_last_folder(self) -> str:
         return str(self.settings.value("last_folder", ""))
+
+    def set_playlist_dialog_geometry(self, geometry: QRect) -> None:
+        self.settings.setValue("playlist_window_geometry", geometry)
+
+    def get_playlist_dialog_geometry(self) -> QRect:
+        geometry = self.settings.value(
+            "playlist_window_geometry", QRect(0, 0, 800, 600)
+        )
+        return geometry # type: ignore
+    
+    def set_history_dialog_geometry(self, geometry: QRect) -> None:
+        self.settings.setValue("history_window_geometry", geometry)
+
+    def get_history_dialog_geometry(self) -> QRect:
+        geometry = self.settings.value(
+            "history_window_geometry", QRect(0, 0, 800, 600)
+        )
+        return geometry # type: ignore

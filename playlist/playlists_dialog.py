@@ -3,6 +3,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QMenuBar, QProgressBar
 from PySide6.QtGui import (
     QAction,
+    QCloseEvent,
 )
 
 from loaders.local_loader import LocalLoader
@@ -39,7 +40,7 @@ class PlaylistsDialog(QDialog):
         self.module_loaders = []
 
         self.setWindowTitle("Playlists")
-        self.setGeometry(100, 100, 600, 400)
+        self.setGeometry(self.settings_manager.get_playlist_dialog_geometry())
 
         self.playlist_tab_widget = PlaylistTabWidget(self, self.playlist_manager)
         self.playlist_tab_widget.song_double_clicked.connect(
@@ -188,3 +189,7 @@ class PlaylistsDialog(QDialog):
             for file in files:
                 file_list.append(os.path.join(root, file))
         return file_list
+    
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self.settings_manager.set_playlist_dialog_geometry(self.geometry())
+        event.accept()
