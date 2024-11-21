@@ -123,6 +123,8 @@ class PlaylistTreeView(QTreeView):
                     item.setText(song.artist)
                 case "player":
                     item.setText(song.playername)
+                case "subsongs":
+                    item.setText(str(song.subsongs))
 
             if col_info["order"] == 0:
                 item.setData(song, Qt.ItemDataRole.UserRole)
