@@ -1,6 +1,6 @@
 import os
 from PySide6.QtCore import Qt, QDir
-from PySide6.QtGui import QAction, QFont, QIcon, QFontDatabase, QPixmap
+from PySide6.QtGui import QAction, QFont, QIcon, QFontDatabase
 from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -14,13 +14,9 @@ from PySide6.QtWidgets import (
     QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
-    QButtonGroup,
-    QRadioButton,
     QGroupBox,
-    QCheckBox,
     QComboBox,
 )
-import darkdetect
 import pyqtspinner
 
 from icons import Icons

@@ -54,13 +54,13 @@ class QueueManager:
     def get_queue(self) -> List[Song]:
         return list(self.queue)
 
-    def undo_last(self) -> None:
-        if self.history_playlist.get_length() > 0:
-            song = self.history_playlist.previous_song()
+    # def undo_last(self) -> None:
+    #     if self.history_playlist.get_length() > 0:
+    #         song = self.history_playlist.previous_song()
 
-            if song:
-                self.queue.appendleft(song)
-                self.history_playlist.remove_song(song)
+    #         if song:
+    #             self.queue.appendleft(song)
+    #             self.history_playlist.remove_song(song)
 
     def is_empty(self) -> bool:
         return not bool(self.queue)
