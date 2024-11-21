@@ -9,6 +9,7 @@ from PySide6.QtGui import QAction, QCursor
 from PySide6.QtWidgets import QMainWindow, QMenu, QSystemTrayIcon, QFileDialog
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
+from icons import Icons
 from loaders.modarchive_random_module_fetcher import ModArchiveRandomModuleFetcherThread
 from playing_modes import LocalSource, PlayingMode, PlayingSource, ModArchiveSource
 from history_dialog import HistoryDialog
@@ -73,8 +74,9 @@ class MainWindow(QMainWindow):
         self.queue_manager = QueueManager(self.history_playlist)
 
         self.web_helper = WebHelper()
+        self.icons = Icons(self.settings, self.style())
+        self.icon = self.icons.pixmap_icons["application_icon"]
         self.ui_manager = UIManager(self)
-        self.icon = self.ui_manager.pixmap_icons["application_icon"]
         self.setWindowIcon(self.icon)
 
         self.ui_manager.load_settings()

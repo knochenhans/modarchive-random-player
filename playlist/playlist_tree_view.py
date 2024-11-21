@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QTreeView,
 )
 
+from icons import Icons
 from player_backends.Song import Song
 from playlist.playlist import Playlist
 from playlist.playlist_item import PlaylistItem
@@ -53,10 +54,7 @@ class PlaylistTreeView(QTreeView):
 
         self.doubleClicked.connect(self.on_item_double_clicked)
 
-        self.icons = {}
-        self.icons["play"] = self.style().standardIcon(
-            QStyle.StandardPixmap.SP_MediaPlay
-        )
+        self.icons = Icons()
 
     def setModel(self, model: PlaylistModel) -> None:
         super().setModel(model)
@@ -174,7 +172,7 @@ class PlaylistTreeView(QTreeView):
             color = column.foreground().color()
 
             if enable:
-                column.setData(self.icons["play"], Qt.ItemDataRole.DecorationRole)
+                column.setData(self.icons.pixmap_icons["play"], Qt.ItemDataRole.DecorationRole)
                 color.setRgb(255 - color.red(), 255 - color.green(), 255 - color.blue())
             else:
                 column.setData(QIcon(), Qt.ItemDataRole.DecorationRole)

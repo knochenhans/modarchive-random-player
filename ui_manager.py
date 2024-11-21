@@ -23,17 +23,16 @@ from PySide6.QtWidgets import (
 import darkdetect
 import pyqtspinner
 
+from icons import Icons
 from playing_modes import ModArchiveSource, PlayingMode, PlayingSource, LocalSource
 
 
 class UIManager:
     def __init__(self, main_window) -> None:
         self.main_window = main_window
-        self.icons: dict[str, str] = {}
-        self.pixmap_icons: dict[str, QPixmap] = {}
         self.default_message_line_count = 30
 
-        self.setup_icons()
+        self.icons = Icons()
         self.setup_ui()
 
         self.slider_value: int = 0
@@ -60,27 +59,27 @@ class UIManager:
 
     def setup_buttons(self) -> None:
         self.play_button = QPushButton()
-        self.play_button.setIcon(self.pixmap_icons["play"])
+        self.play_button.setIcon(self.icons.pixmap_icons["play"])
         self.play_button.clicked.connect(self.main_window.on_play_pause_pressed)
         self.play_button.setToolTip("Play/Pause")
 
         self.stop_button = QPushButton()
-        self.stop_button.setIcon(self.pixmap_icons["stop"])
+        self.stop_button.setIcon(self.icons.pixmap_icons["stop"])
         self.stop_button.clicked.connect(self.main_window.on_stop_pressed)
         self.stop_button.setToolTip("Stop")
 
         self.previous_button = QPushButton()
-        self.previous_button.setIcon(self.pixmap_icons["backward"])
+        self.previous_button.setIcon(self.icons.pixmap_icons["backward"])
         self.previous_button.clicked.connect(self.main_window.on_previous_pressed)
         self.previous_button.setToolTip("Previous")
 
         self.next_button = QPushButton()
-        self.next_button.setIcon(self.pixmap_icons["forward"])
+        self.next_button.setIcon(self.icons.pixmap_icons["forward"])
         self.next_button.clicked.connect(self.main_window.on_skip_pressed)
         self.next_button.setToolTip("Next")
 
         self.add_favorite_button = QPushButton()
-        self.add_favorite_button.setIcon(QIcon(fileName=str(self.icons["star_empty"])))
+        self.add_favorite_button.setIcon(QIcon(fileName=str(self.icons.icons["star_empty"])))
         self.add_favorite_button.clicked.connect(
             self.main_window.add_favorite_button_clicked
         )
@@ -279,7 +278,7 @@ class UIManager:
 
     def setup_tray(self) -> None:
         self.tray_icon = QSystemTrayIcon(self.main_window)
-        self.tray_icon.setIcon(self.pixmap_icons["application_icon"])
+        self.tray_icon.setIcon(self.icons.pixmap_icons["application_icon"])
 
         # Create tray menu
         self.tray_menu = self.create_tray_menu()
@@ -313,34 +312,6 @@ class UIManager:
 
         return tray_menu
 
-    def setup_icons(self) -> None:
-        # Check if OS uses a dark theme via darkdetect
-        if darkdetect.isDark() or self.main_window.settings.value(
-            "dark_theme", type=bool, defaultValue=False
-        ):
-            self.icons["star_empty"] = "icons/star_empty_light.png"
-            self.icons["star_full"] = "icons/star_full_light.png"
-        else:
-            self.icons["star_empty"] = "icons/star_empty.png"
-            self.icons["star_full"] = "icons/star_full.png"
-
-        self.pixmap_icons["application_icon"] = self.main_window.style().standardIcon(
-            QStyle.StandardPixmap.SP_MediaPlay
-        )
-        self.pixmap_icons["play"] = self.pixmap_icons["application_icon"]
-        self.pixmap_icons["pause"] = self.main_window.style().standardIcon(
-            QStyle.StandardPixmap.SP_MediaPause
-        )
-        self.pixmap_icons["stop"] = self.main_window.style().standardIcon(
-            QStyle.StandardPixmap.SP_MediaStop
-        )
-        self.pixmap_icons["forward"] = self.main_window.style().standardIcon(
-            QStyle.StandardPixmap.SP_MediaSkipForward
-        )
-        self.pixmap_icons["backward"] = self.main_window.style().standardIcon(
-            QStyle.StandardPixmap.SP_MediaSkipBackward
-        )
-
     def update_loading_ui(self) -> None:
         self.title_label.setText("Loading...")
         self.filename_label.setText("Loading...")
@@ -356,10 +327,10 @@ class UIManager:
         self.player_backend_label.setText(text)
 
     def set_play_button_icon(self, icon_name: str) -> None:
-        self.play_button.setIcon(self.pixmap_icons[icon_name])
+        self.play_button.setIcon(self.icons.pixmap_icons[icon_name])
 
     def set_stop_button_icon(self, icon_name: str) -> None:
-        self.stop_button.setIcon(self.pixmap_icons[icon_name])
+        self.stop_button.setIcon(self.icons.pixmap_icons[icon_name])
 
     def update_progress(self, position: int, length: int) -> None:
         if length != self.slider_last_length:
@@ -397,9 +368,9 @@ class UIManager:
 
     def set_favorite_button_state(self, is_favorite: bool) -> None:
         self.add_favorite_button.setIcon(
-            QIcon(str(self.icons["star_full"]))
+            QIcon(str(self.icons.icons["star_full"]))
             if is_favorite
-            else QIcon(str(self.icons["star_empty"]))
+            else QIcon(str(self.icons.icons["star_empty"]))
         )
 
     def show_favorite_button(self, show: bool) -> None:
