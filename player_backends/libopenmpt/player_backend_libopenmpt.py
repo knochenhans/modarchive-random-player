@@ -74,7 +74,41 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             )
             return False
 
+        result = libopenmpt.openmpt_probe_file_header(
+            libopenmpt.OPENMPT_PROBE_FILE_HEADER_FLAGS_DEFAULT,  # int flags
+            self.module_data,  # const void * filedata
+            ctypes.c_size_t(self.module_size),  # size_t filesize
+            self.module_size,  # size_t filesize
+            openmpt_log_func(log_callback),  # openmpt_log_func logfunc
+            None,  # void * loguser
+            openmpt_error_func(error_callback),  # openmpt_error_func errfunc
+            None,  # void * erruser
+            ctypes.byref(error),  # int * error
+            ctypes.byref(error_message),  # const char ** error_message
+        )
+
+        if result == libopenmpt.OPENMPT_PROBE_FILE_HEADER_RESULT_SUCCESS:
+            logger.debug("File will most likely be supported by libopenmpt.")
+        elif result == libopenmpt.OPENMPT_PROBE_FILE_HEADER_RESULT_FAILURE:
+            logger.warning("File is not supported by libopenmpt.")
+            return False
+        elif result == libopenmpt.OPENMPT_PROBE_FILE_HEADER_RESULT_WANTMOREDATA:
+            logger.warning(
+                "An answer could not be determined with the amount of data provided."
+            )
+            return False
+        elif result == libopenmpt.OPENMPT_PROBE_FILE_HEADER_RESULT_ERROR:
+            logger.error("An internal error occurred.")
+            print_error(
+                ctypes.c_char(b"openmpt_probe_file_header()"),
+                error.value,
+                ctypes.cast(error_message, ctypes.POINTER(ctypes.c_char)).contents,
+            )
+            libopenmpt.openmpt_free_string(error_message)
+            return False
+
         logger.debug("Loading module")
+
         self.mod = load_mod(
             self.module_data,  # const void * filedata
             self.module_size,  # size_t filesize
