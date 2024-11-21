@@ -40,6 +40,9 @@ class HistoryDialog(QDialog):
 
         self.show()
 
+        # Hide first column
+        self.tab_widget.get_current_tab().setColumnHidden(0, True)
+
     def on_song_double_clicked(self, song: Song, row: int) -> None:
         self.song_on_tab_double_clicked.emit(song)
 
