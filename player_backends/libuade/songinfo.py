@@ -433,4 +433,22 @@ def process_module(
 #         raise ValueError("Illegal info requested")
 
 def get_credits(filename: str) -> Credits:
-    return process_module(filename)
+    credits: Credits
+
+    try:
+        credits = process_module(filename)
+    except Exception as e:
+        logger.error(f"Error while processing module: {e}")
+        credits = {
+            "song_title": "",
+            "max_positions": 0,
+            "instruments": [],
+            "modulename": "",
+            "artistname": "",
+            "specialinfo": "",
+            "file_name": filename,
+            "file_length": "",
+            "file_prefix": "",
+        }
+
+    return credits
