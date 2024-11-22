@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QDialog, QVBoxLayout
 from player_backends.Song import Song
 from playlist.playlist import Playlist
 from typing import Optional
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 
 from playlist.playlist_manager import PlaylistManager
 from playlist.playlist_tab_widget import PlaylistTabWidget
@@ -21,6 +21,7 @@ class HistoryDialog(QDialog):
         parent=None,
     ) -> None:
         super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.Window)
 
         self.settings_manager = settings_manager
         self.playlist_manager = playlist_manager

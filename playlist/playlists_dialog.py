@@ -5,6 +5,7 @@ from PySide6.QtGui import (
     QAction,
     QCloseEvent,
 )
+from PySide6.QtCore import Qt
 
 from loaders.local_file_loader import LocalFileLoader
 from player_backends.player_backend import PlayerBackend
@@ -32,6 +33,7 @@ class PlaylistsDialog(QDialog):
         parent=None,
     ) -> None:
         super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.Window)
 
         self.settings_manager = settings_manager
         self.playlist_manager = playlist_manager
