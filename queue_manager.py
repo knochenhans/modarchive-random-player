@@ -12,6 +12,9 @@ class QueueManager:
         self.queue: deque[Song] = deque()
         self.history_playlist = history_playlist
 
+        # Set current song index to -1 to indicate that no song is playing
+        self.history_playlist.current_song_index = -1
+
     def add_song(self, song: Song) -> None:
         self.queue.append(song)
 
@@ -29,7 +32,10 @@ class QueueManager:
     def pop_next_song(self) -> Optional[Song]:
         if self.queue:
             song = self.queue.popleft()
+
+            # Add song to history playlist
             self.history_playlist.add_song(song)
+            self.history_playlist.current_song_index += 1
             
             if len(self.queue) > 0:
                 logger.debug(

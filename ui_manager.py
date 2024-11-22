@@ -70,7 +70,7 @@ class UIManager:
 
         self.next_button = QPushButton()
         self.next_button.setIcon(self.icons.pixmap_icons["forward"])
-        self.next_button.clicked.connect(self.main_window.on_skip_pressed)
+        self.next_button.clicked.connect(self.main_window.on_next_pressed)
         self.next_button.setToolTip("Next")
 
         self.add_favorite_button = QPushButton()
@@ -200,6 +200,7 @@ class UIManager:
         hbox_layout = QHBoxLayout()
         hbox_layout.addWidget(self.play_button)
         hbox_layout.addWidget(self.stop_button)
+        hbox_layout.addWidget(self.previous_button)
         hbox_layout.addWidget(self.next_button)
         hbox_layout.addWidget(self.add_favorite_button)
 
@@ -298,7 +299,7 @@ class UIManager:
         tray_menu.addAction(stop_action)
 
         next_action = QAction("Next", self.main_window)
-        next_action.triggered.connect(self.main_window.on_skip_pressed)
+        next_action.triggered.connect(self.main_window.on_next_pressed)
         tray_menu.addAction(next_action)
 
         tray_menu.addSeparator()

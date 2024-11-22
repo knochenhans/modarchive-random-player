@@ -196,7 +196,7 @@ class MainWindow(QMainWindow):
         self.play_next()
 
     @Slot()
-    def on_skip_pressed(self) -> None:
+    def on_next_pressed(self) -> None:
         self.play_next()
 
     @Slot()
@@ -204,17 +204,23 @@ class MainWindow(QMainWindow):
         self.play_previous()
 
     def play_next(self) -> None:
-        # self.stop()
-
         self.play_queue()
-        # else:
-        #     if self.current_playing_mode == CurrentPlayingMode.PLAYLIST:
-        #         self.play_next_in_playlist()
-        #     elif self.current_playing_mode != CurrentPlayingMode.LOCAL:
-        #         song = self.get_random_module()
 
     def play_previous(self) -> None:
-        self.stop()
+        if self.playing_mode == PlayingMode.RANDOM:
+            self.queue_manager.clear()
+            previous_song = self.history_playlist.get_previous_song()
+
+            if previous_song:
+                self.queue_manager.add_song(previous_song)
+                self.play_queue()
+        elif self.playing_mode == PlayingMode.LINEAR:
+            current_playlist = self.playlist_manager.current_playlist
+
+            if current_playlist:
+                songs = current_playlist.get_songs_from(current_playlist.current_song_index - 1)
+                self.queue_manager.set_queue(songs)
+                self.play_queue()
 
     def get_random_module(self, song) -> None:
         random_module_fetcher_thread = ModArchiveRandomModuleFetcherThread(

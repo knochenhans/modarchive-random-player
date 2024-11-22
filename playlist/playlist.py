@@ -51,23 +51,23 @@ class Playlist(QObject):
         self.songs.insert(index, song)
         self.song_moved.emit(song, index)
 
-    # def next_song(self) -> Optional[Song]:
-    #     self.current_song_index += 1
-    #     if self.current_song_index < len(self.songs):
-    #         self.current_song_changed.emit(
-    #             self.songs[self.current_song_index], self.current_song_index
-    #         )
-    #         return self.songs[self.current_song_index]
-    #     return None
+    def get_next_song(self) -> Optional[Song]:
+        self.current_song_index += 1
+        if self.current_song_index < len(self.songs):
+            # self.current_song_changed.emit(
+            #     self.songs[self.current_song_index], self.current_song_index
+            # )
+            return self.songs[self.current_song_index]
+        return None
 
-    # def previous_song(self) -> Optional[Song]:
-    #     self.current_song_index -= 1
-    #     if self.current_song_index > 0:
-    #         self.current_song_changed.emit(
-    #             self.songs[self.current_song_index], self.current_song_index
-    #         )
-    #         return self.songs[self.current_song_index]
-    #     return None
+    def get_previous_song(self) -> Optional[Song]:
+        self.current_song_index -= 1
+        if self.current_song_index >= 0:
+            # self.current_song_changed.emit(
+            #     self.songs[self.current_song_index], self.current_song_index
+            # )
+            return self.songs[self.current_song_index]
+        return None
 
     def set_current_song(self, song: Song) -> None:
         self.current_song_index = self.songs.index(song)
@@ -106,3 +106,8 @@ class Playlist(QObject):
             playlist.current_song_index = playlist_data["current_song_index"]
             playlist.tab_index = playlist_data["tab_index"]
             return playlist
+
+    def get_songs_from(self, starting_from: int = 0) -> List[Song]:
+        if starting_from >= 0:
+            return self.songs[starting_from:]
+        return []
