@@ -45,6 +45,5 @@ Only works under Linux for now.
 ## TODO
 
 - Add support for sub-song playback.
-- Add playlist support.
 - Silence detection to skip silent intros/outros.
 - Fix slight delay when playing/pausing.
