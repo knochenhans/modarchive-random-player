@@ -17,7 +17,6 @@ from loaders.module_loader import ModuleLoader
 from meta_data_dialog import MetaDataDialog
 from playlist.playlist import Playlist
 from playlist.playlists_dialog import PlaylistsDialog
-from loaders.module_loader_thread import ModuleLoaderThread
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
 from player_backends.player_backend import PlayerBackend, Song
@@ -61,7 +60,7 @@ class MainWindow(QMainWindow):
         self.modarchive_source: ModArchiveSource = ModArchiveSource.ALL
         self.local_source: LocalSource = LocalSource.PLAYLIST
 
-        self.local_files: list[str] = []
+        self.local_file: str = ""
 
         self.settings_manager = SettingsManager(self.settings)
 
@@ -82,7 +81,7 @@ class MainWindow(QMainWindow):
 
         self.module_loader = ModuleLoader(
             self.playing_source,
-            self.local_files,
+            self.local_file,
             WebHelper(),
             self.temp_dir,
             self.player_backends,
@@ -323,7 +322,7 @@ class MainWindow(QMainWindow):
     def set_playing_source(self, new_playing_source) -> None:
         self.playing_source = new_playing_source
         if new_playing_source == PlayingSource.LOCAL:
-            self.module_loader.local_files = self.local_files
+            self.module_loader.local_file = self.local_file
         self.ui_manager.set_playing_source(new_playing_source)
 
     def set_modarchive_source(self, new_modarchive_source) -> None:
@@ -335,7 +334,7 @@ class MainWindow(QMainWindow):
     def set_local_source(self, new_local_source) -> None:
         self.local_source = new_local_source
         if new_local_source == LocalSource.PLAYLIST:
-            self.module_loader.local_files = self.local_files
+            self.module_loader.local_file = self.local_file
         self.ui_manager.set_local_source(new_local_source)
 
     def open_history_dialog(self) -> None:
@@ -462,7 +461,7 @@ class MainWindow(QMainWindow):
             self.play_queue()
 
     def load_module(self, song: Song) -> None:
-        self.module_loader.load_module(song)
+        self.module_loader.load_modules(song)
         self.module_loader.song_loaded.connect(self.on_module_loaded)
 
     @Slot()

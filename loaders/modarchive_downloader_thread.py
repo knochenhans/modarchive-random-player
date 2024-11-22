@@ -8,7 +8,7 @@ from loaders.module_loader_thread import ModuleLoaderThread
 from loguru import logger
 
 
-class ModArchiveLoaderThread(ModuleLoaderThread):
+class ModArchiveDownloaderThread(ModuleLoaderThread):
     module_loaded = Signal(Song)
 
     def __init__(self) -> None:
@@ -37,5 +37,5 @@ class ModArchiveLoaderThread(ModuleLoaderThread):
         return None
 
     def terminate(self) -> None:
-        logger.debug("Terminating ModArchiveLoaderThread")
+        logger.debug("Terminating ModArchiveDownloaderThread")
         return super().terminate()

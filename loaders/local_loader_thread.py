@@ -13,12 +13,12 @@ class LocalLoaderThread(ModuleLoaderThread):
     def __init__(self) -> None:
         super().__init__()
 
-        self.files: list[str] = []
+        self.filename: Optional[str] = None
 
     def load_module(self) -> Optional[Song]:
-        if self.files:
+        if self.filename:
             song: Song = Song()
-            song.filename = self.files.pop(0)
+            song.filename = self.filename
             song.is_ready = True
             logger.info(f"Loading local module: {song.filename}")
             return song
