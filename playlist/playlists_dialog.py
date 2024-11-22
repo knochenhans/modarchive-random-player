@@ -6,7 +6,7 @@ from PySide6.QtGui import (
     QCloseEvent,
 )
 
-from loaders.bulk_local_file_loader import BulkLocalFileLoader
+from loaders.local_file_loader import LocalFileLoader
 from player_backends.player_backend import PlayerBackend
 from playlist.playlist import Playlist
 from player_backends.Song import Song
@@ -36,7 +36,7 @@ class PlaylistsDialog(QDialog):
         self.settings_manager = settings_manager
         self.playlist_manager = playlist_manager
         self.backends = backends
-        self.bulk_local_file_loader: Optional[BulkLocalFileLoader] = None
+        self.local_file_loader: Optional[LocalFileLoader] = None
 
         self.setWindowTitle("Playlists")
         self.setGeometry(self.settings_manager.get_playlist_dialog_geometry())
@@ -107,10 +107,10 @@ class PlaylistsDialog(QDialog):
         self.files_remaining = self.total_files
         self.progress_bar.setMaximum(self.total_files)
 
-        self.bulk_local_file_loader = BulkLocalFileLoader(file_list, self.backends)
-        self.bulk_local_file_loader.song_loaded.connect(self.load_song)
-        self.bulk_local_file_loader.all_songs_loaded.connect(self.finished_loading_songs)
-        self.bulk_local_file_loader.load_modules()
+        self.local_file_loader = LocalFileLoader(file_list, self.backends)
+        self.local_file_loader.song_loaded.connect(self.load_song)
+        self.local_file_loader.all_songs_loaded.connect(self.finished_loading_songs)
+        self.local_file_loader.load_modules()
 
     def load_folder(self, folder_path: str):
         logger.info(f"Loading folder: {folder_path}")

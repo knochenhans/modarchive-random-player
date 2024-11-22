@@ -45,5 +45,8 @@ Only works under Linux for now.
 ## TODO
 
 - Add support for sub-song playback.
+- Implement libsidplayfp-python for SID playback.
+- Implement libgme for other game music types.
+- Implement ffmpeg for other music types.
 - Silence detection to skip silent intros/outros.
 - Fix slight delay when playing/pausing.

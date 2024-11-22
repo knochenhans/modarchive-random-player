@@ -12,12 +12,12 @@ class SongEmitter(QObject):
     song_loaded = Signal(Song)
 
 
-class BulkLocalFileLoaderWorker(QRunnable):
+class LocalFileLoaderWorker(QRunnable):
     def __init__(
         self,
         song: Song,
         backends: dict[str, type[PlayerBackend]],
-        loader: "BulkLocalFileLoader",
+        loader: "LocalFileLoader",
     ) -> None:
         super().__init__()
         self.song: Song = song
@@ -58,7 +58,7 @@ class BulkLocalFileLoaderWorker(QRunnable):
         return None
 
 
-class BulkLocalFileLoader(QObject):
+class LocalFileLoader(QObject):
     song_loaded = Signal(Song)
     all_songs_loaded = Signal()
 
@@ -86,7 +86,7 @@ class BulkLocalFileLoader(QObject):
         for file_name in self.file_list:
             song = self.load_module(file_name)
             if song:
-                worker = BulkLocalFileLoaderWorker(song, self.backends, self)
+                worker = LocalFileLoaderWorker(song, self.backends, self)
                 worker.emitter.song_loaded.connect(self.song_loaded)
                 self.thread_pool.start(worker)
 
