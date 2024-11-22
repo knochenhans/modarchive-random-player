@@ -46,8 +46,6 @@ class PlaylistsDialog(QDialog):
             self.on_song_double_clicked
         )
 
-        self.current_playlist_index = 0
-
         self.main_layout = QVBoxLayout(self)
         self.main_layout.addWidget(self.playlist_tab_widget)
 
@@ -164,12 +162,6 @@ class PlaylistsDialog(QDialog):
     def add_song_to_playlist(self, file_path: str):
         song = Song(filename=file_path)
         self.playlist_tab_widget.add_song(song)
-
-    def add_folder_to_playlist(self, folder_path: str):
-        for file_name in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, file_name)
-            if os.path.isfile(file_path):
-                self.add_song_to_playlist(file_path)
 
     def get_files_recursively(self, folder_path: str) -> list[str]:
         file_list = []

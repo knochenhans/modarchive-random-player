@@ -4,7 +4,7 @@ import webbrowser
 from typing import Optional, Dict
 
 from loguru import logger
-from PySide6.QtCore import QSettings, Qt, Slot, Signal
+from PySide6.QtCore import QSettings, Qt, Slot
 from PySide6.QtGui import QAction, QCursor
 from PySide6.QtWidgets import QMainWindow, QMenu, QSystemTrayIcon, QFileDialog
 
@@ -48,7 +48,6 @@ class MainWindow(QMainWindow):
         self.player_backend: Optional[PlayerBackend] = None
         self.audio_backend: Optional[AudioBackendPyAudio] = None
         self.player_thread: Optional[PlayerThread] = None
-        self.module_loader_threads: list[ModuleLoaderThread] = []
         self.random_module_fetcher_threads: list[
             ModArchiveRandomModuleFetcherThread
         ] = []
@@ -61,8 +60,6 @@ class MainWindow(QMainWindow):
         self.playing_source: PlayingSource = PlayingSource.MODARCHIVE
         self.modarchive_source: ModArchiveSource = ModArchiveSource.ALL
         self.local_source: LocalSource = LocalSource.PLAYLIST
-        # self.current_playing_mode_changed = False
-        self.playback_pending = False
 
         self.local_files: list[str] = []
 
@@ -306,11 +303,6 @@ class MainWindow(QMainWindow):
 
         self.queue_manager.clear()
 
-        for thread in self.module_loader_threads:
-            thread.terminate()
-            thread.wait()
-        self.module_loader_threads.clear()
-
         for thread in self.random_module_fetcher_threads:
             thread.terminate()
             thread.wait()
@@ -511,32 +503,6 @@ class MainWindow(QMainWindow):
                 self.hide()
             else:
                 self.show()
-
-    @Slot()
-    def on_open_local_folder_dialog(self) -> None:
-        current_folder = self.settings_manager.get_local_folder()
-        folder_path = QFileDialog.getExistingDirectory(
-            self, "Select Folder", current_folder
-        )
-        if folder_path:
-            logger.debug(f"Selected folder: {folder_path}")
-
-            self.set_local_folder(folder_path)
-            self.settings_manager.set_local_folder(folder_path)
-
-    def set_local_folder(self, local_folder: str) -> None:
-        self.local_files = self.get_files_recursively(local_folder)
-
-    def get_files_recursively(self, folder_path: str) -> list[str]:
-        file_list = []
-        for root, dirs, files in os.walk(folder_path):
-            dirs.sort()
-            files.sort()
-            for dir in dirs:
-                file_list.extend(self.get_files_recursively(os.path.join(root, dir)))
-            for file in files:
-                file_list.append(os.path.join(root, file))
-        return file_list
 
     @Slot()
     def closeEvent(self, event) -> None:

@@ -77,12 +77,6 @@ class SettingsManager:
     def set_audio_buffer(self, buffer_size: int) -> None:
         self.settings.setValue("audio_buffer", buffer_size)
 
-    def get_local_folder(self) -> str:
-        return str(self.settings.value("local_folder", ""))
-
-    def set_local_folder(self, folder: str) -> None:
-        self.settings.setValue("local_folder", folder)
-
     def set_last_folder(self, folder: str) -> None:
         self.settings.setValue("last_folder", folder)
 

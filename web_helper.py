@@ -1,7 +1,5 @@
-import os
 import random
-import re
-from typing import Optional, List, Dict
+from typing import Optional, List
 from bs4 import BeautifulSoup, Tag
 from loguru import logger
 import requests
@@ -14,7 +12,7 @@ class WebHelper:
 
     def download_module_file(self, module_id: int, temp_dir: str) -> Optional[str]:
         filename: Optional[str] = None
-        module_link: Optional[str] = None
+        # module_link: Optional[str] = None
 
         url: str = f"https://api.modarchive.org/downloads.php?moduleid={module_id}"
         response: requests.Response = requests.get(url)
@@ -24,7 +22,7 @@ class WebHelper:
             module_filename: str = response.headers.get(
                 "content-disposition", f"{module_id}.mod"
             ).split("filename=")[-1]
-            module_link = f"https://modarchive.org/module.php?{module_id}"
+            # module_link = f"https://modarchive.org/module.php?{module_id}"
 
             temp_file_path: str = f"{temp_dir}/{module_filename}"
             with open(temp_file_path, "wb") as temp_file:

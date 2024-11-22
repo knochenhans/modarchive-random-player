@@ -13,7 +13,6 @@ class PlaylistManager(QObject):
     song_added_to_playlist = Signal(Playlist, Song)
     song_removed_from_playlist = Signal(Playlist, Song)
     song_moved_on_playlist = Signal(Playlist, Song, int)
-    current_song_on_playlist_changed = Signal(Playlist, Song, int)
 
     def __init__(self, settings_manager: SettingsManager) -> None:
         super().__init__()
@@ -88,11 +87,6 @@ class PlaylistManager(QObject):
         self, playlist: Playlist, song: Song, index: int
     ) -> None:
         self.song_moved_on_playlist.emit(playlist, song, index)
-
-    # def on_current_song_on_playlist_changed(
-    #     self, playlist: Playlist, song: Song, index: int
-    # ) -> None:
-    #     self.current_song_on_playlist_changed.emit(playlist, song, index)
 
     def save_playlist(self):
         for playlist in self.playlists:

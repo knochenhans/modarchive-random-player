@@ -26,7 +26,6 @@ from playing_modes import ModArchiveSource, PlayingMode, PlayingSource, LocalSou
 class UIManager:
     def __init__(self, main_window) -> None:
         self.main_window = main_window
-        self.default_message_line_count = 30
 
         self.icons = Icons()
         self.setup_ui()
@@ -75,7 +74,9 @@ class UIManager:
         self.next_button.setToolTip("Next")
 
         self.add_favorite_button = QPushButton()
-        self.add_favorite_button.setIcon(QIcon(fileName=str(self.icons.icons["star_empty"])))
+        self.add_favorite_button.setIcon(
+            QIcon(fileName=str(self.icons.icons["star_empty"]))
+        )
         self.add_favorite_button.clicked.connect(
             self.main_window.add_favorite_button_clicked
         )
@@ -420,11 +421,6 @@ class UIManager:
         artist: str = self.main_window.settings_manager.get_artist()
         if artist:
             self.artist_input.setText(artist)
-
-        # local_folder: str = self.main_window.settings_manager.get_local_folder()
-        # if local_folder:
-        #     self.main_window.set_local_folder(local_folder)
-        #     self.local_select_folder_button.setToolTip(local_folder)
 
     def update_source_input(self) -> None:
         # Enable/disable favorite functions based on member id
