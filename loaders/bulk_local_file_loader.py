@@ -69,7 +69,7 @@ class BulkLocalFileLoader(QObject):
         self.file_list = file_list
         self.backends = backends
         self.thread_pool = QThreadPool()
-        self.thread_pool.setMaxThreadCount(10)
+        self.thread_pool.setMaxThreadCount(1) # Limit to 1 thread for now to avoid sorting issues
         self.songs_to_load = len(file_list)
         self.songs_loaded = 0
         self.mutex = QMutex()
