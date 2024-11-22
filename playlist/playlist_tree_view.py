@@ -200,15 +200,6 @@ class PlaylistTreeView(QTreeView):
                 self.set_current_row(row)
                 break
 
-    def get_songs_from(self, starting_from: int = 0) -> list[Song]:
-        songs = []
-        for row in range(starting_from, self.playlist_model.rowCount()):
-            item = self.playlist_model.item(row, 0)
-            song: Song = item.data(Qt.ItemDataRole.UserRole)
-            songs.append(song)
-
-        return songs
-
     def set_playlist(self, playlist: Playlist) -> None:
         self.playlist = playlist
         self.playlist_model.clear()

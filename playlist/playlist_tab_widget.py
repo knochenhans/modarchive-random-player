@@ -28,6 +28,7 @@ class PlaylistTabWidget(QTabWidget):
 
         self.tabBarDoubleClicked.connect(self.doubleClicked)
         self.tab_bar.tabMoved.connect(self.on_tab_moved)
+        self.currentChanged.connect(self.current_tab_changed)
 
         if add_tab_button:
             self.add_tab_button = QToolButton()
@@ -37,8 +38,18 @@ class PlaylistTabWidget(QTabWidget):
             self.setCornerWidget(self.add_tab_button, Qt.Corner.TopRightCorner)
 
     @Slot()
+    def current_tab_changed(self, index: int) -> None:
+        tab = self.widget(index)
+        if tab:
+            self.playlist_manager.set_current_playlist_by_index(index)
+
+    @Slot()
     def on_tab_moved(self, from_index: int, to_index: int) -> None:
         self.playlist_manager.playlist_moved(from_index, to_index)
+
+        # Print playlists with tab_index
+        for playlist in self.playlist_manager.playlists:
+            print(playlist.name, playlist.tab_index)
 
     @Slot()
     def on_add_tab_button_clicked(self) -> None:
@@ -122,12 +133,6 @@ class PlaylistTabWidget(QTabWidget):
         tab = self.get_current_tab()
         if tab:
             tab.update_song_info(index, song)
-
-    def get_songs_from(self, index: int) -> list[Song]:
-        tab = self.get_current_tab()
-        if tab:
-            return tab.get_songs_from(index)
-        return []
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Delete:

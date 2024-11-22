@@ -74,7 +74,7 @@ class PlaylistsDialog(QDialog):
 
     def on_song_double_clicked(self, song: Song, row: int, playlist: Playlist) -> None:
         # Play all songs on the current playlist starting from the selected song
-        songs = self.playlist_tab_widget.get_songs_from(row)
+        songs = playlist.get_songs_from(row)
         self.song_on_tab_double_clicked.emit(songs, playlist)
 
     def create_menu_bar(self):
@@ -166,8 +166,8 @@ class PlaylistsDialog(QDialog):
     def get_files_recursively(self, folder_path: str) -> list[str]:
         file_list = []
         for root, dirs, files in os.walk(folder_path):
-            dirs.sort()
-            files.sort()
+            dirs.sort(key=lambda s: s.lower())
+            files.sort(key=lambda s: s.lower())
             for dir in dirs:
                 file_list.extend(self.get_files_recursively(os.path.join(root, dir)))
             for file in files:

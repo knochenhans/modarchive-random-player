@@ -29,17 +29,19 @@ class PlaylistManager(QObject):
         # If only history playlist exists, create a default playlist
         if len(self.playlists) == 1:
             self.new_playlist("Default Playlist")
+        self.sort()
 
     def save_playlists(self) -> None:
         for playlist in self.playlists:
             if playlist.name != "History":
-                filename = os.path.join(self.config_dir, f"{playlist.uuid}.playlist")
-                playlist.to_json(filename)
+                self.save_playlist(playlist)
+
+    def save_playlist(self, playlist: Playlist):
+        filename = os.path.join(self.config_dir, f"{playlist.uuid}.playlist")
+        playlist.to_json(filename)
 
     def add_playlist(self, playlist: Playlist) -> None:
-        tab_index = self.get_new_tab_index()
         self.playlists.append(playlist)
-        playlist.tab_index = tab_index
         playlist.song_added.connect(
             lambda song: self.on_song_added_to_playlist(playlist, song)
         )
@@ -74,6 +76,10 @@ class PlaylistManager(QObject):
     def set_current_playlist(self, playlist: Playlist) -> None:
         self.current_playlist = playlist
 
+    def set_current_playlist_by_index(self, index: int) -> None:
+        # Set current playlist (index + 1 because of history playlist being at index 0)
+        self.current_playlist = self.playlists[index + 1]
+
     # def set_current_song(self, song: Song) -> None:
     #     self.current_playlist.set_current_song(song)
 
@@ -87,13 +93,6 @@ class PlaylistManager(QObject):
         self, playlist: Playlist, song: Song, index: int
     ) -> None:
         self.song_moved_on_playlist.emit(playlist, song, index)
-
-    def save_playlist(self):
-        for playlist in self.playlists:
-            if playlist.name != "History":
-                config_dir = user_config_dir(self.settings_manager.get_app_name())
-                filename = os.path.join(config_dir, f"{playlist.uuid}.playlist")
-                playlist.to_json(filename)
 
     def load_playlist(self, filename: str):
         playlist = Playlist.from_json(filename)

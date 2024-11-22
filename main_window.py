@@ -96,7 +96,6 @@ class MainWindow(QMainWindow):
         self.meta_data_dialog = None
 
         self.playlist_manager.load_playlists()
-        self.playlist_manager.sort()
 
         self.set_playing_mode(self.settings_manager.get_playing_mode())
         self.set_playing_source(self.settings_manager.get_playing_source())
@@ -428,7 +427,9 @@ class MainWindow(QMainWindow):
                         self.player_backend, self.audio_backend
                     )
                     self.player_thread.song_finished.connect(self.on_playing_finished)
-                    self.player_thread.position_changed.connect(self.update_progress)
+                    self.player_thread.position_changed.connect(
+                        self.ui_manager.update_progress
+                    )
                     self.player_thread.start()
 
                     self.ui_manager.set_play_button_icon("pause")
@@ -496,10 +497,6 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape:
             self.hide()
-
-    @Slot()
-    def update_progress(self, position: int, length: int) -> None:
-        self.ui_manager.update_progress(position, length)
 
     @Slot()
     def tray_icon_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
