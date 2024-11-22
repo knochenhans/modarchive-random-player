@@ -53,3 +53,7 @@ class PlayerBackend(ABC):
     @abstractmethod
     def seek(self, position: int) -> None:
         pass
+
+    @abstractmethod
+    def cleanup(self) -> None:
+        pass

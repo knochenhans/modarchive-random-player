@@ -210,3 +210,8 @@ class PlayerBackendLibUADE(PlayerBackend):
             != 0
         ):
             logger.error("Seeking failed")
+
+    def cleanup(self) -> None:
+        libuade.uade_cleanup_state(self.state_ptr)
+        # libuade.uade_cleanup_config(self.config_ptr)
+        logger.info("UADE cleaned up")

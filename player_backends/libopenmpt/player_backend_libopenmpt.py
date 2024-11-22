@@ -217,3 +217,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
     def seek(self, position: int) -> None:
         libopenmpt.openmpt_module_set_position_seconds(self.mod, position)
         logger.debug("Seeked to position: {}", position)
+
+    def cleanup(self) -> None:
+        self.free_module()
+        logger.debug("PlayerBackendLibOpenMPT cleaned up")

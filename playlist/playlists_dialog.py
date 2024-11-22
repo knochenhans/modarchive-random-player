@@ -1,4 +1,4 @@
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Slot
 
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QMenuBar, QProgressBar
 from PySide6.QtGui import (
@@ -6,7 +6,7 @@ from PySide6.QtGui import (
     QCloseEvent,
 )
 
-from loaders.local_loader import LocalLoader
+from loaders.bulk_local_file_loader import BulkLocalFileLoader
 from player_backends.player_backend import PlayerBackend
 from playlist.playlist import Playlist
 from player_backends.Song import Song
@@ -16,7 +16,6 @@ from typing import Optional
 from playlist.playlist_tab_widget import PlaylistTabWidget
 from PySide6.QtWidgets import QMenuBar, QFileDialog
 import os
-from platformdirs import user_config_dir
 
 from settings_manager import SettingsManager
 from loguru import logger
@@ -37,7 +36,7 @@ class PlaylistsDialog(QDialog):
         self.settings_manager = settings_manager
         self.playlist_manager = playlist_manager
         self.backends = backends
-        self.module_loaders = []
+        self.bulk_local_file_loader: Optional[BulkLocalFileLoader] = None
 
         self.setWindowTitle("Playlists")
         self.setGeometry(self.settings_manager.get_playlist_dialog_geometry())
@@ -46,11 +45,6 @@ class PlaylistsDialog(QDialog):
         self.playlist_tab_widget.song_double_clicked.connect(
             self.on_song_double_clicked
         )
-        # self.playlist_tab_widget.new_tab_added.connect(self.new_playlist)
-        # self.playlist_tab_widget.tab_renamed.connect(self.on_playlist_renamed)
-        # self.playlist_tab_widget.currentChanged.connect(
-        #     self.on_current_playlist_index_changed
-        # )
 
         self.current_playlist_index = 0
 
@@ -73,8 +67,9 @@ class PlaylistsDialog(QDialog):
         self.progress_bar.hide()
         self.main_layout.addWidget(self.progress_bar)
 
-        self.total_files_to_load = 0
+        self.files_remaining = 0
         self.files_loaded = 0
+        self.total_files = 0
 
     def add_playlist(self, playlist: Optional[Playlist]) -> None:
         self.playlist_tab_widget.add_tab(playlist)
@@ -107,25 +102,17 @@ class PlaylistsDialog(QDialog):
 
         self.main_layout.setMenuBar(menu_bar)
 
-    def load_file(self, file_path: str):
-        song = Song()
-        song.filename = file_path
-
-        module_loader = LocalLoader(self.backends)
-        module_loader.files = [file_path]
-        module_loader.load_module(song)
-        module_loader.song_loaded.connect(self.load_song)
-
-        self.module_loaders.append(module_loader)
-
     def load_files(self, file_list: list[str]):
         self.progress_bar.show()
-        
-        self.total_files_to_load = len(file_list)
-        self.progress_bar.setMaximum(self.total_files_to_load)
-        for file_path in file_list:
-            self.load_file(file_path)
-        logger.info(f"Loaded {self.total_files_to_load} files")
+
+        self.total_files = len(file_list)
+        self.files_remaining = self.total_files
+        self.progress_bar.setMaximum(self.total_files)
+
+        self.bulk_local_file_loader = BulkLocalFileLoader(file_list, self.backends)
+        self.bulk_local_file_loader.song_loaded.connect(self.load_song)
+        self.bulk_local_file_loader.all_songs_loaded.connect(self.finished_loading_songs)
+        self.bulk_local_file_loader.load_modules()
 
     def load_folder(self, folder_path: str):
         logger.info(f"Loading folder: {folder_path}")
@@ -141,17 +128,22 @@ class PlaylistsDialog(QDialog):
             self.load_files(file_paths)
             self.settings_manager.set_last_folder(os.path.dirname(file_paths[0]))
 
-    def load_song(self, song: Song) -> None:
-        if song:
-            self.playlist_tab_widget.load_song(song)
+    @Slot()
+    def finished_loading_songs(self):
+        logger.info(f"Loaded {self.total_files} files")
 
+    def load_song(self, song: Song) -> None:
         self.files_loaded += 1
 
-        if self.files_loaded < self.total_files_to_load:
+        if song:
+            if song.backend_name:
+                self.playlist_tab_widget.load_song(song)
+
+        if self.files_loaded < self.files_remaining:
             self.progress_bar.setValue(self.files_loaded)
         else:
             self.progress_bar.hide()
-            self.total_files_to_load = 0
+            self.files_remaining = 0
             self.files_loaded = 0
         self.update()
 
@@ -189,7 +181,7 @@ class PlaylistsDialog(QDialog):
             for file in files:
                 file_list.append(os.path.join(root, file))
         return file_list
-    
+
     def closeEvent(self, event: QCloseEvent) -> None:
         self.settings_manager.set_playlist_dialog_geometry(self.geometry())
         event.accept()

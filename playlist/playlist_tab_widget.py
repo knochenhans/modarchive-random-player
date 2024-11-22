@@ -135,7 +135,6 @@ class PlaylistTabWidget(QTabWidget):
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Delete:
-            # Remove the selected song
             tab = self.get_current_tab()
             if tab:
                 tab.remove_selected_songs()
