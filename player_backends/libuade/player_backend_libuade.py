@@ -94,7 +94,7 @@ class PlayerBackendLibUADE(PlayerBackend):
         self.song.playerfname = info.playerfname.decode("cp1251")
         self.song.playername = info.playername.decode("cp1251")
         self.song.type = info.formatname.decode("cp1251")
-        self.song.duration = int(info.duration)
+        self.song.duration = int(self.get_module_length())
 
         subsongs: uade_subsong_info = info.subsongs
 

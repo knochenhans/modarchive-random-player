@@ -205,7 +205,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
                         self.song.warnings = value
 
         self.song.subsongs = libopenmpt.openmpt_module_get_num_subsongs(self.mod)
-        self.song.duration = libopenmpt.openmpt_module_get_duration_seconds(self.mod)
+        self.song.duration = int(self.get_module_length())
 
         self.calculate_checksums()
 
