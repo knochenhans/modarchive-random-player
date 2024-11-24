@@ -3,7 +3,7 @@
 ![grafik](https://github.com/user-attachments/assets/1e9d1c44-2344-43b0-a531-80a131ebbac2)
 
 
-A simple music player application using `libopenmpt` and `libuade` to play random module files from *[The Mod Archive](https://modarchive.org)*. This application is built with Python and PySide6 for the GUI, and uses `pyaudio` for audio playback. It chooses the best player based on the module type.
+A simple retro music player application using `libopenmpt` and `libuade` to play random module files from *[The Mod Archive](https://modarchive.org)*, and also supports `libgme`. This application is built with Python and PySide6 for the GUI, and uses `pyaudio` for audio playback. It chooses the best player based on the module type.
 
 Uses [libopenmpt_py](https://github.com/shroom00/libopenmpt_py) to interface with `libopenmpt` via Python.
 
@@ -37,6 +37,7 @@ Only works under Linux for now.
 - Python 3.6+
 - `libopenmpt` (if using Linux)
 - `libuade`
+- `libgme`
 - `pyaudio`
 - `requests`
 - `beautifulsoup4`
@@ -46,7 +47,6 @@ Only works under Linux for now.
 
 - Add support for sub-song playback.
 - Implement libsidplayfp-python for SID playback.
-- Implement libgme for other game music types.
 - Implement ffmpeg for other music types.
 - Silence detection to skip silent intros/outros.
 - Fix slight delay when playing/pausing.

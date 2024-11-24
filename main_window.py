@@ -19,6 +19,7 @@ from playlist.playlist import Playlist
 from playlist.playlists_dialog import PlaylistsDialog
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
+from player_backends.libgme.player_backend_libgme import PlayerBackendLibGME
 from player_backends.player_backend import PlayerBackend, Song
 from player_thread import PlayerThread
 from playlist.playlist_manager import PlaylistManager
@@ -43,6 +44,7 @@ class MainWindow(QMainWindow):
         self.player_backends: Dict[str, type[PlayerBackend]] = {
             "LibUADE": PlayerBackendLibUADE,
             "LibOpenMPT": PlayerBackendLibOpenMPT,
+            "LibGME": PlayerBackendLibGME,
         }
         self.player_backend: Optional[PlayerBackend] = None
         self.audio_backend: Optional[AudioBackendPyAudio] = None
