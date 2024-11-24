@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QMainWindow, QMenu, QSystemTrayIcon
 from icons import Icons
 from dialogs.history_dialog import HistoryDialog
 from dialogs.meta_data_dialog import MetaDataDialog
-from playing_engine import PlayerEngine
+from playing_engine import PlayingEngine
 from playlist.playlists_dialog import PlaylistsDialog
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
 from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
@@ -20,7 +20,6 @@ from dialogs.settings_dialog import SettingsDialog
 from settings_manager import SettingsManager
 from ui_manager import UIManager
 from web_helper import WebHelper
-from PySide6.QtCore import QTimer
 
 
 class MainWindow(QMainWindow):
@@ -45,13 +44,12 @@ class MainWindow(QMainWindow):
 
         self.ui_manager.load_settings()
 
-        self.player_engine = PlayerEngine(
+        self.playing_engine = PlayingEngine(
             self.ui_manager, self.settings_manager, self.player_backends
         )
-        self.player_engine.set_window_title.connect(self.set_window_title)
-
-        self.queue_check_timer = QTimer(self)
-        self.queue_check_timer.timeout.connect(self.player_engine.check_queue)
+        
+        self.ui_manager.playing_engine = self.playing_engine
+        self.playing_engine.set_window_title.connect(self.set_window_title)
 
         self.history_dialog = None
         self.playlist_dialog = None
@@ -65,14 +63,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{self.name} - {title}")
 
     def add_favorite_button_clicked(self) -> None:
-        if self.player_engine.current_song:
+        if self.playing_engine.current_song:
             action = (
                 "add_favourite"
                 if not self.current_module_is_favorite
                 else "remove_favourite"
             )
             webbrowser.open(
-                f"https://modarchive.org/interactive.php?request={action}&query={self.player_engine.current_song.modarchive_id}"
+                f"https://modarchive.org/interactive.php?request={action}&query={self.playing_engine.current_song.modarchive_id}"
             )
 
             self.current_module_is_favorite = not self.current_module_is_favorite
@@ -90,19 +88,19 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_play_pause_pressed(self) -> None:
-        self.player_engine.play_pause()
+        self.playing_engine.play_pause()
 
     @Slot()
     def on_stop_pressed(self) -> None:
-        self.player_engine.stop(True)
+        self.playing_engine.stop(True)
 
     @Slot()
     def on_next_pressed(self) -> None:
-        self.player_engine.play_next()
+        self.playing_engine.play_next()
 
     @Slot()
     def on_previous_pressed(self) -> None:
-        self.player_engine.play_previous()
+        self.playing_engine.play_previous()
 
     @Slot()
     def open_module_link(self, link: str) -> None:
@@ -120,9 +118,9 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_lookup_msm(self) -> None:
-        if self.player_engine.current_song:
+        if self.playing_engine.current_song:
             url: str = self.web_helper.lookup_msm_mod_url(
-                self.player_engine.current_song
+                self.playing_engine.current_song
             )
 
             if url:
@@ -130,9 +128,9 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_lookup_modarchive(self) -> None:
-        if self.player_engine.current_song:
+        if self.playing_engine.current_song:
             url: str = self.web_helper.lookup_modarchive_mod_url(
-                self.player_engine.current_song
+                self.playing_engine.current_song
             )
 
             if url:
@@ -145,16 +143,16 @@ class MainWindow(QMainWindow):
         else:
             self.history_dialog = HistoryDialog(
                 self.settings_manager,
-                self.player_engine.playlist_manager,
-                self.player_engine.history_playlist,
+                self.playing_engine.playlist_manager,
+                self.playing_engine.history_playlist,
                 self,
             )
-            self.player_engine.history_playlist.song_added.connect(
+            self.playing_engine.history_playlist.song_added.connect(
                 self.history_dialog.add_song
             )
             # self.song_info_updated.connect(history_dialog.update_song_info)
             self.history_dialog.song_on_tab_double_clicked.connect(
-                self.player_engine.play_module
+                self.playing_engine.play_module
             )
             self.history_dialog.show()
 
@@ -165,12 +163,12 @@ class MainWindow(QMainWindow):
         else:
             self.playlists_dialog = PlaylistsDialog(
                 self.settings_manager,
-                self.player_engine.playlist_manager,
+                self.playing_engine.playlist_manager,
                 self.player_backends,
                 self,
             )
             self.playlists_dialog.song_on_tab_double_clicked.connect(
-                self.player_engine.play_playlist_modules
+                self.playing_engine.play_playlist_modules
             )
             self.playlists_dialog.show()
 
@@ -179,9 +177,9 @@ class MainWindow(QMainWindow):
             self.meta_data_dialog.close()
             self.meta_data_dialog = None
         else:
-            if self.player_engine.current_song:
+            if self.playing_engine.current_song:
                 self.meta_data_dialog = MetaDataDialog(
-                    self.player_engine.current_song, self
+                    self.playing_engine.current_song, self
                 )
                 self.meta_data_dialog.show()
 
@@ -199,13 +197,13 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def closeEvent(self, event) -> None:
-        self.player_engine.stop()
+        self.playing_engine.stop()
 
-        self.player_engine.playlist_manager.save_playlists()
-        self.player_engine.playing_settings.save()
+        self.playing_engine.playlist_manager.save_playlists()
+        self.playing_engine.playing_settings.save()
         self.settings_manager.close()
         self.ui_manager.close_ui()
 
-        shutil.rmtree(self.player_engine.temp_dir)
+        shutil.rmtree(self.playing_engine.temp_dir)
 
         super().closeEvent(event)

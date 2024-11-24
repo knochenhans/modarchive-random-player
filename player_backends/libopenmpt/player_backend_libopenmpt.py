@@ -49,15 +49,15 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         super().__init__(name)
         logger.debug("PlayerBackendLibOpenMPT initialized")
 
-    def check_module(self) -> bool:
-        openmpt_log_func = ctypes.CFUNCTYPE(
+        self.openmpt_log_func = ctypes.CFUNCTYPE(
             None, ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p
         )
-        openmpt_error_func = ctypes.CFUNCTYPE(
+        self.openmpt_error_func = ctypes.CFUNCTYPE(
             None, ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p
         )
-        load_mod = libopenmpt.openmpt_module_create_from_memory2
+        self.load_mod = libopenmpt.openmpt_module_create_from_memory2
 
+    def check_module(self) -> bool:
         ctls = ctypes.c_void_p()
         error = ctypes.c_int()
         error_message = ctypes.c_char_p()
@@ -78,9 +78,9 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             self.module_data,  # const void * filedata
             ctypes.c_size_t(self.module_size),  # size_t filesize
             self.module_size,  # size_t filesize
-            openmpt_log_func(log_callback),  # openmpt_log_func logfunc
+            self.openmpt_log_func(log_callback),  # openmpt_log_func logfunc
             None,  # void * loguser
-            openmpt_error_func(error_callback),  # openmpt_error_func errfunc
+            self.openmpt_error_func(error_callback),  # openmpt_error_func errfunc
             None,  # void * erruser
             ctypes.byref(error),  # int * error
             ctypes.byref(error_message),  # const char ** error_message
@@ -108,14 +108,25 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             libopenmpt.openmpt_free_string(error_message)
             return False
 
-        logger.debug("Loading module")
+        if not self.load_module():
+            return False
 
-        self.mod = load_mod(
+        return True
+
+    def load_module(self) -> bool:
+        ctls = ctypes.c_void_p()
+        error = ctypes.c_int()
+        error_message = ctypes.c_char_p()
+
+        self.module_data = open(self.song.filename, "rb").read()
+        self.module_size = len(self.module_data)
+
+        self.mod = self.load_mod(
             self.module_data,  # const void * filedata
             self.module_size,  # size_t filesize
-            openmpt_log_func(log_callback),  # openmpt_log_func logfunc
+            self.openmpt_log_func(log_callback),  # openmpt_log_func logfunc
             None,  # void * loguser
-            openmpt_error_func(error_callback),  # openmpt_error_func errfunc
+            self.openmpt_error_func(error_callback),  # openmpt_error_func errfunc
             None,  # void * erruser
             ctypes.byref(error),  # int * error
             ctypes.byref(error_message),  # const char ** error_message
@@ -133,7 +144,6 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             )
             libopenmpt.openmpt_free_string(error_message)
             return False
-
         return True
 
     def prepare_playing(self, subsong_nr: int = -1) -> None:
@@ -141,6 +151,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
             libopenmpt.openmpt_module_select_subsong(self.mod, subsong_nr)
 
     def get_module_length(self) -> float:
+        self.load_module()
         return libopenmpt.openmpt_module_get_duration_seconds(self.mod)
 
     def read_chunk(self, samplerate: int, buffersize: int) -> tuple[int, bytes]:

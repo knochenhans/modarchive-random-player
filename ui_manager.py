@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from PySide6.QtCore import Qt, QDir
 from PySide6.QtGui import QAction, QFont, QIcon, QFontDatabase
 from PySide6.QtWidgets import (
@@ -26,6 +27,9 @@ from playing_modes import ModArchiveSource, PlayingMode, PlayingSource, LocalSou
 class UIManager:
     def __init__(self, main_window) -> None:
         self.main_window = main_window
+        from playing_engine import PlayingEngine
+
+        self.playing_engine: Optional[PlayingEngine] = None
 
         self.icons = Icons()
         self.setup_ui()
@@ -393,10 +397,12 @@ class UIManager:
         return self.artist_input.text()
 
     def on_playing_mode_changed(self, mode: PlayingMode) -> None:
-        self.main_window.set_playing_mode(mode)
+        if self.playing_engine:
+            self.playing_engine.set_playing_mode(mode)
 
     def on_playing_source_changed(self, source: PlayingSource) -> None:
-        self.main_window.set_playing_source(source)
+        if self.playing_engine:
+            self.playing_engine.set_playing_source(source)
 
         if source == PlayingSource.LOCAL:
             self.modarchive_source_combo_box.setEnabled(False)
@@ -406,7 +412,8 @@ class UIManager:
             self.local_source_combo_box.setEnabled(False)
 
     def on_modarchive_source_changed(self, source: ModArchiveSource) -> None:
-        self.main_window.set_modarchive_source(source)
+        if self.playing_engine:
+            self.playing_engine.set_modarchive_source(source)
 
         if source == ModArchiveSource.ARTIST:
             self.artist_label.setVisible(True)
@@ -416,7 +423,8 @@ class UIManager:
             self.artist_input.setVisible(False)
 
     def on_local_source_changed(self, source: LocalSource) -> None:
-        self.main_window.set_local_source(source)
+        if self.playing_engine:
+            self.playing_engine.set_local_source(source)
 
     def load_settings(self) -> None:
         self.update_source_input()

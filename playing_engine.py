@@ -2,7 +2,7 @@ import tempfile
 from typing import Optional, Dict
 
 from loguru import logger
-from PySide6.QtCore import Slot, QObject, Signal
+from PySide6.QtCore import Slot, QObject, Signal, QTimer
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
 from loaders.modarchive_random_module_fetcher import ModArchiveRandomModuleFetcherThread
@@ -19,7 +19,7 @@ from ui_manager import UIManager
 from web_helper import WebHelper
 
 
-class PlayerEngine(QObject):
+class PlayingEngine(QObject):
     set_window_title = Signal(str)
 
     def __init__(
@@ -60,12 +60,15 @@ class PlayerEngine(QObject):
         self.temp_dir = tempfile.mkdtemp()
 
         self.module_loader = ModuleLoader(
-            self.playing_settings.playing_source,
+            self.playing_settings,
             self.local_file,
             WebHelper(),
             self.temp_dir,
             self.player_backends,
         )
+
+        self.queue_check_timer = QTimer(self)
+        self.queue_check_timer.timeout.connect(self.check_queue)
 
     def play_module(self, song: Optional[Song]) -> None:
         if song:
@@ -284,7 +287,9 @@ class PlayerEngine(QObject):
         self.ui_manager.set_playing_mode(new_playing_mode)
 
     def set_playing_source(self, new_playing_source) -> None:
-        self.playing_settings.playing_source = new_playing_source
+        if new_playing_source != self.playing_settings.playing_source:
+            self.playing_settings.playing_source = new_playing_source
+            self.update_playing_mode()
         if new_playing_source == PlayingSource.LOCAL:
             self.module_loader.local_file = self.local_file
         self.ui_manager.set_playing_source(new_playing_source)
@@ -317,7 +322,7 @@ class PlayerEngine(QObject):
 
         if self.playing_settings.playing_mode == PlayingMode.RANDOM:
             self.populate_queue()
-            # TODO self.queue_check_timer.start(10000)
+            self.queue_check_timer.start(10000)
 
     def check_playing_mode(self) -> None:
         if (
