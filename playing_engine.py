@@ -41,7 +41,6 @@ class PlayingEngine(QObject):
             ModArchiveRandomModuleFetcherThread
         ] = []
 
-        self.current_song: Optional[Song] = None
         self.song_waiting_for_playback: Optional[Song] = None
         self.current_module_is_favorite: bool = False
 
@@ -70,11 +69,13 @@ class PlayingEngine(QObject):
         self.queue_check_timer = QTimer(self)
         self.queue_check_timer.timeout.connect(self.check_queue)
 
+    def get_current_song(self) -> Optional[Song]:
+        if self.player_backend:
+            return self.player_backend.song
+
     def play_module(self, song: Optional[Song]) -> None:
         if song:
             if song.is_ready:
-                self.current_song = song
-
                 self.stop()
 
                 logger.debug("Playing module")
@@ -94,10 +95,7 @@ class PlayingEngine(QObject):
                 )
 
                 if self.player_backend is not None and self.audio_backend is not None:
-                    # self.stop()
                     self.player_backend.song = song
-                    # self.song.filename = filename.split("/")[-1]
-                    self.current_song = song
 
                     module_title: str = song.title or "Unknown"
                     module_message: str = song.message or ""
@@ -135,9 +133,10 @@ class PlayingEngine(QObject):
                         self.ui_manager.show_favorite_button(False)
 
                         if self.playing_settings.local_source == LocalSource.PLAYLIST:
-                            if self.playlist_manager.current_playlist:
+                            song = self.get_current_song()
+                            if self.playlist_manager.current_playlist and song:
                                 self.playlist_manager.current_playlist.set_current_song(
-                                    self.current_song
+                                    song
                                 )
                 else:
                     raise ValueError("No player backend loaded")
@@ -179,12 +178,15 @@ class PlayingEngine(QObject):
 
         is_favorite = False
 
-        if self.current_song and self.current_song.modarchive_id:
-            is_favorite = self.current_song.modarchive_id in member_favorites_id_list
-            self.ui_manager.set_favorite_button_state(is_favorite)
+        song = self.get_current_song()
 
-            if is_favorite:
-                logger.debug("Current module is a member favorite")
+        if song:
+            if  song.modarchive_id:
+                is_favorite = song.modarchive_id in member_favorites_id_list
+                self.ui_manager.set_favorite_button_state(is_favorite)
+
+                if is_favorite:
+                    logger.debug("Current module is a member favorite")
 
         return is_favorite
 
@@ -357,3 +359,8 @@ class PlayingEngine(QObject):
     def seek(self, position: int) -> None:
         if self.player_thread:
             self.player_thread.seek(position)
+
+    def close(self) -> None:
+        self.stop()
+        self.playlist_manager.save_playlists()
+        self.playing_settings.save()

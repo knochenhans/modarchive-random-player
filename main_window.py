@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
         self.playing_engine = PlayingEngine(
             self.ui_manager, self.settings_manager, self.player_backends
         )
-        
+
         self.ui_manager.playing_engine = self.playing_engine
         self.playing_engine.set_window_title.connect(self.set_window_title)
 
@@ -63,14 +63,14 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{self.name} - {title}")
 
     def add_favorite_button_clicked(self) -> None:
-        if self.playing_engine.current_song:
+        if self.playing_engine.get_current_song:
             action = (
                 "add_favourite"
                 if not self.current_module_is_favorite
                 else "remove_favourite"
             )
             webbrowser.open(
-                f"https://modarchive.org/interactive.php?request={action}&query={self.playing_engine.current_song.modarchive_id}"
+                f"https://modarchive.org/interactive.php?request={action}&query={self.playing_engine.get_current_song.modarchive_id}"
             )
 
             self.current_module_is_favorite = not self.current_module_is_favorite
@@ -118,23 +118,25 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def on_lookup_msm(self) -> None:
-        if self.playing_engine.current_song:
-            url: str = self.web_helper.lookup_msm_mod_url(
-                self.playing_engine.current_song
-            )
+        if self.playing_engine:
+            song = self.playing_engine.get_current_song()
 
-            if url:
-                webbrowser.open(url)
+            if song:
+                url: str = self.web_helper.lookup_msm_mod_url(song)
+
+                if url:
+                    webbrowser.open(url)
 
     @Slot()
     def on_lookup_modarchive(self) -> None:
-        if self.playing_engine.current_song:
-            url: str = self.web_helper.lookup_modarchive_mod_url(
-                self.playing_engine.current_song
-            )
+        if self.playing_engine:
+            song = self.playing_engine.get_current_song()
 
-            if url:
-                webbrowser.open(url)
+            if song:
+                url: str = self.web_helper.lookup_modarchive_mod_url(song)
+
+                if url:
+                    webbrowser.open(url)
 
     def open_history_dialog(self) -> None:
         if self.history_dialog:
@@ -177,11 +179,12 @@ class MainWindow(QMainWindow):
             self.meta_data_dialog.close()
             self.meta_data_dialog = None
         else:
-            if self.playing_engine.current_song:
-                self.meta_data_dialog = MetaDataDialog(
-                    self.playing_engine.current_song, self
-                )
-                self.meta_data_dialog.show()
+            if self.playing_engine:
+                song = self.playing_engine.get_current_song()
+
+                if song:
+                    self.meta_data_dialog = MetaDataDialog(song, self)
+                    self.meta_data_dialog.show()
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape:
@@ -197,10 +200,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def closeEvent(self, event) -> None:
-        self.playing_engine.stop()
-
-        self.playing_engine.playlist_manager.save_playlists()
-        self.playing_engine.playing_settings.save()
+        self.playing_engine.close()
         self.settings_manager.close()
         self.ui_manager.close_ui()
 
