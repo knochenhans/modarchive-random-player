@@ -40,7 +40,6 @@ class UIManager:
         self.setup_buttons()
         self.setup_slider()
         self.setup_multiline_label()
-        self.setup_artist_input()
         self.setup_playing_settings()
         self.setup_additional_buttons()
         self.setup_layout()
@@ -113,12 +112,6 @@ class UIManager:
         self.message_scroll_area.setMinimumHeight(
             self.main_window.fontMetrics().height() * 15
         )
-
-    def setup_artist_input(self) -> None:
-        self.artist_label = QLabel("Artist")
-        self.artist_input = QLineEdit()
-        self.artist_input.setPlaceholderText("Artist")
-        self.artist_input.textChanged.connect(self.save_artist_input)
 
     def setup_playing_settings(self) -> None:
         self.playing_mode_label = QLabel("Playing Mode")
@@ -216,16 +209,17 @@ class UIManager:
         vbox_layout.addLayout(slider_layout)
         vbox_layout.addWidget(self.message_scroll_area)
 
+        self.artist_label = QLabel("Artist")
+        self.artist_input = QLineEdit()
+        self.artist_input.setPlaceholderText("Artist")
+        self.artist_input.textChanged.connect(self.save_artist_input)
+
         artist_layout = QHBoxLayout()
         artist_layout.addWidget(self.artist_label)
         artist_layout.addWidget(self.artist_input)
 
-        modarchive_layout = QVBoxLayout()
-        modarchive_layout.addLayout(artist_layout)
-
-        self.modarchive_source_group_box = QGroupBox("ModArchive Settings")
-        self.modarchive_source_group_box.setLayout(modarchive_layout)
-        vbox_layout.addWidget(self.modarchive_source_group_box)
+        self.artist_label.setVisible(False)
+        self.artist_input.setVisible(False)
 
         playing_layout = QVBoxLayout()
         playing_layout.addWidget(self.playing_mode_label)
@@ -234,6 +228,7 @@ class UIManager:
         playing_layout.addWidget(self.playing_source_combo_box)
         playing_layout.addWidget(self.modarchive_source_label)
         playing_layout.addWidget(self.modarchive_source_combo_box)
+        playing_layout.addLayout(artist_layout)
         playing_layout.addWidget(self.local_source_label)
         playing_layout.addWidget(self.local_source_combo_box)
 
@@ -412,6 +407,13 @@ class UIManager:
 
     def on_modarchive_source_changed(self, source: ModArchiveSource) -> None:
         self.main_window.set_modarchive_source(source)
+
+        if source == ModArchiveSource.ARTIST:
+            self.artist_label.setVisible(True)
+            self.artist_input.setVisible(True)
+        else:
+            self.artist_label.setVisible(False)
+            self.artist_input.setVisible(False)
 
     def on_local_source_changed(self, source: LocalSource) -> None:
         self.main_window.set_local_source(source)

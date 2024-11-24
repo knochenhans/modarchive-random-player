@@ -119,20 +119,26 @@ class PlaylistTabWidget(QTabWidget):
         if tab:
             tab.add_song(song)
 
-    def load_song(self, song: Song) -> None:
+    def load_song(self, song: Song) -> int:
         tab = self.get_current_tab()
         if tab:
-            tab.load_song(song)
+            return tab.load_song(song)
+        return -1
 
     def remove_song_at(self, index: int) -> None:
         tab = self.get_current_tab()
         if tab:
             tab.remove_song_at(index)
 
-    def update_song_info(self, index: int, song: Song) -> None:
+    def update_view(self) -> None:
         tab = self.get_current_tab()
         if tab:
-            tab.update_song_info(index, song)
+            tab.update_view()
+
+    def update_song_info(self, row: int, song: Song) -> None:
+        tab = self.get_current_tab()
+        if tab:
+            tab.update_song_info(row, song)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Delete:

@@ -6,15 +6,15 @@ from typing import Optional, Dict
 from loguru import logger
 from PySide6.QtCore import QSettings, Qt, Slot
 from PySide6.QtGui import QAction, QCursor
-from PySide6.QtWidgets import QMainWindow, QMenu, QSystemTrayIcon, QFileDialog
+from PySide6.QtWidgets import QMainWindow, QMenu, QSystemTrayIcon
 
 from audio_backends.pyaudio.audio_backend_pyuadio import AudioBackendPyAudio
 from icons import Icons
 from loaders.modarchive_random_module_fetcher import ModArchiveRandomModuleFetcherThread
 from playing_modes import LocalSource, PlayingMode, PlayingSource, ModArchiveSource
-from history_dialog import HistoryDialog
+from dialogs.history_dialog import HistoryDialog
 from loaders.module_loader import ModuleLoader
-from meta_data_dialog import MetaDataDialog
+from dialogs.meta_data_dialog import MetaDataDialog
 from playlist.playlist import Playlist
 from playlist.playlists_dialog import PlaylistsDialog
 from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
@@ -24,17 +24,14 @@ from player_backends.player_backend import PlayerBackend, Song
 from player_thread import PlayerThread
 from playlist.playlist_manager import PlaylistManager
 from queue_manager import QueueManager
-from settings_dialog import SettingsDialog
+from dialogs.settings_dialog import SettingsDialog
 from settings_manager import SettingsManager
 from ui_manager import UIManager
 from web_helper import WebHelper
-import os
 from PySide6.QtCore import QTimer
 
 
 class MainWindow(QMainWindow):
-    # song_info_updated = Signal(Song)
-
     def __init__(self) -> None:
         super().__init__()
         self.name: str = "Mod Archive Random Player"
@@ -219,7 +216,9 @@ class MainWindow(QMainWindow):
             current_playlist = self.playlist_manager.current_playlist
 
             if current_playlist:
-                songs = current_playlist.get_songs_from(current_playlist.current_song_index - 1)
+                songs = current_playlist.get_songs_from(
+                    current_playlist.current_song_index - 1
+                )
                 self.queue_manager.set_queue(songs)
                 self.play_queue()
 
@@ -335,7 +334,7 @@ class MainWindow(QMainWindow):
     def set_modarchive_source(self, new_modarchive_source) -> None:
         self.modarchive_source = new_modarchive_source
         if new_modarchive_source == ModArchiveSource.ARTIST:
-            self.get_random_module(self.current_song)
+            self.populate_queue()
         self.ui_manager.set_modarchive_source(new_modarchive_source)
 
     def set_local_source(self, new_local_source) -> None:
@@ -408,7 +407,6 @@ class MainWindow(QMainWindow):
                 if self.player_backend is not None and self.audio_backend is not None:
                     # self.stop()
                     self.player_backend.song = song
-                    self.player_backend.check_module()
                     # self.song.filename = filename.split("/")[-1]
                     self.current_song = song
 

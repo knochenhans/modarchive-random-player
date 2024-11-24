@@ -111,6 +111,7 @@ class PlaylistsDialog(QDialog):
 
         self.local_file_loader = LocalFileLoader(file_list, self.backends)
         self.local_file_loader.song_loaded.connect(self.load_song)
+        self.local_file_loader.song_info_retrieved.connect(self.update_song_info)
         self.local_file_loader.all_songs_loaded.connect(self.finished_loading_songs)
         self.local_file_loader.load_modules()
 
@@ -146,6 +147,10 @@ class PlaylistsDialog(QDialog):
             self.files_remaining = 0
             self.files_loaded = 0
         self.update()
+
+    def update_song_info(self, song: Song) -> None:
+        self.playlist_tab_widget.update_song_info(-1, song)
+        # self.update()
 
     def add_song(self, song: Song) -> None:
         self.playlist_tab_widget.add_song(song)
