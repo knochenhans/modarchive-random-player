@@ -20,12 +20,12 @@ def error_callback(user_data, message):
 
 
 def print_error(
-    func_name: Optional[ctypes.c_char],
+    func_name: Optional[str],
     mod_err: int,
-    mod_err_str: Optional[ctypes.c_char],
+    mod_err_str: Optional[str],
 ) -> None:
     if not func_name:
-        func_name = ctypes.c_char(b"unknown function")
+        func_name = "unknown function"
 
     if mod_err == libopenmpt.OPENMPT_ERROR_OUT_OF_MEMORY:
         mod_err_str = libopenmpt.openmpt_error_string(mod_err)
@@ -33,7 +33,7 @@ def print_error(
             warnings.warn("Error: OPENMPT_ERROR_OUT_OF_MEMORY")
         else:
             warnings.warn(f"Error: {mod_err_str}")
-            mod_err_str = None
+            libopenmpt.openmpt_free_string(mod_err_str)
     else:
         if not mod_err_str:
             mod_err_str = libopenmpt.openmpt_error_string(mod_err)
@@ -42,7 +42,6 @@ def print_error(
             else:
                 warnings.warn(f"Error: {func_name} failed: {mod_err_str}")
             libopenmpt.openmpt_free_string(mod_err_str)
-            mod_err_str = None
 
 
 class PlayerBackendLibOpenMPT(PlayerBackend):
@@ -100,9 +99,11 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         elif result == libopenmpt.OPENMPT_PROBE_FILE_HEADER_RESULT_ERROR:
             logger.error("An internal error occurred.")
             print_error(
-                ctypes.c_char(b"openmpt_probe_file_header()"),
+                "openmpt_probe_file_header()",
                 error.value,
-                ctypes.cast(error_message, ctypes.POINTER(ctypes.c_char)).contents,
+                ctypes.cast(
+                    error_message, ctypes.POINTER(ctypes.c_char)
+                ).contents.value.decode(),
             )
             libopenmpt.openmpt_free_string(error_message)
             return False
@@ -124,9 +125,11 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         if not self.mod:
             logger.error(f"LibOpenMPT is unable to load {self.song.filename}")
             print_error(
-                ctypes.c_char(b"openmpt_module_create_from_memory2()"),
+                "openmpt_module_create_from_memory2()",
                 error.value,
-                ctypes.cast(error_message, ctypes.POINTER(ctypes.c_char)).contents,
+                ctypes.cast(
+                    error_message, ctypes.POINTER(ctypes.c_char)
+                ).contents.value.decode(),
             )
             libopenmpt.openmpt_free_string(error_message)
             return False
@@ -151,7 +154,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         if mod_err != libopenmpt.OPENMPT_ERROR_OK:
             logger.error("Error reading module: {}", mod_err_str)
             print_error(
-                ctypes.c_char(b"openmpt_module_read_interleaved_stereo()"),
+                "openmpt_module_read_interleaved_stereo()",
                 mod_err,
                 mod_err_str,
             )
