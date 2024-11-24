@@ -84,7 +84,6 @@ class MainWindow(QMainWindow):
             self.settings_dialog = None
         else:
             self.settings_dialog = SettingsDialog(self.settings, self)
-            self.settings_dialog.setWindowTitle("Settings")
             self.settings_dialog.exec()
 
             self.ui_manager.update_source_input()
