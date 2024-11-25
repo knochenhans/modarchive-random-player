@@ -405,11 +405,15 @@ class UIManager:
             self.playing_engine.set_playing_source(source)
 
         if source == PlayingSource.LOCAL:
-            self.modarchive_source_combo_box.setEnabled(False)
-            self.local_source_combo_box.setEnabled(True)
+            self.modarchive_source_label.hide()
+            self.modarchive_source_combo_box.hide()
+            self.local_source_label.show()
+            self.local_source_combo_box.show()
         else:
-            self.modarchive_source_combo_box.setEnabled(True)
-            self.local_source_combo_box.setEnabled(False)
+            self.modarchive_source_label.show()
+            self.modarchive_source_combo_box.show()
+            self.local_source_label.hide()
+            self.local_source_combo_box.hide()
 
     def on_modarchive_source_changed(self, source: ModArchiveSource) -> None:
         if self.playing_engine:
