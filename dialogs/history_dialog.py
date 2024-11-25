@@ -1,6 +1,7 @@
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QDialog, QVBoxLayout
 from player_backends.Song import Song
+from playing_engine import PlayingEngine
 from playlist.playlist import Playlist
 from typing import Optional
 from PySide6.QtCore import Signal, Qt
@@ -15,21 +16,18 @@ class HistoryDialog(QDialog):
 
     def __init__(
         self,
-        settings_manager: SettingsManager,
-        playlist_manager: PlaylistManager,
-        playlist: Optional[Playlist],
+        playing_engine: PlayingEngine,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.Window)
 
-        self.settings_manager = settings_manager
-        self.playlist_manager = playlist_manager
+        self.playing_engine = playing_engine
 
         self.setWindowTitle("History")
-        self.setGeometry(self.settings_manager.get_history_dialog_geometry())
+        self.setGeometry(self.playing_engine.settings_manager.get_history_dialog_geometry())
 
-        self.tab_widget = PlaylistTabWidget(self, self.playlist_manager, False)
+        self.tab_widget = PlaylistTabWidget(self, self.playing_engine.playlist_manager, False)
         self.tab_widget.song_double_clicked.connect(self.on_song_double_clicked)
 
         self.main_layout = QVBoxLayout(self)
@@ -37,7 +35,7 @@ class HistoryDialog(QDialog):
 
         self.setLayout(self.main_layout)
 
-        self.tab_widget.add_tab(self.playlist_manager.get_history_playlist())
+        self.tab_widget.add_tab(self.playing_engine.playlist_manager.get_history_playlist())
 
         self.show()
 
@@ -55,5 +53,5 @@ class HistoryDialog(QDialog):
         pass
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        self.settings_manager.set_history_dialog_geometry(self.geometry())
+        self.playing_engine.settings_manager.set_history_dialog_geometry(self.geometry())
         event.accept()

@@ -527,5 +527,5 @@ class UIManager:
             families |= set(QFontDatabase.applicationFontFamilies(_id))
         return families
 
-    def close_ui(self) -> None:
+    def close(self) -> None:
         self.tray_icon.hide()

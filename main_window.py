@@ -50,6 +50,19 @@ class MainWindow(QMainWindow):
 
         self.ui_manager.playing_engine = self.playing_engine
         self.playing_engine.set_window_title.connect(self.set_window_title)
+        
+        self.ui_manager.set_playing_mode(
+            self.playing_engine.playing_settings.playing_mode
+        )
+        self.ui_manager.set_playing_source(
+            self.playing_engine.playing_settings.playing_source
+        )
+        self.ui_manager.set_modarchive_source(
+            self.playing_engine.playing_settings.modarchive_source
+        )
+        self.ui_manager.set_local_source(
+            self.playing_engine.playing_settings.local_source
+        )
 
         self.history_dialog = None
         self.playlist_dialog = None
@@ -144,9 +157,7 @@ class MainWindow(QMainWindow):
             self.history_dialog = None
         else:
             self.history_dialog = HistoryDialog(
-                self.settings_manager,
-                self.playing_engine.playlist_manager,
-                self.playing_engine.history_playlist,
+                self.playing_engine,
                 self,
             )
             self.playing_engine.history_playlist.song_added.connect(
@@ -165,8 +176,7 @@ class MainWindow(QMainWindow):
         else:
             self.playlists_dialog = PlaylistsDialog(
                 self.settings_manager,
-                self.playing_engine.playlist_manager,
-                self.player_backends,
+                self.playing_engine,
                 self,
             )
             self.playlists_dialog.song_on_tab_double_clicked.connect(
@@ -202,7 +212,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         self.playing_engine.close()
         self.settings_manager.close()
-        self.ui_manager.close_ui()
+        self.ui_manager.close()
 
         shutil.rmtree(self.playing_engine.temp_dir)
 

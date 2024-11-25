@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 
 from loaders.local_file_loader import LocalFileLoader
 from player_backends.player_backend import PlayerBackend
+from playing_engine import PlayingEngine
 from playlist.playlist import Playlist
 from player_backends.Song import Song
 from playlist.playlist_manager import PlaylistManager
@@ -28,22 +29,22 @@ class PlaylistsDialog(QDialog):
     def __init__(
         self,
         settings_manager: SettingsManager,
-        playlist_manager: PlaylistManager,
-        backends: dict[str, type[PlayerBackend]],
+        playing_engine: PlayingEngine,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.Window)
 
         self.settings_manager = settings_manager
-        self.playlist_manager = playlist_manager
-        self.backends = backends
+        self.playing_engine = playing_engine
         self.local_file_loader: Optional[LocalFileLoader] = None
 
         self.setWindowTitle("Playlists")
         self.setGeometry(self.settings_manager.get_playlist_dialog_geometry())
 
-        self.playlist_tab_widget = PlaylistTabWidget(self, self.playlist_manager)
+        self.playlist_tab_widget = PlaylistTabWidget(
+            self, self.playing_engine.playlist_manager
+        )
         self.playlist_tab_widget.song_double_clicked.connect(
             self.on_song_double_clicked
         )
@@ -55,9 +56,7 @@ class PlaylistsDialog(QDialog):
 
         self.create_menu_bar()
 
-        self.playlist_manager = playlist_manager
-
-        for playlist in self.playlist_manager.playlists:
+        for playlist in self.playing_engine.playlist_manager.playlists:
             if playlist.name != "History":
                 self.add_playlist(playlist)
 
@@ -109,7 +108,9 @@ class PlaylistsDialog(QDialog):
         self.files_remaining = self.total_files
         self.progress_bar.setMaximum(self.total_files)
 
-        self.local_file_loader = LocalFileLoader(file_list, self.backends)
+        self.local_file_loader = LocalFileLoader(
+            file_list, self.playing_engine.player_backends
+        )
         self.local_file_loader.song_loaded.connect(self.load_song)
         self.local_file_loader.song_info_retrieved.connect(self.update_song_info)
         self.local_file_loader.all_songs_loaded.connect(self.finished_loading_songs)
