@@ -27,12 +27,12 @@ class PlayerThread(QThread):
 
     def run(self) -> None:
         # debugpy.debug_this_thread()
+        self.player_backend.prepare_playing()
+
         module_length: float = self.player_backend.get_module_length()
         logger.debug("Module length: {} seconds", module_length)
 
         count: int = 0
-
-        self.player_backend.prepare_playing()
 
         while not self.stop_flag:
             if self.pause_flag:
