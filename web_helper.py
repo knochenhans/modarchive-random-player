@@ -135,21 +135,30 @@ class WebHelper:
         return None
 
     def lookup_modarchive_mod_url(self, song: Song) -> str:
+        def search_modarchive(query: str, search_type: str) -> Optional[str]:
+            url = f"https://modarchive.org/index.php?request=search&query={query}&submit=Find&search_type={search_type}"
+            response = requests.get(url)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, "html.parser")
+                # Check if there are search results
+                search_results_header = soup.find(
+                    "h1", class_="site-wide-page-head-title", string="Search Results"
+                )
+                if search_results_header:
+                    result = soup.find("a", class_="standard-link", href=True)
+                    if result and isinstance(result, Tag):
+                        href = result["href"]
+                        if isinstance(href, list):
+                            href = href[0]
+                        return "https://modarchive.org/" + href
+            return None
+
         filename = song.filename.split("/")[-1]
-        url = f"https://modarchive.org/index.php?request=search&query={filename}&submit=Find&search_type=filename"
-
-        response = requests.get(url)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, "html.parser")
-
-            result = soup.find("a", class_="standard-link", href=True)
-
-            if result and isinstance(result, Tag):
-                href = result["href"]
-                if isinstance(href, list):
-                    href = href[0]
-                return "https://modarchive.org/" + href
-        return ""
+        url = search_modarchive(filename, "filename")
+        if not url:
+            filename_with_plus = filename.replace(" ", "+")
+            url = search_modarchive(filename_with_plus, "filename_or_songtitle")
+        return url if url else ""
 
     def lookup_msm_mod_url(self, song: Song) -> str:
         url: Optional[str] = None
