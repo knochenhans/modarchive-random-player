@@ -165,7 +165,7 @@ class PlayerBackendLibUADE(PlayerBackend):
                 logger.info("Song end")
                 return False
             else:
-                raise RuntimeError("Bad Song end")
+                logger.error("Bad Song end")
         else:
             raise RuntimeWarning("Unknown notification type from libuade")
         return True
