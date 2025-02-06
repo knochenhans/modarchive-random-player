@@ -65,7 +65,9 @@ class PlayerBackendLibUADE(PlayerBackend):
         if not ret:
             raise ValueError(f"Can not read file {self.song.filename}")
 
-        match libuade.uade_play(str.encode(self.song.filename), subsong_nr, self.state_ptr):
+        match libuade.uade_play(
+            str.encode(self.song.filename), subsong_nr, self.state_ptr
+        ):
             case -1:
                 # Fatal error
                 libuade.uade_cleanup_state(self.state_ptr)
