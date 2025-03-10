@@ -45,6 +45,8 @@ class PlayerBackendLibUADE(PlayerBackend):
             logger.error(error_message)
             return False
 
+        libc.free(ret)
+
         ret = libuade.uade_play_from_buffer(
             None, ret, self.module_size, -1, self.state_ptr
         )
@@ -59,6 +61,9 @@ class PlayerBackendLibUADE(PlayerBackend):
         if not self.song:
             return
 
+        if self.state_ptr:
+            libuade.uade_cleanup_state(self.state_ptr)
+
         self.state_ptr = libuade.uade_new_state(None)
 
         if not self.state_ptr:
@@ -70,6 +75,8 @@ class PlayerBackendLibUADE(PlayerBackend):
 
         if not ret:
             raise ValueError(f"Can not read file {self.song.filename}")
+
+        libc.free(ret)
 
         match libuade.uade_play(
             str.encode(self.song.filename), subsong_nr, self.state_ptr
@@ -233,6 +240,5 @@ class PlayerBackendLibUADE(PlayerBackend):
 
         if self.config_ptr:
             libc.free(self.config_ptr)
-
 
         logger.info("UADE cleaned up")
