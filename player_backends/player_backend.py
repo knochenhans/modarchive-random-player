@@ -1,21 +1,26 @@
 from abc import ABC, abstractmethod
 import hashlib
-from typing import Any
+from typing import Any, Callable, Optional
 
 from player_backends.Song import Song
-from PySide6.QtCore import QObject, Signal
 
 
-class PlayerBackend(QObject):
-    subsong_changed = Signal(int, int)  # Signal to emit current subsong and total subsongs
-    song_name_changed = Signal(str)  # Signal to emit song name 
-
+class PlayerBackend:
     def __init__(self, name: str) -> None:
-        super().__init__()
         self.song: Song = Song()
         self.mod: Any = None
         self.name: str = name
         self.current_subsong: int = 0
+        self.subsong_changed_callback: Optional[Callable[[int, int], None]] = None
+        self.song_name_changed_callback: Optional[Callable[[str], None]] = None
+
+    def set_subsong_changed_callback(
+        self, callback: Callable[[int, int], None]
+    ) -> None:
+        self.subsong_changed_callback = callback
+
+    def set_song_name_changed_callback(self, callback: Callable[[str], None]) -> None:
+        self.song_name_changed_callback = callback
 
     def check_module(self) -> bool:
         return False
@@ -58,3 +63,11 @@ class PlayerBackend(QObject):
 
     def cleanup(self) -> None:
         pass
+
+    def notify_subsong_changed(self, current: int, total: int) -> None:
+        if self.subsong_changed_callback:
+            self.subsong_changed_callback(current, total)
+
+    def notify_song_name_changed(self, name: str) -> None:
+        if self.song_name_changed_callback:
+            self.song_name_changed_callback(name)

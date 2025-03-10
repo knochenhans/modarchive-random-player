@@ -96,8 +96,12 @@ class PlayingEngine(QObject):
 
                 if self.player_backend is not None and self.audio_backend is not None:
                     self.player_backend.song = song
-                    self.player_backend.subsong_changed.connect(self.ui_manager.update_subsong_info)
-                    self.player_backend.song_name_changed.connect(self.ui_manager.update_title_label)
+                    self.player_backend.set_subsong_changed_callback(
+                        self.ui_manager.update_subsong_info
+                    )
+                    self.player_backend.set_song_name_changed_callback(
+                        self.ui_manager.update_title_label
+                    )
 
                     module_title: str = song.title or "Unknown"
                     module_message: str = song.message or ""
@@ -125,7 +129,10 @@ class PlayingEngine(QObject):
                     self.ui_manager.set_playing()
                     self.ui_manager.show_tray_notification("Now Playing", module_title)
                     logger.debug("Module loaded and playing")
-                    self.ui_manager.update_subsong_info(self.player_backend.get_current_subsong() + 1, self.player_backend.song.subsongs)
+                    self.ui_manager.update_subsong_info(
+                        self.player_backend.get_current_subsong() + 1,
+                        self.player_backend.song.subsongs,
+                    )
 
                     if self.playing_settings.playing_source == PlayingSource.MODARCHIVE:
                         self.ui_manager.show_favorite_button(True)
@@ -184,7 +191,7 @@ class PlayingEngine(QObject):
         song = self.get_current_song()
 
         if song:
-            if  song.modarchive_id:
+            if song.modarchive_id:
                 is_favorite = song.modarchive_id in member_favorites_id_list
                 self.ui_manager.set_favorite_button_state(is_favorite)
 

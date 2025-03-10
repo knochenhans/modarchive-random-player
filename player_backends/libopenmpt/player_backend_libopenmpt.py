@@ -7,7 +7,7 @@ from loguru import logger
 
 sys.path.append("./libopenmpt_py")
 
-from libopenmpt_py import libopenmpt # type: ignore
+from libopenmpt_py import libopenmpt  # type: ignore
 from player_backends.player_backend import PlayerBackend
 
 
@@ -150,7 +150,7 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         if subsong_nr > -1:
             libopenmpt.openmpt_module_select_subsong(self.mod, subsong_nr)
             name = libopenmpt.openmpt_module_get_subsong_name(self.mod, subsong_nr)
-            self.song_name_changed.emit(name.decode("iso-8859-1", "cp1252"))
+            self.notify_song_name_changed(name.decode("iso-8859-1", "cp1252"))
 
     def get_module_length(self) -> float:
         self.load_module()

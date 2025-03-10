@@ -165,7 +165,7 @@ class PlayerBackendLibUADE(PlayerBackend):
             if n.uade_notification_union.song_end.happy:
                 # Subsong ended
                 self.current_subsong += 1
-                self.subsong_changed.emit(self.current_subsong, self.song.subsongs)
+                self.notify_subsong_changed(self.current_subsong, self.song.subsongs)
                 logger.info("Sub song end")
                 return False
             else:
