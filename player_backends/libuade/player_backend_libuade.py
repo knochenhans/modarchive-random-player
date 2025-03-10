@@ -164,7 +164,9 @@ class PlayerBackendLibUADE(PlayerBackend):
         elif n.type == UADE_NOTIFICATION_TYPE.UADE_NOTIFICATION_SONG_END:
             if n.uade_notification_union.song_end.happy:
                 # Subsong ended
-                logger.info("Song end")
+                self.current_subsong += 1
+                self.subsong_changed.emit(self.current_subsong, self.song.subsongs)
+                logger.info("Sub song end")
                 return False
             else:
                 logger.error("Bad Song end")
@@ -214,6 +216,11 @@ class PlayerBackendLibUADE(PlayerBackend):
             logger.error("Seeking failed")
 
     def cleanup(self) -> None:
-        libuade.uade_cleanup_state(self.state_ptr)
+        if self.state_ptr:
+            libuade.uade_cleanup_state(self.state_ptr)
         # libuade.uade_cleanup_config(self.config_ptr)
         logger.info("UADE cleaned up")
+
+    # def __del__(self) -> None:
+    #     self.cleanup()
+    #     logger.info("UADE instance deleted")

@@ -53,6 +53,7 @@ class UIManager:
         self.title_label = QLabel("Unknown")
         self.filename_label = QLabel("Unknown")
         self.filename_label.linkActivated.connect(self.main_window.open_module_link)
+        self.subsong_label = QLabel("Unknown")
         self.player_backend_label = QLabel("Unknown")
 
     def setup_buttons(self) -> None:
@@ -192,6 +193,7 @@ class UIManager:
         form_layout = QFormLayout()
         form_layout.addRow("Title:", self.title_label)
         form_layout.addRow("Filename:", self.filename_label)
+        form_layout.addRow("Subsong:", self.subsong_label)
         form_layout.addRow("Player backend:", self.player_backend_label)
 
         hbox_layout = QHBoxLayout()
@@ -314,11 +316,16 @@ class UIManager:
         self.filename_label.setText("Loading...")
         self.message_scroll_area.verticalScrollBar().setValue(0)
 
+    @Slot(str)
     def update_title_label(self, text: str) -> None:
         self.title_label.setText(text)
 
     def update_filename_label(self, text: str) -> None:
         self.filename_label.setText(text)
+
+    @Slot(int, int)
+    def update_subsong_info(self, current: int, max: int) -> None:
+        self.subsong_label.setText(f"{current} / {max}")
 
     def update_player_backend_label(self, text: str) -> None:
         self.player_backend_label.setText(text)

@@ -3,38 +3,41 @@ import hashlib
 from typing import Any
 
 from player_backends.Song import Song
+from PySide6.QtCore import QObject, Signal
 
-class PlayerBackend(ABC):
+
+class PlayerBackend(QObject):
+    subsong_changed = Signal(int, int)  # Signal to emit current subsong and total subsongs
+    song_name_changed = Signal(str)  # Signal to emit song name 
+
     def __init__(self, name: str) -> None:
+        super().__init__()
         self.song: Song = Song()
         self.mod: Any = None
         self.name: str = name
+        self.current_subsong: int = 0
 
-    @abstractmethod
     def check_module(self) -> bool:
-        pass
+        return False
 
-    @abstractmethod
     def prepare_playing(self, subsong_nr: int = -1) -> None:
         pass
 
-    @abstractmethod
     def retrieve_song_info(self) -> None:
         pass
 
-    @abstractmethod
     def get_module_length(self) -> float:
-        pass
+        return 0.0
 
-    @abstractmethod
     def read_chunk(self, samplerate: int, buffersize: int) -> tuple[int, bytes]:
-        pass
+        return 0, b""
 
-    @abstractmethod
     def get_position_seconds(self) -> float:
-        pass
+        return 0.0
 
-    @abstractmethod
+    def get_current_subsong(self) -> int:
+        return self.current_subsong
+
     def free_module(self) -> None:
         pass
 
@@ -50,10 +53,8 @@ class PlayerBackend(ABC):
         self.song.md5 = md5.hexdigest()
         self.song.sha1 = sha1.hexdigest()
 
-    @abstractmethod
     def seek(self, position: int) -> None:
         pass
 
-    @abstractmethod
     def cleanup(self) -> None:
         pass
