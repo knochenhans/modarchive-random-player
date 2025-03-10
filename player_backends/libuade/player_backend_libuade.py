@@ -16,7 +16,7 @@ from player_backends.libuade.ctypes_classes import (
     uade_state,
     uade_subsong_info,
 )
-from player_backends.libuade.ctypes_functions import libuade
+from player_backends.libuade.ctypes_functions import libuade, libc
 from loguru import logger
 
 from player_backends.player_backend import PlayerBackend
@@ -218,9 +218,9 @@ class PlayerBackendLibUADE(PlayerBackend):
     def cleanup(self) -> None:
         if self.state_ptr:
             libuade.uade_cleanup_state(self.state_ptr)
-        # libuade.uade_cleanup_config(self.config_ptr)
-        logger.info("UADE cleaned up")
 
-    # def __del__(self) -> None:
-    #     self.cleanup()
-    #     logger.info("UADE instance deleted")
+        if self.config_ptr:
+            libc.free(self.config_ptr)
+
+
+        logger.info("UADE cleaned up")

@@ -33,6 +33,13 @@ try:
 except OSError as e:
     sys.exit(f"Error loading uade: {e}")
 
+try:
+    libc = CDLL(find_library("c"))
+except OSError as e:
+    sys.exit(f"Error loading libc: {e}")
+
+libc.free.argtypes = [c_void_p]
+libc.free.restype = None
 
 # State management
 libuade.uade_new_state.argtypes = [c_void_p]
