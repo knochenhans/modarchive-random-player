@@ -7,7 +7,7 @@ from player_backends.Song import Song
 
 class PlayerBackend:
     def __init__(self, name: str) -> None:
-        self.song: Song = Song()
+        self.song: Optional[Song] = None
         self.mod: Any = None
         self.name: str = name
         self.current_subsong: int = 0
@@ -49,6 +49,9 @@ class PlayerBackend:
     def calculate_checksums(self) -> None:
         md5 = hashlib.md5()
         sha1 = hashlib.sha1()
+
+        if not self.song:
+            return
 
         with open(self.song.filename, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):

@@ -32,6 +32,9 @@ class PlayerBackendLibUADE(PlayerBackend):
         logger.debug("PlayerBackendUADE initialized")
 
     def check_module(self) -> bool:
+        if not self.song:
+            return False
+
         self.module_size = ctypes.c_size_t()
         ret = libuade.uade_read_file(
             ctypes.byref(self.module_size), str.encode(self.song.filename)
@@ -53,6 +56,9 @@ class PlayerBackendLibUADE(PlayerBackend):
         return True
 
     def prepare_playing(self, subsong_nr: int = -1) -> None:
+        if not self.song:
+            return
+
         self.state_ptr = libuade.uade_new_state(None)
 
         if not self.state_ptr:
@@ -84,6 +90,9 @@ class PlayerBackendLibUADE(PlayerBackend):
             #     )
 
     def retrieve_song_info(self) -> None:
+        if not self.song:
+            return
+
         info = libuade.uade_get_song_info(self.state_ptr).contents
 
         self.song.credits = songinfo.get_credits(self.song.filename)
@@ -159,6 +168,9 @@ class PlayerBackendLibUADE(PlayerBackend):
         return nbytes, bytes(buf)
 
     def handle_notification(self, n: uade_notification) -> bool:
+        if not self.song:
+            return False
+
         if n.type == UADE_NOTIFICATION_TYPE.UADE_NOTIFICATION_MESSAGE:
             logger.info(f"Amiga message: {n.uade_notification_union.msg}")
         elif n.type == UADE_NOTIFICATION_TYPE.UADE_NOTIFICATION_SONG_END:
