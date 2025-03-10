@@ -341,7 +341,14 @@ libuade.uade_file_free.restype = None
 libuade.uade_file_load.argtypes = [c_char_p]
 libuade.uade_file_load.restype = c_void_p
 
-libuade.uade_filemagic.argtypes = [POINTER(c_ubyte), c_size_t, c_char_p, c_size_t, c_char_p, c_int]
+libuade.uade_filemagic.argtypes = [
+    POINTER(c_ubyte),
+    c_size_t,
+    c_char_p,
+    c_size_t,
+    c_char_p,
+    c_int,
+]
 libuade.uade_filemagic.restype = None
 
 # List of further exported functions

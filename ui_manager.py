@@ -1,6 +1,6 @@
 import os
 from typing import Optional
-from PySide6.QtCore import Qt, QDir
+from PySide6.QtCore import Qt, QDir, QObject, Slot
 from PySide6.QtGui import QAction, QFont, QIcon, QFontDatabase
 from PySide6.QtWidgets import (
     QFormLayout,
@@ -18,13 +18,13 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QComboBox,
 )
-import pyqtspinner
+# import pyqtspinner
 
 from icons import Icons
 from playing_modes import ModArchiveSource, PlayingMode, PlayingSource, LocalSource
 
 
-class UIManager:
+class UIManager(QObject):
     def __init__(self, main_window) -> None:
         self.main_window = main_window
         from playing_engine import PlayingEngine
