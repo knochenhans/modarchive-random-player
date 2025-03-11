@@ -1,11 +1,9 @@
+import os
 from PySide6.QtCore import Signal, Slot
-
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QMenuBar, QProgressBar
-from PySide6.QtGui import (
-    QAction,
-    QCloseEvent,
-)
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QMenuBar, QProgressBar, QFileDialog
+from PySide6.QtGui import QAction, QCloseEvent
 from PySide6.QtCore import Qt
+from typing import Optional, List
 
 from loaders.local_file_loader import LocalFileLoader
 from player_backends.player_backend import PlayerBackend
@@ -13,14 +11,10 @@ from playing_engine import PlayingEngine
 from playlist.playlist import Playlist
 from player_backends.Song import Song
 from playlist.playlist_manager import PlaylistManager
-from typing import Optional
-
 from playlist.playlist_tab_widget import PlaylistTabWidget
-from PySide6.QtWidgets import QMenuBar, QFileDialog
-import os
-
 from settings_manager import SettingsManager
 from loguru import logger
+from .file_fetcher import FileFetcher
 
 
 class PlaylistsDialog(QDialog):
@@ -30,7 +24,7 @@ class PlaylistsDialog(QDialog):
         self,
         settings_manager: SettingsManager,
         playing_engine: PlayingEngine,
-        parent=None,
+        parent: Optional[QDialog] = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowFlags(Qt.WindowType.Window)
@@ -48,6 +42,9 @@ class PlaylistsDialog(QDialog):
         self.playlist_tab_widget.song_double_clicked.connect(
             self.on_song_double_clicked
         )
+        self.playlist_tab_widget.files_dropped.connect(
+            self.on_playlist_tab_files_dropped
+        )
 
         self.main_layout = QVBoxLayout(self)
         self.main_layout.addWidget(self.playlist_tab_widget)
@@ -61,14 +58,10 @@ class PlaylistsDialog(QDialog):
                 self.add_playlist(playlist)
 
         self.show()
-        self.progress_bar = QProgressBar(self)
-        self.progress_bar.setValue(0)
-        self.progress_bar.hide()
-        self.main_layout.addWidget(self.progress_bar)
 
-        self.files_remaining = 0
-        self.files_loaded = 0
-        self.total_files = 0
+        self.progress_bar = QProgressBar(self)
+        self.main_layout.addWidget(self.progress_bar)
+        self.reset_progress_bar()
 
     def add_playlist(self, playlist: Optional[Playlist]) -> None:
         self.playlist_tab_widget.add_tab(playlist)
@@ -78,7 +71,18 @@ class PlaylistsDialog(QDialog):
         songs = playlist.get_songs_from(row)
         self.song_on_tab_double_clicked.emit(songs, playlist)
 
-    def create_menu_bar(self):
+    @Slot()
+    def on_playlist_tab_files_dropped(
+        self, files: List[str], playlist: Playlist
+    ) -> None:
+        # Check if the dropped files are folders or files and load them
+        for file_path in files:
+            if os.path.isdir(file_path):
+                self.load_folder(file_path)
+            else:
+                self.add_song_to_playlist(file_path)
+
+    def create_menu_bar(self) -> None:
         menu_bar = QMenuBar(self)
 
         file_menu = menu_bar.addMenu("File")
@@ -101,7 +105,7 @@ class PlaylistsDialog(QDialog):
 
         self.main_layout.setMenuBar(menu_bar)
 
-    def load_files(self, file_list: list[str]):
+    def load_files(self, file_list: List[str]) -> None:
         self.progress_bar.show()
 
         self.total_files = len(file_list)
@@ -116,12 +120,13 @@ class PlaylistsDialog(QDialog):
         self.local_file_loader.all_songs_loaded.connect(self.finished_loading_songs)
         self.local_file_loader.load_modules()
 
-    def load_folder(self, folder_path: str):
+    def load_folder(self, folder_path: str) -> None:
         logger.info(f"Loading folder: {folder_path}")
-        file_list = self.get_files_recursively(folder_path)
+        file_fetcher = FileFetcher()
+        file_list = file_fetcher.get_files_recursively(folder_path)
         self.load_files(file_list)
 
-    def on_load_files(self):
+    def on_load_files(self) -> None:
         last_folder = self.settings_manager.get_last_folder()
 
         file_dialog = QFileDialog(self)
@@ -131,22 +136,27 @@ class PlaylistsDialog(QDialog):
             self.settings_manager.set_last_folder(os.path.dirname(file_paths[0]))
 
     @Slot()
-    def finished_loading_songs(self):
+    def finished_loading_songs(self) -> None:
         logger.info(f"Loaded {self.total_files} files")
+        self.reset_progress_bar()
+
+    def reset_progress_bar(self) -> None:
+        self.progress_bar.setValue(0)
+        self.progress_bar.hide()
+        self.files_remaining = 0
+        self.files_loaded = 0
 
     def load_song(self, song: Song) -> None:
         self.files_loaded += 1
-
         if song:
-            if song.backend_name:
-                self.playlist_tab_widget.load_song(song)
+            if song.backend_name != "":
+                if song.backend_name:
+                    self.playlist_tab_widget.load_song(song)
 
         if self.files_loaded < self.files_remaining:
             self.progress_bar.setValue(self.files_loaded)
         else:
-            self.progress_bar.hide()
-            self.files_remaining = 0
-            self.files_loaded = 0
+            self.reset_progress_bar()
         self.update()
 
     def update_song_info(self, song: Song) -> None:
@@ -156,7 +166,7 @@ class PlaylistsDialog(QDialog):
     def add_song(self, song: Song) -> None:
         self.playlist_tab_widget.add_song(song)
 
-    def on_load_folder(self):
+    def on_load_folder(self) -> None:
         last_folder = self.settings_manager.get_last_folder()
 
         folder_dialog = QFileDialog(self)
@@ -167,20 +177,9 @@ class PlaylistsDialog(QDialog):
             self.load_folder(folder_path)
             self.settings_manager.set_last_folder(folder_path)
 
-    def add_song_to_playlist(self, file_path: str):
+    def add_song_to_playlist(self, file_path: str) -> None:
         song = Song(filename=file_path)
         self.playlist_tab_widget.add_song(song)
-
-    def get_files_recursively(self, folder_path: str) -> list[str]:
-        file_list = []
-        for root, dirs, files in os.walk(folder_path):
-            dirs.sort(key=lambda s: s.lower())
-            files.sort(key=lambda s: s.lower())
-            for dir in dirs:
-                file_list.extend(self.get_files_recursively(os.path.join(root, dir)))
-            for file in files:
-                file_list.append(os.path.join(root, file))
-        return file_list
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.settings_manager.set_playlist_dialog_geometry(self.geometry())

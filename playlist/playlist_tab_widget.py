@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from player_backends.Song import Song
 from playlist.playlist import Playlist
 from playlist.playlist_manager import PlaylistManager
@@ -15,6 +15,7 @@ from tree_view_columns import tree_view_columns_dict
 
 class PlaylistTabWidget(QTabWidget):
     song_double_clicked = Signal(Song, int, Playlist)
+    files_dropped = Signal(list, Playlist)
 
     def __init__(
         self, parent, playlist_manager: PlaylistManager, add_tab_button: bool = True
@@ -54,7 +55,7 @@ class PlaylistTabWidget(QTabWidget):
     @Slot()
     def on_add_tab_button_clicked(self) -> None:
         self.add_tab()
-        
+
         # Focus the new tab
         self.setCurrentIndex(self.count() - 1)
 
@@ -96,6 +97,11 @@ class PlaylistTabWidget(QTabWidget):
             self.playlist_manager.add_playlist(playlist)
 
         tree = PlaylistTreeView(playlist, self)
+        tree.files_dropped.connect(
+            lambda files: self.files_dropped.emit(
+                files, self.playlist_manager.current_playlist
+            )
+        )
         model = PlaylistModel(0, 3)
 
         tree.item_double_clicked.connect(self.on_song_double_clicked)
@@ -129,11 +135,6 @@ class PlaylistTabWidget(QTabWidget):
         tab = self.get_current_tab()
         if tab:
             tab.remove_song_at(index)
-
-    def update_view(self) -> None:
-        tab = self.get_current_tab()
-        if tab:
-            tab.update_view()
 
     def update_song_info(self, row: int, song: Song) -> None:
         tab = self.get_current_tab()

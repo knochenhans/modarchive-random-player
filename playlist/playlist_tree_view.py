@@ -10,13 +10,16 @@ from PySide6.QtGui import (
     QStandardItem,
     QIcon,
     QPalette,
+    QDropEvent,
+    QDragEnterEvent,
+    QDragMoveEvent,
+    QStandardItem,
 )
 from PySide6.QtWidgets import (
     QTreeView,
     QStyleOption,
     QAbstractItemView,
     QWidget,
-    QStyle,
     QTreeView,
 )
 
@@ -30,6 +33,7 @@ from tree_view_columns import TreeViewColumn, tree_view_columns_dict
 
 class PlaylistTreeView(QTreeView):
     item_double_clicked = Signal(Song, int, Playlist)
+    files_dropped = Signal(list)
 
     def __init__(self, playlist: Playlist, parent: Optional[QWidget] = None) -> None:
         super(PlaylistTreeView, self).__init__(parent)
@@ -47,6 +51,8 @@ class PlaylistTreeView(QTreeView):
         self.setEditTriggers(self.EditTrigger.NoEditTriggers)
 
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+
+        self.setAcceptDrops(True)
 
         # Hide left-hand space from hidden expand sign
         self.setRootIsDecorated(False)
@@ -90,6 +96,21 @@ class PlaylistTreeView(QTreeView):
                 pen: QPen = QPen(brush, 2, Qt.PenStyle.SolidLine)
                 painter.setPen(pen)
                 painter.drawRect(rect)
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event: QDragMoveEvent) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        if event.mimeData().hasUrls():
+            urls = event.mimeData().urls()
+            file_paths = [url.toLocalFile() for url in urls]
+            self.files_dropped.emit(file_paths)
+            event.acceptProposedAction()
 
     def load_song(self, song: Song) -> int:
         index = self.add_song(song)

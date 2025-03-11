@@ -9,8 +9,39 @@ from player_backends.player_backend import PlayerBackend
 
 
 class SongEmitter(QObject):
-    song_loaded = Signal(Song)
+    song_checked = Signal(Song)
     song_info_retrieved = Signal(Song)
+
+
+class ModuleTester:
+    def __init__(
+        self, song: Song, backends: dict[str, type[PlayerBackend]], emitter: SongEmitter
+    ):
+        self.song = song
+        self.backends = backends
+        self.emitter = emitter
+
+    def test_backends(self) -> None:
+        for backend_name, backend_class in self.backends.items():
+            logger.debug(f"Trying player backend: {backend_name}")
+
+            player_backend = backend_class(backend_name)
+            if player_backend is not None:
+                player_backend.song = self.song
+                if player_backend.check_module():
+                    logger.debug(f"Module loaded with player backend: {backend_name}")
+
+                    self.song.backend_name = backend_name
+
+                    player_backend.song = self.song
+                    player_backend.retrieve_song_info()
+                    self.song = player_backend.song
+                    self.emitter.song_info_retrieved.emit(self.song)
+
+                    player_backend.cleanup()
+                    player_backend = None
+                    break
+        self.emitter.song_checked.emit(self.song)
 
 
 class LocalFileLoaderWorker(QRunnable):
@@ -28,35 +59,11 @@ class LocalFileLoaderWorker(QRunnable):
 
     def run(self) -> None:
         if self.song:
-            filename = self.song.filename
-            for backend_name, backend_class in self.player_backends.items():
-                logger.debug(f"Trying player backend: {backend_name}")
-
-                player_backend = backend_class(backend_name)
-                if player_backend is not None:
-                    player_backend.song = self.song
-                    if player_backend.check_module():
-                        logger.debug(
-                            f"Module loaded with player backend: {backend_name}"
-                        )
-
-                        self.song.backend_name = backend_name
-                        self.emitter.song_loaded.emit(self.song)
-
-                        player_backend.song = self.song
-                        player_backend.retrieve_song_info()
-                        self.song = player_backend.song
-                        self.emitter.song_info_retrieved.emit(self.song)
-
-                        player_backend.cleanup()
-                        player_backend = None
-
-                        loader = self.loader()
-                        if loader:
-                            loader.song_finished_loading()
-                        break
-            else:
-                logger.warning(f'No backend could load the module "{filename}"')
+            tester = ModuleTester(self.song, self.player_backends, self.emitter)
+            tester.test_backends()
+            loader = self.loader()
+            if loader:
+                loader.song_finished_loading()
 
 
 class LocalFileLoader(QObject):
@@ -91,7 +98,7 @@ class LocalFileLoader(QObject):
             song = self.load_module(file_name)
             if song:
                 worker = LocalFileLoaderWorker(song, self.backends, self)
-                worker.emitter.song_loaded.connect(self.song_loaded)
+                worker.emitter.song_checked.connect(self.song_loaded)
                 worker.emitter.song_info_retrieved.connect(self.song_info_retrieved)
                 self.thread_pool.start(worker)
 

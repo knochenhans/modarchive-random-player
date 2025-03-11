@@ -22,9 +22,10 @@ class PlaylistManager(QObject):
         self.config_dir = user_config_dir(self.settings_manager.get_app_name())
 
     def load_playlists(self) -> None:
-        for file_name in os.listdir(self.config_dir):
-            if file_name.endswith(".playlist"):
-                self.load_playlist(os.path.join(self.config_dir, file_name))
+        if os.path.exists(self.config_dir):
+            for file_name in os.listdir(self.config_dir):
+                if file_name.endswith(".playlist"):
+                    self.load_playlist(os.path.join(self.config_dir, file_name))
 
         # If only history playlist exists, create a default playlist
         if len(self.playlists) == 1:
@@ -37,8 +38,9 @@ class PlaylistManager(QObject):
                 self.save_playlist(playlist)
 
     def save_playlist(self, playlist: Playlist):
-        filename = os.path.join(self.config_dir, f"{playlist.uuid}.playlist")
-        playlist.to_json(filename)
+        if os.path.exists(self.config_dir):
+            filename = os.path.join(self.config_dir, f"{playlist.uuid}.playlist")
+            playlist.to_json(filename)
 
     def add_playlist(self, playlist: Playlist) -> None:
         self.playlists.append(playlist)
@@ -58,7 +60,7 @@ class PlaylistManager(QObject):
         playlist.tab_index = self.get_new_tab_index()
         self.add_playlist(playlist)
         return playlist
-    
+
     def get_new_tab_index(self) -> int:
         return len(self.playlists)
 
@@ -72,7 +74,7 @@ class PlaylistManager(QObject):
 
     def get_current_playlist(self) -> Optional[Playlist]:
         return self.current_playlist
-    
+
     def set_current_playlist(self, playlist: Playlist) -> None:
         self.current_playlist = playlist
 
@@ -104,7 +106,7 @@ class PlaylistManager(QObject):
             if playlist.name == "History":
                 return playlist
         return None
-    
+
     def sort(self):
         self.playlists.sort(key=lambda x: x.tab_index)
 
