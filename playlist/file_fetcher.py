@@ -8,7 +8,7 @@ class FileFetcher:
         self.files_fetched: int = 0
         self.visited_dirs: Set[str] = set()
 
-    def get_files_recursively(self, folder_path: str) -> List[str]:
+    def get_files_recursively_from_path(self, folder_path: str) -> List[str]:
         file_list: List[str] = []
         for root, dirs, files in os.walk(folder_path, followlinks=False):
             # Normalize the root path to avoid duplicates
@@ -26,5 +26,15 @@ class FileFetcher:
 
             # Recursively add files from subdirectories
             for dir in dirs:
-                file_list.extend(self.get_files_recursively(os.path.join(root, dir)))
+                file_list.extend(
+                    self.get_files_recursively_from_path(os.path.join(root, dir))
+                )
+        return file_list
+
+    def get_files_recursively_from_path_list(
+        self, folder_paths: List[str]
+    ) -> List[str]:
+        file_list: List[str] = []
+        for folder_path in folder_paths:
+            file_list.extend(self.get_files_recursively_from_path(folder_path))
         return file_list

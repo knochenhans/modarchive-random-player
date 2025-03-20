@@ -75,12 +75,7 @@ class PlaylistsDialog(QDialog):
     def on_playlist_tab_files_dropped(
         self, files: List[str], playlist: Playlist
     ) -> None:
-        # Check if the dropped files are folders or files and load them
-        for file_path in files:
-            if os.path.isdir(file_path):
-                self.load_folder(file_path)
-            else:
-                self.add_song_to_playlist(file_path)
+        self.load_path_list(files)
 
     def create_menu_bar(self) -> None:
         menu_bar = QMenuBar(self)
@@ -123,7 +118,12 @@ class PlaylistsDialog(QDialog):
     def load_folder(self, folder_path: str) -> None:
         logger.info(f"Loading folder: {folder_path}")
         file_fetcher = FileFetcher()
-        file_list = file_fetcher.get_files_recursively(folder_path)
+        file_list = file_fetcher.get_files_recursively_from_path(folder_path)
+        self.load_files(file_list)
+
+    def load_path_list(self, path_list: List[str]) -> None:
+        file_fetcher = FileFetcher()
+        file_list = file_fetcher.get_files_recursively_from_path_list(path_list)
         self.load_files(file_list)
 
     def on_load_files(self) -> None:
