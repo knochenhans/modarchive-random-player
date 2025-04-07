@@ -58,6 +58,9 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         self.load_mod = libopenmpt.openmpt_module_create_from_memory2
 
     def check_module(self) -> bool:
+        if not self.song:
+            return False
+
         ctls = ctypes.c_void_p()
         error = ctypes.c_int()
         error_message = ctypes.c_char_p()
@@ -114,6 +117,9 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         return True
 
     def load_module(self) -> bool:
+        if not self.song:
+            return False
+
         ctls = ctypes.c_void_p()
         error = ctypes.c_int()
         error_message = ctypes.c_char_p()
@@ -181,6 +187,9 @@ class PlayerBackendLibOpenMPT(PlayerBackend):
         return libopenmpt.openmpt_module_get_metadata(self.mod, b"title")
 
     def retrieve_song_info(self) -> None:
+        if not self.song:
+            return
+
         keys = (
             libopenmpt.openmpt_module_get_metadata_keys(self.mod)
             .decode("iso-8859-1", "cp1252")
