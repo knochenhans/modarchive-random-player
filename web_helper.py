@@ -135,6 +135,7 @@ class WebHelper:
         return None
 
     def lookup_modarchive_mod_url(self, song: Song) -> str:
+        logger.info(f"Looking up ModArchive URL for song: {song}")
         def search_modarchive(query: str, search_type: str) -> Optional[str]:
             url = f"https://modarchive.org/index.php?request=search&query={query}&submit=Find&search_type={search_type}"
             response = requests.get(url)
@@ -156,8 +157,9 @@ class WebHelper:
         filename = song.filename.split("/")[-1]
         url = search_modarchive(filename, "filename")
         if not url:
-            filename_with_plus = filename.replace(" ", "+")
-            url = search_modarchive(filename_with_plus, "filename_or_songtitle")
+            if song.title and song.title != "<no songtitle>":
+                title_with_plus = song.title.replace(" ", "+")
+                url = search_modarchive(title_with_plus, "filename_or_songtitle")
         return url if url else ""
 
     def lookup_msm_mod_url(self, song: Song) -> str:
