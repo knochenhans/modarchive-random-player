@@ -1,6 +1,6 @@
+from typing import Callable, List, Optional
 import weakref
-from PySide6.QtCore import QRunnable, QThreadPool, QObject, Signal, QMutex, QMutexLocker
-from typing import List, Optional
+from PySide6.QtCore import QRunnable, QThreadPool, QObject, QMutex, QMutexLocker, Signal
 
 from loguru import logger
 
@@ -8,9 +8,14 @@ from player_backends.Song import Song
 from player_backends.player_backend import PlayerBackend
 
 
-class SongEmitter(QObject):
-    song_checked = Signal(Song)
-    song_info_retrieved = Signal(Song)
+class SongEmitter:
+    def __init__(
+        self,
+        song_checked: Callable[[Song], None],
+        song_info_retrieved: Callable[[Song], None],
+    ):
+        self.song_checked = song_checked
+        self.song_info_retrieved = song_info_retrieved
 
 
 class ModuleTester:
@@ -36,12 +41,11 @@ class ModuleTester:
                     player_backend.song = self.song
                     player_backend.retrieve_song_info()
                     self.song = player_backend.song
-                    self.emitter.song_info_retrieved.emit(self.song)
-
+                    self.emitter.song_info_retrieved(self.song)
                     player_backend.cleanup()
                     player_backend = None
                     break
-        self.emitter.song_checked.emit(self.song)
+        self.emitter.song_checked(self.song)
 
 
 class LocalFileLoaderWorker(QRunnable):
@@ -55,7 +59,9 @@ class LocalFileLoaderWorker(QRunnable):
         self.song: Song = song
         self.player_backends: dict[str, type[PlayerBackend]] = backends
         self.loader = weakref.ref(loader)
-        self.emitter = SongEmitter()
+        self.emitter = SongEmitter(
+            self.song_checked_callback, self.song_info_retrieved_callback
+        )
 
     def run(self) -> None:
         if self.song:
@@ -65,6 +71,16 @@ class LocalFileLoaderWorker(QRunnable):
             if loader:
                 loader.song_finished_loading()
 
+    def song_checked_callback(self, song: Song) -> None:
+        loader = self.loader()
+        if loader:
+            loader.song_loaded.emit(song)
+
+    def song_info_retrieved_callback(self, song: Song) -> None:
+        loader = self.loader()
+        if loader:
+            loader.song_info_retrieved.emit(song)
+
 
 class LocalFileLoader(QObject):
     song_loaded = Signal(Song)
@@ -72,11 +88,11 @@ class LocalFileLoader(QObject):
     all_songs_loaded = Signal()
 
     def __init__(
-        self, file_list: List[str], backends: dict[str, type[PlayerBackend]]
+        self, file_list: List[str], player_backends: dict[str, type[PlayerBackend]]
     ) -> None:
         super().__init__()
         self.file_list = file_list
-        self.backends = backends
+        self.player_backends = player_backends
         self.thread_pool = QThreadPool()
         self.thread_pool.setMaxThreadCount(
             1
@@ -97,9 +113,7 @@ class LocalFileLoader(QObject):
         for file_name in self.file_list:
             song = self.load_module(file_name)
             if song:
-                worker = LocalFileLoaderWorker(song, self.backends, self)
-                worker.emitter.song_checked.connect(self.song_loaded)
-                worker.emitter.song_info_retrieved.connect(self.song_info_retrieved)
+                worker = LocalFileLoaderWorker(song, self.player_backends, self)
                 self.thread_pool.start(worker)
 
     def song_finished_loading(self) -> None:

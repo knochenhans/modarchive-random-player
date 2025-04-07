@@ -141,3 +141,21 @@ def test_get_files_recursively_from_path_list_empty():
         result = fetcher.get_files_recursively_from_path_list([temp_dir1, temp_dir2])
 
         assert result == []
+
+def test_get_files_recursively_from_path_list_simple():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        structure = {
+            "file1.txt": "content1",
+            "file2.txt": "content2",
+        }
+        create_temp_structure(temp_dir, structure)
+
+        fetcher = FileFetcher()
+        result = fetcher.get_files_recursively_from_path_list([temp_dir])
+
+        expected_files = [
+            os.path.join(temp_dir, "file1.txt"),
+            os.path.join(temp_dir, "file2.txt"),
+        ]
+
+        assert sorted(result) == sorted(expected_files)

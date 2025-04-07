@@ -10,6 +10,11 @@ class FileFetcher:
 
     def get_files_recursively_from_path(self, folder_path: str) -> List[str]:
         file_list: List[str] = []
+        if os.path.isfile(folder_path):
+            # If the folder_path is a file, add it directly to the list
+            file_list.append(os.path.abspath(folder_path))
+            return file_list
+
         for root, dirs, files in os.walk(folder_path, followlinks=False):
             # Normalize the root path to avoid duplicates
             root = os.path.abspath(root)
