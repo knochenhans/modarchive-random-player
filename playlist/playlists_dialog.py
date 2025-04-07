@@ -1,19 +1,18 @@
 import os
-from PySide6.QtCore import Signal, Slot
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QMenuBar, QProgressBar, QFileDialog
+from typing import List, Optional
+
+from loguru import logger
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtGui import QAction, QCloseEvent
-from PySide6.QtCore import Qt
-from typing import Optional, List
+from PySide6.QtWidgets import QDialog, QFileDialog, QMenuBar, QProgressBar, QVBoxLayout
 
 from loaders.local_file_loader import LocalFileLoader
-from player_backends.player_backend import PlayerBackend
+from player_backends.Song import Song
 from playing_engine import PlayingEngine
 from playlist.playlist import Playlist
-from player_backends.Song import Song
-from playlist.playlist_manager import PlaylistManager
 from playlist.playlist_tab_widget import PlaylistTabWidget
 from settings_manager import SettingsManager
-from loguru import logger
+
 from .file_fetcher import FileFetcher
 
 

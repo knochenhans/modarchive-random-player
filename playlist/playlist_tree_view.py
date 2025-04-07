@@ -1,26 +1,25 @@
-from datetime import timedelta
 import ntpath
+from datetime import timedelta
 from typing import Optional
-from PySide6.QtCore import Qt, QRect, Signal, QEvent
+
+from PySide6.QtCore import QEvent, QRect, Qt, Signal
 from PySide6.QtGui import (
-    QPainter,
     QBrush,
     QColor,
-    QPen,
-    QStandardItem,
-    QIcon,
-    QPalette,
-    QDropEvent,
     QDragEnterEvent,
     QDragMoveEvent,
+    QDropEvent,
+    QIcon,
+    QPainter,
+    QPalette,
+    QPen,
     QStandardItem,
 )
 from PySide6.QtWidgets import (
-    QTreeView,
-    QStyleOption,
     QAbstractItemView,
-    QWidget,
+    QStyleOption,
     QTreeView,
+    QWidget,
 )
 
 from icons import Icons
@@ -75,7 +74,7 @@ class PlaylistTreeView(QTreeView):
 
     def paintEvent(self, event: QEvent) -> None:
         painter: QPainter = QPainter(self.viewport())
-        self.drawTree(painter, event.region())
+        self.drawTree(painter, event.region())  # type: ignore[no-untyped-call]
         self.paintDropIndicator(painter)
         painter.end()
 
@@ -83,8 +82,8 @@ class PlaylistTreeView(QTreeView):
         if self.state() == QAbstractItemView.State.DraggingState:
             opt: QStyleOption = QStyleOption()
             opt.initFrom(self)
-            opt.rect = self.dropIndicatorRect
-            rect: QRect = opt.rect
+            opt.rect = self.dropIndicatorRect  # type: ignore[assignment]
+            rect: QRect = opt.rect  # type: ignore[assignment]
 
             brush: QBrush = QBrush(QColor(Qt.GlobalColor.black))
 

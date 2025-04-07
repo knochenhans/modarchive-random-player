@@ -1,12 +1,13 @@
-from typing import List, Optional
+from typing import Optional
+
+from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtGui import QKeyEvent
+from PySide6.QtWidgets import QTabWidget, QToolButton
+
 from player_backends.Song import Song
 from playlist.playlist import Playlist
 from playlist.playlist_manager import PlaylistManager
 from playlist.playlist_model import PlaylistModel
-from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtWidgets import QTabWidget, QToolButton
-from PySide6.QtGui import QKeyEvent
-
 from playlist.playlist_tab_bar import PlaylistTabBar
 from playlist.playlist_tab_bar_edit import PlaylistTabBarEdit
 from playlist.playlist_tree_view import PlaylistTreeView
