@@ -11,19 +11,17 @@ from playlist.playlist_model import PlaylistModel
 from playlist.playlist_tab_bar import PlaylistTabBar
 from playlist.playlist_tab_bar_edit import PlaylistTabBarEdit
 from playlist.playlist_tree_view import PlaylistTreeView
-from tree_view_columns import tree_view_columns_dict
+from settings.settings import Settings
 
 
 class PlaylistTabWidget(QTabWidget):
     song_double_clicked = Signal(Song, int, Playlist)
     files_dropped = Signal(list, Playlist)
 
-    def __init__(
-        self, parent, playlist_manager: PlaylistManager, add_tab_button: bool = True
-    ) -> None:
+    def __init__(self, parent, settings: Settings, add_tab_button: bool = True) -> None:
         super().__init__(parent)
 
-        self.playlist_manager = playlist_manager
+        # self.playlist_manager = playlist_manager
 
         self.tab_bar = PlaylistTabBar(parent)
         self.setTabBar(self.tab_bar)
@@ -42,20 +40,16 @@ class PlaylistTabWidget(QTabWidget):
     @Slot()
     def current_tab_changed(self, index: int) -> None:
         tab = self.widget(index)
-        if tab:
-            self.playlist_manager.set_current_playlist_by_index(index)
+        # if tab:
+        #     self.playlist_manager.set_current_playlist_by_index(index)
 
     @Slot()
     def on_tab_moved(self, from_index: int, to_index: int) -> None:
-        self.playlist_manager.playlist_moved(from_index, to_index)
-
-        # Print playlists with tab_index
-        for playlist in self.playlist_manager.playlists:
-            print(playlist.name, playlist.tab_index)
+        pass
 
     @Slot()
     def on_add_tab_button_clicked(self) -> None:
-        self.add_tab()
+        # self.add_tab()
 
         # Focus the new tab
         self.setCurrentIndex(self.count() - 1)
@@ -85,66 +79,66 @@ class PlaylistTabWidget(QTabWidget):
     def on_tab_renamed(self, text: str) -> None:
         # self.tab_renamed.emit(text)
         tab = self.get_current_tab()
-        if tab:
-            tab.set_name(text)
+        # if tab:
+        #     tab.set_name(text)
 
     @Slot()
     def on_song_double_clicked(self, song: Song, row: int, playlist: Playlist) -> None:
         self.song_double_clicked.emit(song, row, playlist)
 
-    def add_tab(self, playlist: Optional[Playlist] = None) -> PlaylistTreeView:
-        if not playlist:
-            playlist = Playlist("New Playlist")
-            self.playlist_manager.add_playlist(playlist)
+    # def add_tab(self, playlist: Optional[Playlist] = None) -> PlaylistTreeView:
+    #     if not playlist:
+    #         playlist = Playlist("New Playlist")
+    #         self.playlist_manager.add_playlist(playlist)
 
-        tree = PlaylistTreeView(playlist, self)
-        tree.files_dropped.connect(
-            lambda files: self.files_dropped.emit(
-                files, self.playlist_manager.current_playlist
-            )
-        )
-        model = PlaylistModel(0, 3)
+    #     tree = PlaylistTreeView(playlist, self)
+    #     tree.files_dropped.connect(
+    #         lambda files: self.files_dropped.emit(
+    #             files, self.playlist_manager.current_playlist
+    #         )
+    #     )
+    #     model = PlaylistModel(0, 3)
 
-        tree.item_double_clicked.connect(self.on_song_double_clicked)
+    #     tree.item_double_clicked.connect(self.on_song_double_clicked)
 
-        items = tree_view_columns_dict.items()
-        sorted_items = sorted(items, key=lambda x: x[1]["order"])
-        labels = [str(col_info["name"]) for _, col_info in sorted_items]
-        model.setHorizontalHeaderLabels(labels)
+    #     items = tree_view_columns_dict.items()
+    #     sorted_items = sorted(items, key=lambda x: x[1]["order"])
+    #     labels = [str(col_info["name"]) for _, col_info in sorted_items]
+    #     model.setHorizontalHeaderLabels(labels)
 
-        tree.setModel(model)
+    #     tree.setModel(model)
 
-        tree.set_playlist(playlist)
+    #     tree.set_playlist(playlist)
 
-        self.addTab(tree, playlist.name)
-        tree.update_current_row()
+    #     self.addTab(tree, playlist.name)
+    #     tree.update_current_row()
 
-        return tree
+    #     return tree
 
-    def add_song(self, song: Song) -> None:
-        tab = self.get_current_tab()
-        if tab:
-            tab.add_song(song)
+    # def add_song(self, song: Song) -> None:
+    #     tab = self.get_current_tab()
+    #     if tab:
+    #         tab.add_song(song)
 
-    def load_song(self, song: Song) -> int:
-        tab = self.get_current_tab()
-        if tab:
-            return tab.load_song(song)
-        return -1
+    # def load_song(self, song: Song) -> int:
+    #     tab = self.get_current_tab()
+    #     if tab:
+    #         return tab.load_song(song)
+    #     return -1
 
-    def remove_song_at(self, index: int) -> None:
-        tab = self.get_current_tab()
-        if tab:
-            tab.remove_song_at(index)
+    # def remove_song_at(self, index: int) -> None:
+    #     tab = self.get_current_tab()
+    #     if tab:
+    #         tab.remove_song_at(index)
 
-    def update_song_info(self, row: int, song: Song) -> None:
-        tab = self.get_current_tab()
-        if tab:
-            tab.update_song_info(row, song)
+    # def update_song_info(self, row: int, song: Song) -> None:
+    #     tab = self.get_current_tab()
+    #     if tab:
+    #         tab.update_song_info(row, song)
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        if event.key() == Qt.Key.Key_Delete:
-            tab = self.get_current_tab()
-            if tab:
-                tab.remove_selected_songs()
-        super().keyPressEvent(event)
+    # def keyPressEvent(self, event: QKeyEvent) -> None:
+    #     if event.key() == Qt.Key.Key_Delete:
+    #         tab = self.get_current_tab()
+    #         if tab:
+    #             tab.remove_selected_songs()
+    #     super().keyPressEvent(event)

@@ -1,108 +1,185 @@
-import ntpath
-from datetime import timedelta
 from typing import Optional
 
-from PySide6.QtCore import QEvent, QRect, Qt, Signal
+from PySide6.QtCore import QModelIndex, QRect, Qt, Signal
 from PySide6.QtGui import (
+    QAction,
     QBrush,
-    QColor,
     QDragEnterEvent,
     QDragMoveEvent,
     QDropEvent,
     QIcon,
-    QPainter,
     QPalette,
-    QPen,
     QStandardItem,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QProxyStyle,
+    QStyle,
     QStyleOption,
     QTreeView,
     QWidget,
 )
 
 from icons import Icons
-from player_backends.Song import Song
-from playlist.playlist import Playlist
-from playlist.playlist_item import PlaylistItem
 from playlist.playlist_model import PlaylistModel
-from tree_view_columns import TreeViewColumn, tree_view_columns_dict
+from settings.settings import Settings
+from tree_view_columns import tree_view_columns_dict
+
+
+class CustomItemViewStyle(QProxyStyle):
+    def __init__(self, style=None):
+        super().__init__(style)
+
+    def drawPrimitive(self, element, option, painter, widget=None):
+        if (
+            element == QStyle.PrimitiveElement.PE_IndicatorItemViewItemDrop
+            and not option.rect.isNull()  # type: ignore
+        ):
+            opt = QStyleOption(option)
+            opt.rect.setLeft(0)  # type: ignore
+            if widget:
+                opt.rect.setRight(widget.width())  # type: ignore
+
+            pen = painter.pen()
+            pen.setWidth(3)
+            painter.setPen(pen)
+
+            super().drawPrimitive(element, opt, painter, widget)
+            return
+        super().drawPrimitive(element, option, painter, widget)
 
 
 class PlaylistTreeView(QTreeView):
-    item_double_clicked = Signal(Song, int, Playlist)
+    item_double_clicked = Signal(int)
     files_dropped = Signal(list)
+    rows_moved = Signal(list)
 
-    def __init__(self, playlist: Playlist, parent: Optional[QWidget] = None) -> None:
-        super(PlaylistTreeView, self).__init__(parent)
-        self.dropIndicatorRect: QRect = QRect()
+    def __init__(
+        self, icons: Icons, settings: Settings, parent: Optional[QWidget] = None
+    ):
+        super().__init__(parent)
 
-        self.playlist = playlist
-        self.playlist.current_song_changed.connect(self.set_current_song)
+        self.settings = settings
+        self.icons = icons
 
-        # Currently playing row for this tab
-        self.previous_row: int = 0
-
-        self.setDragDropMode(self.DragDropMode.InternalMove)
-        self.setSelectionMode(self.SelectionMode.ExtendedSelection)
-        self.setSelectionBehavior(self.SelectionBehavior.SelectRows)
-        self.setEditTriggers(self.EditTrigger.NoEditTriggers)
-
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-
+        # Enable drag-and-drop reordering
+        self.setDragEnabled(True)
         self.setAcceptDrops(True)
+        self.setDragDropMode(QTreeView.DragDropMode.InternalMove)
+        self.setSelectionBehavior(QTreeView.SelectionBehavior.SelectRows)
+        self.setEditTriggers(QTreeView.EditTrigger.NoEditTriggers)
 
-        # Hide left-hand space from hidden expand sign
+        # Apply custom style for the drop indicator
+        self.setStyle(CustomItemViewStyle(self.style()))
+
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
         self.setRootIsDecorated(False)
         self.header().setMinimumSectionSize(20)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self.doubleClicked.connect(self.on_item_double_clicked)
 
-        self.icons = Icons()
+        model = PlaylistModel(self, 0)
+        header_settings = self.settings.get("columns", [])
+        column_names = [col["name"] for col in header_settings]
+        model.setHorizontalHeaderLabels(column_names)
+
+        self.setModel(model)
+
+        # Connect the rowsMoved signal to a custom slot
+        self.model().rowsMoved.connect(self.on_rows_moved)
+
+        self.dropIndicatorRect: QRect = QRect(0, 0, 0, 0)
+
+        self.previous_row: int = 0
+
+        # Add actions to the tree view
+        self.add_context_menu_actions()
+
+    def add_context_menu_actions(self):
+        # Action to remove selected rows
+        remove_action = QAction("Remove", self)
+        remove_action.triggered.connect(self.remove_selected_rows)
+        self.addAction(remove_action)
+
+        # Action to play the selected item
+        play_action = QAction("Play", self)
+        play_action.triggered.connect(self.play_selected_item)
+        self.addAction(play_action)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Delete:
+            self.remove_selected_rows()
+        else:
+            super().keyPressEvent(event)
+
+    def remove_selected_rows(self):
+        selected_rows = self.get_selected_rows()
+        for row in reversed(selected_rows):  # Reverse to avoid index shifting
+            self.remove_row(row)
+
+    def play_selected_item(self):
+        index = self.currentIndex()
+        if index.isValid():
+            row = index.row()
+            print(f"Playing item at row {row}")
+            self.set_currently_playing_row(row)
 
     def setModel(self, model: PlaylistModel) -> None:
         super().setModel(model)
         self.playlist_model = model
 
-    def on_item_double_clicked(self, item: QStandardItem) -> None:
-        row: int = item.row()
-        model = self.model()
-        if isinstance(model, PlaylistModel):
-            song: Song = model.item(row, 0).data(Qt.ItemDataRole.UserRole)
-        self.item_double_clicked.emit(song, row, self.playlist)
+    def on_item_double_clicked(self, index: QModelIndex) -> None:
+        self.item_double_clicked.emit(index.row())
 
-    def paintEvent(self, event: QEvent) -> None:
-        painter: QPainter = QPainter(self.viewport())
-        self.drawTree(painter, event.region())  # type: ignore[no-untyped-call]
-        self.paintDropIndicator(painter)
-        painter.end()
+    def set_playlist_data(self, data: list[dict]) -> None:
+        self.playlist_model.removeRows(0, self.playlist_model.rowCount())
+        for row_data in data:
+            self.add_row(row_data)
 
-    def paintDropIndicator(self, painter: QPainter) -> None:
-        if self.state() == QAbstractItemView.State.DraggingState:
-            opt: QStyleOption = QStyleOption()
-            opt.initFrom(self)
-            opt.rect = self.dropIndicatorRect  # type: ignore[assignment]
-            rect: QRect = opt.rect  # type: ignore[assignment]
+    def get_playlist_data(self) -> list[dict]:
+        data = []
+        for row in range(self.playlist_model.rowCount()):
+            row_data = self.get_row_data(row)
+            if row_data:
+                data.append(row_data)
+        return data
 
-            brush: QBrush = QBrush(QColor(Qt.GlobalColor.black))
+    def add_row(self, row_data: dict) -> None:
+        tree_cols = []
+        for col_name, _ in tree_view_columns_dict.items():
+            item = QStandardItem(row_data.get(col_name, ""))
+            tree_cols.append(item)
+        self.playlist_model.appendRow(tree_cols)
 
-            if rect.height() == 0:
-                pen: QPen = QPen(brush, 2, Qt.PenStyle.SolidLine)
-                painter.setPen(pen)
-                painter.drawLine(rect.topLeft(), rect.topRight())
-            else:
-                pen: QPen = QPen(brush, 2, Qt.PenStyle.SolidLine)
-                painter.setPen(pen)
-                painter.drawRect(rect)
+    def get_row_data(self, row: int) -> Optional[dict]:
+        if row < self.playlist_model.rowCount():
+            row_data = {}
+            for column_id in tree_view_columns_dict:
+                col_info = tree_view_columns_dict[column_id]
+                col = col_info["order"]
+                item = self.playlist_model.item(row, col)
+                if item:
+                    row_data[column_id] = item.text()
+            return row_data
+        return None
+
+    def remove_row(self, row: int) -> None:
+        self.playlist_model.removeRow(row)
+
+    def get_selected_rows(self) -> list[int]:
+        return sorted(set(index.row() for index in self.selectedIndexes()))
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
+        super().dragEnterEvent(event)
 
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
+        super().dragMoveEvent(event)
 
     def dropEvent(self, event: QDropEvent) -> None:
         if event.mimeData().hasUrls():
@@ -110,108 +187,9 @@ class PlaylistTreeView(QTreeView):
             file_paths = [url.toLocalFile() for url in urls]
             self.files_dropped.emit(file_paths)
             event.acceptProposedAction()
+        super().dropEvent(event)
 
-    def load_song(self, song: Song) -> int:
-        index = self.add_song(song)
-        self.playlist.on_song_added(song)
-        return index
-
-    def construct_item(
-        self, song: Song, col_name: str, col_info: TreeViewColumn
-    ) -> PlaylistItem:
-        item = PlaylistItem()
-
-        match col_name:
-            case "playing":
-                item.setText("")
-            case "filename":
-                item.setText(ntpath.basename(song.filename))
-            case "title":
-                item.setText(song.title)
-            case "duration":
-                duration = timedelta(seconds=song.duration)
-                item.setText(str(duration).split(".")[0])
-            case "backend":
-                item.setText(song.backend_name)
-            case "path":
-                item.setText(song.filename)
-            case "artist":
-                item.setText(song.artist)
-            case "player":
-                item.setText(song.playername)
-            case "subsongs":
-                item.setText(str(song.subsongs))
-
-        if col_info["order"] == 0:
-            item.setData(song, Qt.ItemDataRole.UserRole)
-
-        return item
-
-    def construct_tree_cols(self, song: Song) -> list[PlaylistItem]:
-        tree_cols: list[PlaylistItem] = []
-
-        items = tree_view_columns_dict.items()
-        sorted_items = sorted(items, key=lambda x: x[1]["order"])
-
-        for col_name, col_info in sorted_items:
-            item = self.construct_item(song, col_name, col_info)
-            tree_cols.append(item)
-
-        return tree_cols
-
-    def add_song(self, song: Song) -> int:
-        tree_cols = self.construct_tree_cols(song)
-        self.playlist_model.appendRow(tree_cols)
-        return self.playlist_model.indexFromItem(tree_cols[0]).row()
-
-    def remove_song(self, song: Song) -> None:
-        for row in range(self.playlist_model.rowCount()):
-            item = self.playlist_model.item(row, 0)
-            current_song: Song = item.data(Qt.ItemDataRole.UserRole)
-            if current_song.uid == song.uid:
-                self.remove_song_at(row)
-                break
-
-    def update_song(self, song: Song) -> None:
-        for row in range(self.playlist_model.rowCount()):
-            item = self.playlist_model.item(row, 0)
-            current_song: Song = item.data(Qt.ItemDataRole.UserRole)
-            if current_song.uid == song.uid:
-                item.setData(song, Qt.ItemDataRole.UserRole)
-                # self.remove_song_at(row)
-                # self.add_song(song)
-                break
-
-    def remove_song_at(self, row: int) -> None:
-        self.playlist_model.removeRow(row)
-        self.playlist.on_song_removed_at(row)
-
-    def move_song(self, from_row: int, to_row: int) -> None:
-        self.playlist_model.moveRow(
-            self.playlist_model.index(from_row, 0),
-            to_row,
-            self.playlist_model.index(from_row, 0),
-            to_row,
-        )
-
-    def find_song_row(self, song: Song) -> int:
-        for row in range(self.playlist_model.rowCount()):
-            item = self.playlist_model.item(row, 0)
-            current_song: Song = item.data(Qt.ItemDataRole.UserRole)
-            if current_song.uid == song.uid:
-                return row
-        return -1
-
-    def update_song_info(self, row: int, song: Song) -> None:
-        song_row = self.find_song_row(song)
-
-        if song_row != -1:
-            tree_cols = self.construct_tree_cols(song)
-
-            for col_index, item in enumerate(tree_cols):
-                self.playlist_model.setItem(song_row, col_index, item)
-
-    def set_play_status(self, row: int, enable: bool) -> None:
+    def _set_play_status(self, row: int, enable: bool) -> None:
         column = self.playlist_model.itemFromIndex(self.model().index(row, 0))
 
         if column:
@@ -232,37 +210,10 @@ class PlaylistTreeView(QTreeView):
 
             column.setForeground(QBrush(color))
 
-    def set_current_row(self, row: int) -> None:
-        self.set_play_status(self.previous_row, False)
-        self.set_play_status(row, True)
+    def set_currently_playing_row(self, row: int) -> None:
+        self._set_play_status(self.previous_row, False)
+        self._set_play_status(row, True)
         self.previous_row = row
-
-    def update_current_row(self) -> None:
-        self.set_current_row(self.playlist.current_song_index)
-
-    def set_current_song(self, song: Song, index: int) -> None:
-        for row in range(self.playlist_model.rowCount()):
-            item = self.playlist_model.item(row, 0)
-            current_song: Song = item.data(Qt.ItemDataRole.UserRole)
-            if current_song.uid == song.uid:
-                self.set_current_row(row)
-                break
-
-    def set_playlist(self, playlist: Playlist) -> None:
-        self.playlist = playlist
-        self.playlist_model.clear()
-        for song in playlist.songs:
-            self.add_song(song)
-
-        # Set column names and widths
-        for col_info in tree_view_columns_dict.values():
-            name = col_info["name"]
-            self.playlist_model.setHorizontalHeaderItem(
-                col_info["order"], QStandardItem(name)
-            )
-
-            width = col_info["width"]
-            self.setColumnWidth(col_info["order"], width)
 
     def get_current_item(self) -> Optional[QStandardItem]:
         index = self.currentIndex()
@@ -270,14 +221,27 @@ class PlaylistTreeView(QTreeView):
             return self.playlist_model.itemFromIndex(index)
         return None
 
-    def remove_selected_songs(self) -> None:
-        rows = sorted(
-            set(index.row() for index in self.selectedIndexes()), reverse=True
-        )
-        for row in rows:
-            self.remove_song_at(row)
+    def get_column_widths(self) -> list[int]:
+        column_widths = []
+        for i in range(self.playlist_model.columnCount()):
+            column_widths.append(self.columnWidth(i))
+        return column_widths
 
-    def set_name(self, name: str) -> None:
-        self.playlist.name = name
-        # self.playlist_model.setHorizontalHeaderItem(0, QStandardItem(name))
-        # self.playlist_model.setHeaderData(0, Qt.Orientation.Horizontal, name)
+    def set_column_widths(self, widths: list[int]) -> None:
+        for i, width in enumerate(widths):
+            self.setColumnWidth(i, width)
+
+    def on_rows_moved(
+        self,
+        parent: QModelIndex,
+        start: int,
+        end: int,
+        destination: QModelIndex,
+        row: int,
+    ) -> None:
+
+        # Emit the new order of rows
+        new_order = [
+            self.model().index(i, 0).row() for i in range(self.model().rowCount())
+        ]
+        self.rows_moved.emit(new_order)

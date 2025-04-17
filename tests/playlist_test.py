@@ -81,7 +81,7 @@ def test_from_json(playlist, tmp_path):
     playlist.to_json(str(json_file))
     loaded_playlist = Playlist.from_json(str(json_file))
     assert loaded_playlist.name == playlist.name
-    assert loaded_playlist.uuid == playlist.uuid
+    assert loaded_playlist.id == playlist.uuid
     assert loaded_playlist.current_song_index == playlist.current_song_index
     assert loaded_playlist.tab_index == playlist.tab_index
     assert len(loaded_playlist.songs) == len(playlist.songs)

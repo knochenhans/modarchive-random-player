@@ -39,7 +39,7 @@ class PlaylistManager(QObject):
 
     def save_playlist(self, playlist: Playlist):
         if os.path.exists(self.config_dir):
-            filename = os.path.join(self.config_dir, f"{playlist.uuid}.playlist")
+            filename = os.path.join(self.config_dir, f"{playlist.id}.playlist")
             playlist.to_json(filename)
 
     def add_playlist(self, playlist: Playlist) -> None:

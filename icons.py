@@ -1,8 +1,8 @@
 import darkdetect
-from PySide6.QtCore import QSettings
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QStyle
 from typing import Dict, Optional
+from settings.settings import Settings
 
 
 class Icons:
@@ -13,23 +13,27 @@ class Icons:
             cls._instance = super(Icons, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, settings: Optional[QSettings] = None, style: Optional[QStyle] = None):
+    def __init__(
+        self,
+        settings: Settings,
+        style: Optional[QStyle] = None    ):
         if hasattr(self, "_initialized") and self._initialized:
             return
         self._initialized = True
 
         self.icons: Dict[str, str] = {}
         self.pixmap_icons: Dict[str, QIcon] = {}
+        self.base_path = "data/icons"
 
         if settings and style:
-            if darkdetect.isDark() or settings.value(
-                "dark_theme", type=bool, defaultValue=False
-            ):
-                self.icons["star_empty"] = "icons/star_empty_light.png"
-                self.icons["star_full"] = "icons/star_full_light.png"
+            dark_theme = darkdetect.isDark() or settings.get("dark_theme", False)
+
+            if dark_theme:
+                self.icons["star_empty"] = f"{self.base_path}/star_empty_light.png"
+                self.icons["star_full"] = f"{self.base_path}/star_full_light.png"
             else:
-                self.icons["star_empty"] = "icons/star_empty.png"
-                self.icons["star_full"] = "icons/star_full.png"
+                self.icons["star_empty"] = f"{self.base_path}/star_empty.png"
+                self.icons["star_full"] = f"{self.base_path}/star_full.png"
 
             self.pixmap_icons["application_icon"] = style.standardIcon(
                 QStyle.StandardPixmap.SP_MediaPlay

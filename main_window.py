@@ -1,219 +1,195 @@
-import shutil
-import webbrowser
-from typing import Dict
+import json
+import os
+import sys
+from typing import Any, Dict, List
 
-from loguru import logger
-from PySide6.QtCore import QSettings, Qt, Slot
-from PySide6.QtGui import QAction, QCursor
-from PySide6.QtWidgets import QMainWindow, QMenu, QSystemTrayIcon
+from appdirs import user_config_dir, user_data_dir
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QMainWindow,
+    QMenu,
+    QMenuBar,
+    QVBoxLayout,
+    QWidget,
+)
 
 from icons import Icons
-from dialogs.history_dialog import HistoryDialog
-from dialogs.meta_data_dialog import MetaDataDialog
-from playing_engine import PlayingEngine
-from playlist.playlists_dialog import PlaylistsDialog
-from player_backends.libopenmpt.player_backend_libopenmpt import PlayerBackendLibOpenMPT
-from player_backends.libuade.player_backend_libuade import PlayerBackendLibUADE
-from player_backends.libgme.player_backend_libgme import PlayerBackendLibGME
-from player_backends.player_backend import PlayerBackend
-from dialogs.settings_dialog import SettingsDialog
-from settings_manager import SettingsManager
-from ui_manager import UIManager
-from web_helper import WebHelper
+from playlist.playlist_tab_widget import PlaylistTabWidget
+from playlist.playlist_tree_view import PlaylistTreeView
+from settings.settings import Settings
+from loguru import logger
 
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.name: str = "Mod Archive Random Player"
-        self.setWindowTitle(self.name)
-        self.settings = QSettings("Andre Jonas", "ModArchiveRandomPlayer")
 
-        self.player_backends: Dict[str, type[PlayerBackend]] = {
-            "LibUADE": PlayerBackendLibUADE,
-            "LibOpenMPT": PlayerBackendLibOpenMPT,
-            "LibGME": PlayerBackendLibGME,
-        }
+        self.application_name: str = "PyRetroPlayer"
+        self.application_version: str = "0.1.0"
 
-        self.settings_manager = SettingsManager(self.settings)
+        self.setWindowTitle(f"{self.application_name} v{self.application_version}")
 
-        self.icons = Icons(self.settings, self.style())
-        self.icon = self.icons.pixmap_icons["application_icon"]
-        self.ui_manager = UIManager(self)
-        self.setWindowIcon(self.icon)
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
 
-        self.ui_manager.load_settings()
+        layout = QVBoxLayout(central_widget)
 
-        self.playing_engine = PlayingEngine(
-            self.ui_manager, self.settings_manager, self.player_backends
+        self.settings: Settings = Settings(
+            "playlist_configuration",
+            os.path.join(user_config_dir(), self.application_name),
         )
+        self.settings.load()
 
-        self.ui_manager.playing_engine = self.playing_engine
-        self.playing_engine.set_window_title.connect(self.set_window_title)
-        
-        self.ui_manager.set_playing_mode(
-            self.playing_engine.playing_settings.playing_mode
+        self.playlists_path: str = os.path.join(
+            user_data_dir(self.application_name), "playlist"
         )
-        self.ui_manager.set_playing_source(
-            self.playing_engine.playing_settings.playing_source
+        os.makedirs(self.playlists_path, exist_ok=True)
+
+        self.tab_widget: PlaylistTabWidget = PlaylistTabWidget(self, self.settings)
+        layout.addWidget(self.tab_widget)
+
+        self.create_menu_bar()
+
+        self.load_playlists()
+
+        self.current_playlist: PlaylistTreeView = self.tab_widget.get_current_tab()
+
+    def create_menu_bar(self) -> None:
+        menu_bar: QMenuBar = self.menuBar()
+
+        file_menu: QMenu = menu_bar.addMenu("&File")
+
+        new_playlist_action: QAction = QAction("&New Playlist", self)
+        new_playlist_action.triggered.connect(self.create_new_playlist)
+        file_menu.addAction(new_playlist_action)
+
+        import_action: QAction = QAction("&Import Playlist", self)
+        import_action.triggered.connect(self.import_playlist)
+        file_menu.addAction(import_action)
+
+        export_action: QAction = QAction("&Export Playlist", self)
+        export_action.triggered.connect(self.export_playlist)
+        file_menu.addAction(export_action)
+
+        file_menu.addSeparator()
+
+        exit_action: QAction = QAction("E&xit", self)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+    def create_new_playlist(self) -> None:
+        playlist_name = "New Playlist"
+        new_playlist_tree_view: PlaylistTreeView = PlaylistTreeView(
+            Icons(self.settings, self.style()), self.settings, self
         )
-        self.ui_manager.set_modarchive_source(
-            self.playing_engine.playing_settings.modarchive_source
+        new_playlist_tree_view.setWindowTitle(playlist_name)
+        self.tab_widget.addTab(new_playlist_tree_view, playlist_name)
+        new_playlist_tree_view.item_double_clicked.connect(self.on_item_double_clicked)
+
+    def import_playlist(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Import Playlist", "", "JSON Files (*.json)"
         )
-        self.ui_manager.set_local_source(
-            self.playing_engine.playing_settings.local_source
+        if file_path:
+            with open(file_path, "r") as f:
+                playlist_data = json.load(f)
+                playlist_name = playlist_data["name"]
+                playlist_items = playlist_data["data"]
+                column_widths = playlist_data.get("column_widths", [])
+                self.add_playlist(playlist_name, playlist_items, column_widths)
+                logger.info(f"Imported playlist: {playlist_name}")
+
+    def export_playlist(self) -> None:
+        if self.current_playlist:
+            file_path, _ = QFileDialog.getSaveFileName(
+                self, "Export Playlist", "", "JSON Files (*.json)"
+            )
+            if file_path:
+                playlist_data = self.current_playlist.get_playlist_data()
+                playlist_name = self.current_playlist.windowTitle()
+                column_widths = self.current_playlist.get_column_widths()
+                with open(file_path, "w") as f:
+                    json.dump(
+                        {
+                            "name": playlist_name,
+                            "data": playlist_data,
+                            "column_widths": column_widths,
+                        },
+                        f,
+                        indent=4,
+                    )
+                logger.info(f"Exported playlist to {file_path}")
+
+    def on_item_double_clicked(self, row: int) -> None:
+        sender = self.sender()
+        if isinstance(sender, PlaylistTreeView):
+            sender.set_currently_playing_row(row)
+            self.current_playlist = sender
+
+    def add_playlist(
+        self,
+        playlist_name: str,
+        playlist_data: List[Dict[str, Any]],
+        column_widths: list[int] = [],
+    ) -> None:
+        icons: Icons = Icons(self.settings, self.style())
+
+        new_playlist_tree_view: PlaylistTreeView = PlaylistTreeView(
+            icons, self.settings, self
         )
+        self.tab_widget.addTab(new_playlist_tree_view, playlist_name)
 
-        self.history_dialog = None
-        self.playlist_dialog = None
-        self.settings_dialog = None
-        self.meta_data_dialog = None
+        new_playlist_tree_view.setWindowTitle(playlist_name)
+        new_playlist_tree_view.set_playlist_data(playlist_data)
+        new_playlist_tree_view.item_double_clicked.connect(self.on_item_double_clicked)
 
-        self.web_helper = WebHelper()
+        new_playlist_tree_view.set_column_widths(column_widths)
 
-    @Slot()
-    def set_window_title(self, title: str) -> None:
-        self.setWindowTitle(f"{self.name} - {title}")
+    def load_playlists(self) -> None:
+        for filename in os.listdir(self.playlists_path):
+            if filename.endswith(".json"):
+                playlist_file_path = os.path.join(self.playlists_path, filename)
+                with open(playlist_file_path, "r") as f:
+                    playlist_data = json.load(f)
+                    playlist_name = playlist_data["name"]
+                    playlist_items = playlist_data["data"]
+                    column_widths = playlist_data.get("column_widths", [])
 
-    def add_favorite_button_clicked(self) -> None:
-        if self.playing_engine.get_current_song:
-            action = (
-                "add_favourite"
-                if not self.current_module_is_favorite
-                else "remove_favourite"
-            )
-            webbrowser.open(
-                f"https://modarchive.org/interactive.php?request={action}&query={self.playing_engine.get_current_song.modarchive_id}"
-            )
+                    self.add_playlist(playlist_name, playlist_items, column_widths)
+                    logger.info(f"Loaded playlist: {playlist_name}")
 
-            self.current_module_is_favorite = not self.current_module_is_favorite
-            self.ui_manager.set_favorite_button_state(self.current_module_is_favorite)
+    def save_playlists(self) -> None:
+        for i in range(self.tab_widget.count()):
+            playlist_tree_view = self.tab_widget.widget(i)
 
-    def open_settings_dialog(self) -> None:
-        if self.settings_dialog:
-            self.settings_dialog.close()
-            self.settings_dialog = None
-        else:
-            self.settings_dialog = SettingsDialog(self.settings, self)
-            self.settings_dialog.exec()
+            if isinstance(playlist_tree_view, PlaylistTreeView):
+                playlist_data = playlist_tree_view.get_playlist_data()
+                playlist_name = playlist_tree_view.windowTitle()
+                column_widths = playlist_tree_view.get_column_widths()
+                playlist_file_path = os.path.join(self.playlists_path, f"{i}.json")
 
-            self.ui_manager.update_source_input()
+                with open(playlist_file_path, "w") as f:
+                    json.dump(
+                        {
+                            "name": playlist_name,
+                            "data": playlist_data,
+                            "column_widths": column_widths,
+                        },
+                        f,
+                        indent=4,
+                    )
+                logger.info(f"Playlist saved to {playlist_file_path}")
 
-    @Slot()
-    def on_play_pause_pressed(self) -> None:
-        self.playing_engine.play_pause()
-
-    @Slot()
-    def on_stop_pressed(self) -> None:
-        self.playing_engine.stop(True)
-
-    @Slot()
-    def on_next_pressed(self) -> None:
-        self.playing_engine.play_next()
-
-    @Slot()
-    def on_previous_pressed(self) -> None:
-        self.playing_engine.play_previous()
-
-    @Slot()
-    def open_module_link(self, link: str) -> None:
-        menu = QMenu(self)
-
-        lookup_modarchive_action = QAction("Lookup on ModArchive", self)
-        lookup_modarchive_action.triggered.connect(self.on_lookup_modarchive)
-        menu.addAction(lookup_modarchive_action)
-
-        lookup_msm_action = QAction("Lookup on .mod Sample Master", self)
-        lookup_msm_action.triggered.connect(self.on_lookup_msm)
-        menu.addAction(lookup_msm_action)
-
-        menu.exec_(QCursor.pos())
-
-    @Slot()
-    def on_lookup_msm(self) -> None:
-        if self.playing_engine:
-            song = self.playing_engine.get_current_song()
-
-            if song:
-                url: str = self.web_helper.lookup_msm_mod_url(song)
-
-                if url:
-                    webbrowser.open(url)
-
-    @Slot()
-    def on_lookup_modarchive(self) -> None:
-        if self.playing_engine:
-            song = self.playing_engine.get_current_song()
-
-            if song:
-                url: str = self.web_helper.lookup_modarchive_mod_url(song)
-
-                if url:
-                    webbrowser.open(url)
-
-    def open_history_dialog(self) -> None:
-        if self.history_dialog:
-            self.history_dialog.close()
-            self.history_dialog = None
-        else:
-            self.history_dialog = HistoryDialog(
-                self.playing_engine,
-                self,
-            )
-            self.playing_engine.history_playlist.song_added.connect(
-                self.history_dialog.add_song
-            )
-            # self.song_info_updated.connect(history_dialog.update_song_info)
-            self.history_dialog.song_on_tab_double_clicked.connect(
-                self.playing_engine.play_module
-            )
-            self.history_dialog.show()
-
-    def open_playlists_dialog(self) -> None:
-        if self.playlist_dialog:
-            self.playlist_dialog.close()
-            self.playlist_dialog = None
-        else:
-            self.playlists_dialog = PlaylistsDialog(
-                self.settings_manager,
-                self.playing_engine,
-                self,
-            )
-            self.playlists_dialog.song_on_tab_double_clicked.connect(
-                self.playing_engine.play_playlist_modules
-            )
-            self.playlists_dialog.show()
-
-    def open_meta_data_dialog(self) -> None:
-        if self.meta_data_dialog:
-            self.meta_data_dialog.close()
-            self.meta_data_dialog = None
-        else:
-            if self.playing_engine:
-                song = self.playing_engine.get_current_song()
-
-                if song:
-                    self.meta_data_dialog = MetaDataDialog(song, self)
-                    self.meta_data_dialog.show()
-
-    def keyPressEvent(self, event) -> None:
-        if event.key() == Qt.Key.Key_Escape:
-            self.hide()
-
-    @Slot()
-    def tray_icon_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason == QSystemTrayIcon.ActivationReason.Trigger:
-            if self.isVisible():
-                self.hide()
-            else:
-                self.show()
-
-    @Slot()
     def closeEvent(self, event) -> None:
-        self.playing_engine.close()
-        self.settings_manager.close()
-        self.ui_manager.close()
+        self.save_playlists()
+        event.accept()
 
-        shutil.rmtree(self.playing_engine.temp_dir)
 
-        super().closeEvent(event)
+if __name__ == "__main__":
+    app: QApplication = QApplication(sys.argv)
+    window: MainWindow = MainWindow()
+    window.resize(800, 600)
+    window.show()
+    sys.exit(app.exec())

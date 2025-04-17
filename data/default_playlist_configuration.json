@@ -1,0 +1,44 @@
+{
+    "columns": [
+        {
+            "id": "id",
+            "name": ""
+        },
+        {
+            "id": "playing",
+            "name": ""
+        },
+        {
+            "id": "filename",
+            "name": "Filename"
+        },
+        {
+            "id": "title",
+            "name": "Title"
+        },
+        {
+            "id": "duration",
+            "name": "Duration"
+        },
+        {
+            "id": "backend",
+            "name": "Backend"
+        },
+        {
+            "id": "path",
+            "name": "Path"
+        },
+        {
+            "id": "subsong",
+            "name": "Subsong"
+        },
+        {
+            "id": "artist",
+            "name": "Artist"
+        },
+        {
+            "id": "player",
+            "name": "Player"
+        }
+    ]
+}

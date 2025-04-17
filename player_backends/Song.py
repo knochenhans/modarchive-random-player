@@ -6,7 +6,7 @@ import json
 
 @dataclass
 class Song:
-    uid: str = field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
     filename: str = ""
     backend_name: str = ""
     modarchive_id: int = 0
