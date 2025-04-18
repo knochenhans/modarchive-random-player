@@ -166,7 +166,7 @@ class MainWindow(QMainWindow):
 
             if isinstance(playlist_tree_view, PlaylistTreeView):
                 playlist_data = playlist_tree_view.get_playlist_data()
-                playlist_name = playlist_tree_view.windowTitle()
+                playlist_name = self.tab_widget.tabText(i)
                 column_widths = playlist_tree_view.get_column_widths()
                 playlist_file_path = os.path.join(self.playlists_path, f"{i}.json")
 
