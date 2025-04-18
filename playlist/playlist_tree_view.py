@@ -87,7 +87,6 @@ class PlaylistTreeView(QTreeView):
 
         self.setModel(model)
 
-        # Connect the rowsMoved signal to a custom slot
         self.model().rowsMoved.connect(self.on_rows_moved)
 
         self.dropIndicatorRect: QRect = QRect(0, 0, 0, 0)
