@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from appdirs import user_config_dir, user_data_dir
 from PySide6.QtGui import QAction
@@ -49,6 +49,9 @@ class MainWindow(QMainWindow):
 
         self.tab_widget: PlaylistTabWidget = PlaylistTabWidget(self, self.settings)
         layout.addWidget(self.tab_widget)
+        self.tab_widget.tab_added.connect(self.create_new_playlist)
+        self.tab_widget.tab_deleted.connect(self.delete_playlist)
+        self.tab_widget.tab_renamed.connect(self.rename_playlist)
 
         self.create_menu_bar()
 
@@ -72,6 +75,10 @@ class MainWindow(QMainWindow):
         export_action: QAction = QAction("&Export Playlist", self)
         export_action.triggered.connect(self.export_playlist)
         file_menu.addAction(export_action)
+
+        delete_playlist_action: QAction = QAction("&Delete Playlist", self)
+        delete_playlist_action.triggered.connect(self.on_delete_playlist)
+        file_menu.addAction(delete_playlist_action)
 
         file_menu.addSeparator()
 
@@ -122,6 +129,28 @@ class MainWindow(QMainWindow):
                     )
                 logger.info(f"Exported playlist to {file_path}")
 
+    def on_delete_playlist(self) -> None:
+        self.delete_playlist()
+
+    def delete_playlist(self, playlist_index: Optional[int] = None) -> None:
+        if playlist_index is None:
+            playlist_index = self.tab_widget.currentIndex()
+
+        if playlist_index != -1:
+            playlist_name = self.tab_widget.tabText(playlist_index)
+            self.tab_widget.removeTab(playlist_index)
+            logger.info(f"Deleted playlist: {playlist_name}")
+        else:
+            logger.warning("No playlist selected to delete.")
+
+    def rename_playlist(self, new_name: str) -> None:
+        # Rename the current playlist tab via window title
+        current_index = self.tab_widget.currentIndex()
+        if current_index != -1:
+            self.tab_widget.setTabText(current_index, new_name)
+            self.tab_widget.widget(current_index).setWindowTitle(new_name)
+            logger.info(f"Renamed playlist to: {new_name}")
+
     def on_item_double_clicked(self, row: int) -> None:
         sender = self.sender()
         if isinstance(sender, PlaylistTreeView):
@@ -148,7 +177,7 @@ class MainWindow(QMainWindow):
         new_playlist_tree_view.set_column_widths(column_widths)
 
     def load_playlists(self) -> None:
-        for filename in os.listdir(self.playlists_path):
+        for filename in sorted(os.listdir(self.playlists_path)):
             if filename.endswith(".json"):
                 playlist_file_path = os.path.join(self.playlists_path, filename)
                 with open(playlist_file_path, "r") as f:
@@ -161,6 +190,13 @@ class MainWindow(QMainWindow):
                     logger.info(f"Loaded playlist: {playlist_name}")
 
     def save_playlists(self) -> None:
+        # Remove existing files in the playlists directory
+        for filename in os.listdir(self.playlists_path):
+            file_path = os.path.join(self.playlists_path, filename)
+            if os.path.isfile(file_path) and filename.endswith(".json"):
+                os.remove(file_path)
+
+        # Save current playlists
         for i in range(self.tab_widget.count()):
             playlist_tree_view = self.tab_widget.widget(i)
 
