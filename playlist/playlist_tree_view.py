@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
-from PySide6.QtCore import QModelIndex, QRect, Qt, Signal
+from PySide6.QtCore import QModelIndex, Qt, Signal
 from PySide6.QtGui import (
     QAction,
     QBrush,
@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
 )
 
 from icons import Icons
+from playlist.column_manager import ColumnManager
+from playlist.playlist import Playlist
 from playlist.playlist_model import PlaylistModel
 from settings.settings import Settings
 from tree_view_columns import tree_view_columns_dict
@@ -55,12 +57,19 @@ class PlaylistTreeView(QTreeView):
     rows_moved = Signal(list)
 
     def __init__(
-        self, icons: Icons, settings: Settings, parent: Optional[QWidget] = None
+        self,
+        icons: Icons,
+        settings: Settings,
+        playlist: Playlist,
+        column_manager: ColumnManager,
+        parent: Optional[QWidget] = None,
     ):
         super().__init__(parent)
 
-        self.settings = settings
         self.icons = icons
+        self.settings = settings
+        self.playlist = playlist
+        self.column_manager = column_manager
 
         # Enable drag-and-drop reordering
         self.setDragEnabled(True)
@@ -80,20 +89,16 @@ class PlaylistTreeView(QTreeView):
 
         self.doubleClicked.connect(self.on_item_double_clicked)
 
-        model = PlaylistModel(self, 0)
-        header_settings = self.settings.get("columns", [])
-        column_names = [col["name"] for col in header_settings]
-        model.setHorizontalHeaderLabels(column_names)
-
+        # Initialize the model and set the playlist data
+        model = PlaylistModel(self)
+        model.set_column_names(self.column_manager.get_column_names())
         self.setModel(model)
-
         self.model().rowsMoved.connect(self.on_rows_moved)
 
-        self.dropIndicatorRect: QRect = QRect(0, 0, 0, 0)
+        self.set_playlist_data(self.playlist.get_items())
+        self.remove_invisible_columns()
+        self.set_column_widths(self.column_manager.get_column_widths())
 
-        self.previous_row: int = 0
-
-        # Add actions to the tree view
         self.add_context_menu_actions()
 
     def add_context_menu_actions(self):
@@ -132,42 +137,26 @@ class PlaylistTreeView(QTreeView):
     def on_item_double_clicked(self, index: QModelIndex) -> None:
         self.item_double_clicked.emit(index.row())
 
-    def set_playlist_data(self, data: list[dict]) -> None:
+    def set_playlist_data(self, data: List[Dict[str, Any]]) -> None:
         self.playlist_model.removeRows(0, self.playlist_model.rowCount())
         for row_data in data:
             self.add_row(row_data)
 
-    def get_playlist_data(self) -> list[dict]:
-        data = []
-        for row in range(self.playlist_model.rowCount()):
-            row_data = self.get_row_data(row)
-            if row_data:
-                data.append(row_data)
-        return data
+    def get_playlist_data(self) -> List[Dict[str, Any]]:
+        return self.playlist.get_items()
 
-    def add_row(self, row_data: dict) -> None:
+    def add_row(self, row_data: Dict[str, Any]) -> None:
         tree_cols = []
         for col_name, _ in tree_view_columns_dict.items():
             item = QStandardItem(row_data.get(col_name, ""))
             tree_cols.append(item)
         self.playlist_model.appendRow(tree_cols)
 
-    def get_row_data(self, row: int) -> Optional[dict]:
-        if row < self.playlist_model.rowCount():
-            row_data = {}
-            for column_id in tree_view_columns_dict:
-                col_info = tree_view_columns_dict[column_id]
-                col = col_info["order"]
-                item = self.playlist_model.item(row, col)
-                if item:
-                    row_data[column_id] = item.text()
-            return row_data
-        return None
-
     def remove_row(self, row: int) -> None:
         self.playlist_model.removeRow(row)
+        self.playlist.remove_item(row)
 
-    def get_selected_rows(self) -> list[int]:
+    def get_selected_rows(self) -> List[int]:
         return sorted(set(index.row() for index in self.selectedIndexes()))
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
@@ -220,15 +209,23 @@ class PlaylistTreeView(QTreeView):
             return self.playlist_model.itemFromIndex(index)
         return None
 
-    def get_column_widths(self) -> list[int]:
+    def get_column_widths(self) -> List[int]:
         column_widths = []
         for i in range(self.playlist_model.columnCount()):
             column_widths.append(self.columnWidth(i))
         return column_widths
 
-    def set_column_widths(self, widths: list[int]) -> None:
+    def set_column_widths(self, widths: List[int]) -> None:
         for i, width in enumerate(widths):
             self.setColumnWidth(i, width)
+
+    def update_column_width(self) -> None:
+        column_index = 0
+        for column_id in self.column_manager.get_column_ids():
+            if self.column_manager.is_column_visible(column_id):
+                current_width = self.columnWidth(column_index)
+                self.column_manager.set_column_width(column_id, current_width)
+                column_index += 1
 
     def on_rows_moved(
         self,
@@ -244,3 +241,12 @@ class PlaylistTreeView(QTreeView):
             self.model().index(i, 0).row() for i in range(self.model().rowCount())
         ]
         self.rows_moved.emit(new_order)
+
+    def remove_invisible_columns(self) -> None:
+        model = self.model()
+        i = 0
+        for column_id in self.column_manager.columns:
+            if not self.column_manager.is_column_visible(column_id):
+                model.removeColumn(i)
+            else:
+                i += 1

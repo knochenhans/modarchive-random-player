@@ -1,12 +1,16 @@
-from PySide6.QtCore import Qt, QModelIndex
+from typing import List
+
+from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtGui import QStandardItemModel
 
 
 class PlaylistModel(QStandardItemModel):
-    def __init__(self, parent, length) -> None:
-        super().__init__(parent, length)
+    def __init__(self, parent) -> None:
+        super().__init__(parent, 0)
 
-    def flags(self, index) -> Qt.ItemFlag:
+        # self.set_column_names()
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlag:
         if not index.isValid():
             return Qt.ItemFlag.ItemIsDropEnabled
         else:
@@ -36,32 +40,8 @@ class PlaylistModel(QStandardItemModel):
     def supportedDropActions(self) -> Qt.DropAction:
         return Qt.DropAction.MoveAction
 
-    def mimeTypes(self) -> list[str]:
+    def mimeTypes(self) -> List[str]:
         return ["application/x-qstandarditemmodeldatalist"]
 
-    def moveRows(
-        self,
-        sourceParent: QModelIndex,
-        sourceRow: int,
-        count: int,
-        destinationParent: QModelIndex,
-        destinationChild: int,
-    ) -> bool:
-        if sourceRow == destinationChild or sourceRow + count == destinationChild:
-            return False  # Prevent moving rows to the same position
-
-        self.beginMoveRows(
-            sourceParent,
-            sourceRow,
-            sourceRow + count - 1,
-            destinationParent,
-            destinationChild,
-        )
-
-        # Perform the row move
-        rows = [self.takeRow(sourceRow) for _ in range(count)]
-        for i, row in enumerate(rows):
-            self.insertRow(destinationChild + i, row)
-
-        self.endMoveRows()
-        return True
+    def set_column_names(self, column_names: List[str]) -> None:
+        self.setHorizontalHeaderLabels(column_names)

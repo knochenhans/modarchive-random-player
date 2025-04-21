@@ -4,10 +4,10 @@ from PySide6.QtWidgets import QMenu, QTabWidget, QToolButton
 
 from player_backends.Song import Song
 from playlist.playlist import Playlist
+from playlist.playlist_manager import PlaylistManager
 from playlist.playlist_tab_bar import PlaylistTabBar
 from playlist.playlist_tab_bar_edit import PlaylistTabBarEdit
 from playlist.playlist_tree_view import PlaylistTreeView
-from settings.settings import Settings
 
 
 class PlaylistTabWidget(QTabWidget):
@@ -17,10 +17,15 @@ class PlaylistTabWidget(QTabWidget):
     tab_deleted = Signal(int)
     tab_renamed = Signal(str)
 
-    def __init__(self, parent, settings: Settings, add_tab_button: bool = True) -> None:
+    def __init__(
+        self,
+        parent,
+        playlist_manager: PlaylistManager,
+        add_tab_button: bool = True,
+    ) -> None:
         super().__init__(parent)
 
-        # self.playlist_manager = playlist_manager
+        self.playlist_manager = playlist_manager
 
         self.tab_bar = PlaylistTabBar(parent)
         self.setTabBar(self.tab_bar)
@@ -41,6 +46,12 @@ class PlaylistTabWidget(QTabWidget):
         self.tab_bar.addAction(self.delete_tab_action)
         self.delete_tab_action.triggered.connect(self.on_tab_context_menu)
 
+        # Connect signals for tab management
+        self.tabCloseRequested.connect(self.on_tab_close)
+
+        # Connect the tabMoved signal to update the PlaylistManager
+        self.tabBar().tabMoved.connect(self.on_tab_moved)
+
     @Slot()
     def on_tab_context_menu(self, position) -> None:
         tab_index = self.tab_bar.tabAt(position)
@@ -51,6 +62,10 @@ class PlaylistTabWidget(QTabWidget):
             if action == delete_action:
                 self.tab_deleted.emit(tab_index)
 
+    @Slot()
+    def on_tab_moved(self, from_index: int, to_index: int) -> None:
+        self.playlist_manager.reorder_playlists(from_index, to_index)
+
     def get_current_tab(self) -> PlaylistTreeView:
         return self.widget(self.currentIndex())  # type: ignore
 
@@ -58,7 +73,6 @@ class PlaylistTabWidget(QTabWidget):
     def doubleClicked(self, index) -> None:
         tab_bar = self.tabBar()
         if isinstance(tab_bar, PlaylistTabBar):
-            # tab_bar.tab_renamed.connect(self.on_tab_renamed)
             tab_bar.edit_index = index
         edit = PlaylistTabBarEdit(self, self.tabBar().tabRect(index))
         edit.show()
@@ -72,12 +86,22 @@ class PlaylistTabWidget(QTabWidget):
         if isinstance(tab_bar, PlaylistTabBar):
             tab_bar.editing_finished()
 
-    # @Slot()
-    # def on_tab_renamed(self, text: str) -> None:
-    #     tab = self.get_current_tab()
-    #     if tab:
-    #         self.tab_renamed.emit(text)
-
     @Slot()
     def on_song_double_clicked(self, song: Song, row: int, playlist: Playlist) -> None:
-        self.song_double_clicked.emit(song, row, playlist)
+        self.song_double_clicked.emit(song, row, playlist)        
+
+    def on_tab_close(self, index: int) -> None:
+        self.playlist_manager.delete_playlist(index)
+        self.removeTab(index)
+
+    def rename_playlist_tab(self, index: int, new_name: str) -> None:
+        self.setTabText(index, new_name)
+        playlist_view = self.widget(index)
+        if isinstance(playlist_view, PlaylistTreeView):
+            playlist_view.playlist.name = new_name
+
+    def update_tab_column_widths(self) -> None:
+        for i in range(self.count()):
+            playlist_view = self.widget(i)
+            if isinstance(playlist_view, PlaylistTreeView):
+                playlist_view.update_column_width()

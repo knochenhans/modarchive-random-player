@@ -1,116 +1,89 @@
+import json
 import os
-from typing import Optional
+from typing import List, Optional
 
-from platformdirs import user_config_dir
-from player_backends.Song import Song
+from appdirs import user_data_dir
+from loguru import logger
+
 from playlist.playlist import Playlist
-from PySide6.QtCore import QObject, Signal
-
-from settings_manager import SettingsManager
 
 
-class PlaylistManager(QObject):
-    song_added_to_playlist = Signal(Playlist, Song)
-    song_removed_from_playlist = Signal(Playlist, Song)
-    song_moved_on_playlist = Signal(Playlist, Song, int)
-
-    def __init__(self, settings_manager: SettingsManager) -> None:
-        super().__init__()
-        self.settings_manager = settings_manager
-        self.playlists: list[Playlist] = []
-        self.current_playlist: Optional[Playlist] = None
-        self.config_dir = user_config_dir(self.settings_manager.get_app_name())
-
-    def load_playlists(self) -> None:
-        if os.path.exists(self.config_dir):
-            for file_name in os.listdir(self.config_dir):
-                if file_name.endswith(".playlist"):
-                    self.load_playlist(os.path.join(self.config_dir, file_name))
-
-        # If only history playlist exists, create a default playlist
-        if len(self.playlists) == 1:
-            self.new_playlist("Default Playlist")
-        self.sort()
-
-    def save_playlists(self) -> None:
-        for playlist in self.playlists:
-            if playlist.name != "History":
-                self.save_playlist(playlist)
-
-    def save_playlist(self, playlist: Playlist):
-        if os.path.exists(self.config_dir):
-            filename = os.path.join(self.config_dir, f"{playlist.id}.playlist")
-            playlist.to_json(filename)
+class PlaylistManager:
+    def __init__(self, app_name: str) -> None:
+        self.app_name = app_name
+        self.playlists_path = os.path.join(user_data_dir(self.app_name), "playlist")
+        os.makedirs(self.playlists_path, exist_ok=True)
+        self.playlists: List[Playlist] = []
 
     def add_playlist(self, playlist: Playlist) -> None:
         self.playlists.append(playlist)
-        playlist.song_added.connect(
-            lambda song: self.on_song_added_to_playlist(playlist, song)
-        )
-        playlist.song_removed.connect(
-            lambda song: self.on_song_removed_from_playlist(playlist, song)
-        )
-        playlist.song_moved.connect(
-            lambda song, index: self.on_song_moved_on_playlist(playlist, song, index)
-        )
-        self.current_playlist = playlist
-
-    def new_playlist(self, name: str = "") -> Playlist:
-        playlist = Playlist(name)
-        playlist.tab_index = self.get_new_tab_index()
-        self.add_playlist(playlist)
-        return playlist
-
-    def get_new_tab_index(self) -> int:
-        return len(self.playlists)
+        logger.info(f"Added playlist: {playlist.name}")
 
     def delete_playlist(self, index: int) -> None:
-        del self.playlists[index]
-        if self.current_playlist == index:
-            self.current_playlist = None
+        if 0 <= index < len(self.playlists):
+            playlist_name = self.playlists[index].name
+            del self.playlists[index]
+            logger.info(f"Deleted playlist: {playlist_name}")
+        else:
+            logger.warning("Invalid playlist index to delete.")
 
-    def get_playlist(self, index: int) -> Playlist:
-        return self.playlists[index]
+    def load_playlists(self) -> None:
+        self.playlists.clear()
+        for filename in sorted(os.listdir(self.playlists_path)):
+            if filename.endswith(".json"):
+                playlist_file_path = os.path.join(self.playlists_path, filename)
+                playlist = self.load_playlist(playlist_file_path)
+                if playlist:
+                    self.playlists.append(playlist)
+                    logger.info(f"Loaded playlist: {playlist.name}")
 
-    def get_current_playlist(self) -> Optional[Playlist]:
-        return self.current_playlist
+    def save_playlists(self) -> None:
+        # Remove existing files in the playlists directory
+        for filename in os.listdir(self.playlists_path):
+            file_path = os.path.join(self.playlists_path, filename)
+            if os.path.isfile(file_path) and filename.endswith(".json"):
+                os.remove(file_path)
 
-    def set_current_playlist(self, playlist: Playlist) -> None:
-        self.current_playlist = playlist
+        # Save current playlists
+        for i, playlist in enumerate(self.playlists):
+            playlist_file_path = os.path.join(self.playlists_path, f"{i}.json")
+            self.save_playlist(playlist, playlist_file_path)
 
-    def set_current_playlist_by_index(self, index: int) -> None:
-        # Set current playlist (index + 1 because of history playlist being at index 0)
-        self.current_playlist = self.playlists[index + 1]
+    def load_playlist(self, file_path: str) -> Optional[Playlist]:
+        try:
+            with open(file_path, "r") as f:
+                playlist_data = json.load(f)
+                return Playlist(
+                    id=playlist_data["id"],
+                    name=playlist_data["name"],
+                    items=playlist_data["data"],
+                )
+        except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
+            logger.error(f"Failed to load playlist from {file_path}: {e}")
+            return None
 
-    # def set_current_song(self, song: Song) -> None:
-    #     self.current_playlist.set_current_song(song)
+    def save_playlist(self, playlist: Playlist, file_path: str) -> None:
+        try:
+            with open(file_path, "w") as f:
+                json.dump(
+                    {
+                        "id": playlist.id,
+                        "name": playlist.name,
+                        "data": playlist.get_items(),
+                    },
+                    f,
+                    indent=4,
+                )
+            logger.info(f"Playlist saved to {file_path}")
+        except IOError as e:
+            logger.error(f"Failed to save playlist to {file_path}: {e}")
 
-    def on_song_added_to_playlist(self, playlist: Playlist, song: Song) -> None:
-        self.song_added_to_playlist.emit(playlist, song)
-
-    def on_song_removed_from_playlist(self, playlist: Playlist, song: Song) -> None:
-        self.song_removed_from_playlist.emit(playlist, song)
-
-    def on_song_moved_on_playlist(
-        self, playlist: Playlist, song: Song, index: int
-    ) -> None:
-        self.song_moved_on_playlist.emit(playlist, song, index)
-
-    def load_playlist(self, filename: str):
-        playlist = Playlist.from_json(filename)
-
-        self.add_playlist(playlist)
-
-    def get_history_playlist(self) -> Optional[Playlist]:
-        for playlist in self.playlists:
-            if playlist.name == "History":
-                return playlist
-        return None
-
-    def sort(self):
-        self.playlists.sort(key=lambda x: x.tab_index)
-
-    def playlist_moved(self, from_index: int, to_index: int):
-        self.playlists[from_index].tab_index = to_index
-        self.playlists[to_index].tab_index = from_index
-        self.sort()
+    def reorder_playlists(self, from_index: int, to_index: int) -> None:
+        if 0 <= from_index < len(self.playlists) and 0 <= to_index < len(
+            self.playlists
+        ):
+            playlist = self.playlists.pop(from_index)
+            self.playlists.insert(to_index, playlist)
+            logger.info(f"Reordered playlists: {from_index} -> {to_index}")
+        else:
+            logger.warning("Invalid indices for playlist reordering.")
