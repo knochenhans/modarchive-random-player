@@ -49,6 +49,7 @@ class MainWindow(QMainWindow):
             self, self.playlist_manager
         )
         self.tab_widget.tab_added.connect(self.create_new_playlist)
+        self.tab_widget.tab_deleted.connect(self.on_delete_playlist)
         layout.addWidget(self.tab_widget)
 
         self.create_menu_bar()
@@ -110,7 +111,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction(exit_action)
 
     def create_new_playlist(self) -> None:
-        playlist = Playlist("New Playlist")
+        playlist = Playlist(name="New Playlist")
         self.playlist_manager.add_playlist(playlist)
         column_manager = ColumnManager(self.column_default_definitions)
         self.add_playlist(playlist, column_manager)
@@ -145,14 +146,13 @@ class MainWindow(QMainWindow):
                 self.playlist_manager.save_playlist(playlist, file_path)
                 logger.info(f"Exported playlist: {playlist.name}")
 
-    def rename_playlist(self, new_name: str) -> None:
-        current_index = self.tab_widget.currentIndex()
-        if current_index != -1:
-            self.tab_widget.rename_playlist_tab(current_index, new_name)
-
     def closeEvent(self, event) -> None:
         self.playlist_manager.save_playlists()
         self.tab_widget.update_tab_column_widths()
+
+        columns_dir = os.path.join(self.playlist_manager.playlists_path, "columns")
+        os.makedirs(columns_dir, exist_ok=True)
+
         for playlist_id, column_manager in self.column_managers.items():
             config_path = os.path.join(
                 self.playlist_manager.playlists_path,
@@ -167,6 +167,8 @@ class MainWindow(QMainWindow):
         playlist_view = PlaylistTreeView(
             icons, self.settings, playlist, column_manager, self
         )
+
+        playlist.name = playlist.name or ""
         self.tab_widget.addTab(playlist_view, playlist.name)
         self.column_managers[playlist.id] = column_manager
 

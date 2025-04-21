@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 class Playlist:
     def __init__(
-        self, id: str = "", name: str = "", items: Optional[List[Dict[str, Any]]] = None
+        self, id: Optional[str] = None, name: Optional[str] = None, items: Optional[List[Dict[str, Any]]] = None
     ) -> None:
         self.id = id if id else str(uuid.uuid4())
         self.name = name

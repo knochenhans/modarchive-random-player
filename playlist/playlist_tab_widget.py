@@ -15,7 +15,7 @@ class PlaylistTabWidget(QTabWidget):
     files_dropped = Signal(list, Playlist)
     tab_added = Signal()
     tab_deleted = Signal(int)
-    tab_renamed = Signal(str)
+    # tab_renamed = Signal(str)
 
     def __init__(
         self,
@@ -28,6 +28,7 @@ class PlaylistTabWidget(QTabWidget):
         self.playlist_manager = playlist_manager
 
         self.tab_bar = PlaylistTabBar(parent)
+        self.tab_bar.tab_renamed.connect(self.on_tab_renamed)
         self.setTabBar(self.tab_bar)
 
         self.tabBarDoubleClicked.connect(self.doubleClicked)
@@ -88,14 +89,16 @@ class PlaylistTabWidget(QTabWidget):
 
     @Slot()
     def on_song_double_clicked(self, song: Song, row: int, playlist: Playlist) -> None:
-        self.song_double_clicked.emit(song, row, playlist)        
+        self.song_double_clicked.emit(song, row, playlist)
 
+    @Slot()
     def on_tab_close(self, index: int) -> None:
         self.playlist_manager.delete_playlist(index)
         self.removeTab(index)
 
-    def rename_playlist_tab(self, index: int, new_name: str) -> None:
-        self.setTabText(index, new_name)
+    @Slot()
+    def on_tab_renamed(self, new_name: str) -> None:
+        index = self.tabBar().currentIndex()
         playlist_view = self.widget(index)
         if isinstance(playlist_view, PlaylistTreeView):
             playlist_view.playlist.name = new_name
