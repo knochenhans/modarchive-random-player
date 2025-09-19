@@ -25,7 +25,7 @@ from player_backends.player_backend import PlayerBackend
 class PlayerBackendLibUADE(PlayerBackend):
     def __init__(self, name: str = "LibUADE") -> None:
         super().__init__(name)
-        self.state_ptr: ctypes._Pointer[uade_state] = libuade.uade_new_state(None)
+        self.state_ptr: ctypes._Pointer[uade_state] = ctypes.POINTER(uade_state)()
         self.config_ptr: ctypes._Pointer[uade_config] = libuade.uade_new_config()
         # self.config = ctypes.cast(libuade.uade_new_config(), ctypes.POINTER(uade_config))
 
@@ -99,6 +99,8 @@ class PlayerBackendLibUADE(PlayerBackend):
             #         rate=samplerate,
             #         output=True,
             #     )
+            case _:
+                pass
 
         libuade.uade_cleanup_state(self.state_ptr)
 
@@ -216,7 +218,7 @@ class PlayerBackendLibUADE(PlayerBackend):
             subsongs=si,
         )
         event = uade_event(type=0, uade_event_union=event_union)
-        e = libuade.uade_get_event(ctypes.byref(event), self.state_ptr)
+        # e = libuade.uade_get_event(ctypes.byref(event), self.state_ptr)
         logger.info("event type: {}", event.type)
         return event
 
