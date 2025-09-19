@@ -102,8 +102,6 @@ class PlayerBackendLibUADE(PlayerBackend):
             case _:
                 pass
 
-        libuade.uade_cleanup_state(self.state_ptr)
-
     def retrieve_song_info(self) -> None:
         if not self.song:
             return
