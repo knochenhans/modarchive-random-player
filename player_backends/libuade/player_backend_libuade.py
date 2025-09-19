@@ -47,9 +47,13 @@ class PlayerBackendLibUADE(PlayerBackend):
 
         libc.free(ret)
 
+        self.state_ptr = libuade.uade_new_state(self.config_ptr)
+
         ret = libuade.uade_play_from_buffer(
             None, ret, self.module_size, -1, self.state_ptr
         )
+
+        libuade.uade_cleanup_state(self.state_ptr)
 
         if ret < 1:
             logger.warning(f"LibUADE is unable to play {self.song.filename}")
@@ -95,6 +99,8 @@ class PlayerBackendLibUADE(PlayerBackend):
             #         rate=samplerate,
             #         output=True,
             #     )
+
+        libuade.uade_cleanup_state(self.state_ptr)
 
     def retrieve_song_info(self) -> None:
         if not self.song:
@@ -217,7 +223,7 @@ class PlayerBackendLibUADE(PlayerBackend):
     def free_module(self) -> None:
         if self.state_ptr:
             libuade.uade_cleanup_state(self.state_ptr)
-            self.state_ptr = libuade.uade_new_state(None)
+            self.state_ptr = ctypes.POINTER(uade_state)()
             logger.info("UADE instance deleted")
 
     def seek(self, position: int) -> None:
