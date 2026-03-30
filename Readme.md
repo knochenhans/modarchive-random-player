@@ -2,6 +2,7 @@
 
 ![grafik](https://github.com/user-attachments/assets/1e9d1c44-2344-43b0-a531-80a131ebbac2)
 
+This is archived now, development is continued in [PyRetroPlayer](https://github.com/knochenhans/PyRetroPlayer).
 
 A simple retro music player application using `libopenmpt` and `libuade` to play random module files from *[The Mod Archive](https://modarchive.org)*, and also supports `libgme`. This application is built with Python and PySide6 for the GUI, and uses `pyaudio` for audio playback. It chooses the best player based on the module type.
 
